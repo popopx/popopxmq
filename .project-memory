@@ -83,3 +83,24 @@ dist-newstyle/build/x86_64-linux/ghc-9.6.6/popopxmq-7.0.1.0/x/
 - 本地编译的可执行文件需要手动部署或使用其他安装方式
 - 脚本仅支持 Ubuntu 20.04, 22.04, 24.04
 - 仅支持 x86_64 架构
+
+## Git 配置
+
+### 仓库信息
+- Remote: https://github.com/popopx/popopxmq.git
+- Local Branch: master
+- Default Branch (GitHub): main
+- 注意: GitHub 默认分支是 main，但本地代码在 master 分支
+
+### 认证配置
+- Token 存储位置: ~/.popopx-credentials
+- 使用方式: source ~/.popopx-credentials && git push
+- 环境变量: GITHUB_TOKEN
+
+### 提交历史
+- 3a9d65a: Initial commit: POPOPXMQ fork from simplexmq v7.0.1.0
+- 917411b: Convert README to English
+
+### Git 用户配置
+- user.name: popopx
+- user.email: service@globaldep.com
