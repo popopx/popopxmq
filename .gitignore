@@ -1,0 +1,32 @@
+# Build artifacts
+dist-newstyle/
+dist/
+*.o
+*.hi
+*.dyn_o
+*.dyn_hi
+
+# Cabal
+.cabal-warmup
+cabal.project.local~
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+
+# Project memory (internal use)
+# .project-memory
