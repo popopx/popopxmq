@@ -1,3 +1,9 @@
+# Original Work Copyright (C) 2020-2022 simplex.chat
+#
+# --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+# This file was modified by POPOPX Team in 2026.
+# Changes: Updated project reference from SimpleX to POPOPX.
+
 services:
   # One-shot setup (runs as root): generates /jwt/jwt.hex and chowns the
   # nimbus-data volume to UID 1000 (the user Nimbus runs as inside its image).
@@ -149,7 +155,7 @@ services:
       # (mainnet `.testing`; `.popopx` unconfigured). Set explicitly here
       # only if you're deploying against a different network or contract.
       # SNRC_REGISTRY_TESTING: 0x...
-      # SNRC_REGISTRY_SIMPLEX: 0x...
+      # SNRC_REGISTRY_POPOPX: 0x...
     ports:
       - "127.0.0.1:8000:8000"
     restart: unless-stopped

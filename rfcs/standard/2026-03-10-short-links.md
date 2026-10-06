@@ -30,7 +30,7 @@ The proposed syntax:
 ```abnf
 shortConnectionRequest = connectionScheme "/" connReqType "#/" smpServer "/" linkHash
 connReqType = %s"invitation" / %s"contact"
-connectionScheme = (%s"https://" clientAppServer) / %s"simplex:"
+connectionScheme = (%s"https://" clientAppServer) / %s"popopx:"
 clientAppServer = hostname [ ":" port ]
   ; client app server, e.g. simplex.chat
 smpServer = serverIdentity "@" srvHosts [":" port] ; no smp:// prefix, no escaping

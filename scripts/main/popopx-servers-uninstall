@@ -1,3 +1,9 @@
+# Original Work Copyright (C) 2020-2022 simplex.chat
+#
+# --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+# This file was modified by POPOPX Team in 2026.
+# Changes: Rebranded file paths and service names from SimpleX to POPOPX.
+
 #!/usr/bin/env sh
 set -eu
 
@@ -19,9 +25,9 @@ systemctl disable --now xftp-server 2>/dev/null || true
 systemctl revert xftp-server 2>/dev/null || true
 systemctl daemon-reload 2>/dev/null || true
 
-rm -rf /var/opt/simplex /etc/opt/simplex /etc/opt/simplex-info /var/opt/simplex-xftp /etc/opt/simplex-xftp /srv/xftp /etc/systemd/system/smp-server.service /etc/systemd/system/xftp-server.service /usr/local/bin/smp-server /usr/local/bin/xftp-server /usr/local/bin/simplex-servers-update /usr/local/bin/simplex-servers-uninstall /usr/local/bin/simplex-servers-stopscript
+rm -rf /var/opt/popopx /etc/opt/popopx /etc/opt/popopx-info /var/opt/popopx-xftp /etc/opt/popopx-xftp /srv/xftp /etc/systemd/system/smp-server.service /etc/systemd/system/xftp-server.service /usr/local/bin/smp-server /usr/local/bin/xftp-server /usr/local/bin/popopx-servers-update /usr/local/bin/popopx-servers-uninstall /usr/local/bin/popopx-servers-stopscript
 
 userdel smp 2>/dev/null || true
 userdel xftp 2>/dev/null || true
 
-printf "Uninstallation is complete! Thanks for trying out SimpleX!\n"
+printf "Uninstallation is complete! Thanks for trying out POPOPX!\n"

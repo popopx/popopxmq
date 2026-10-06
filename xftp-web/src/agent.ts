@@ -1,4 +1,10 @@
-// XFTP upload/download orchestration + URI encoding -- Simplex.FileTransfer.Client.Main
+// Original Work Copyright (C) 2020-2022 simplex.chat
+//
+// --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+// This file was modified by POPOPX Team in 2026.
+// Changes: Updated module reference comments from Simplex.FileTransfer to Popopx.FileTransfer.
+
+// XFTP upload/download orchestration + URI encoding -- Popopx.FileTransfer.Client.Main
 //
 // Combines all building blocks: encryption, chunking, XFTP client commands,
 // file descriptions, and DEFLATE-compressed URI encoding.

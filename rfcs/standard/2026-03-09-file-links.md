@@ -69,7 +69,7 @@ An application will then receive `RFPROG` and `RFDONE` messages as usual.
 
 ## URI encoding
 
-File description URIs use the same service schema `simplex:` or its `https://simplex.chat` (or any custom host) equivalent as do contact links and can be extracted from text and processed the same way.
+File description URIs use the same service schema `popopx:` or its `https://simplex.chat` (or any custom host) equivalent as do contact links and can be extracted from text and processed the same way.
 The path section is `/file` (with an optional trailing `/`).
 The payload is encoded in the "fragment" part of the link, using `#/?`, followed by a query string.
 File description is encoded first in a YAML document, then URL-encoded in under the key `d`.
@@ -77,4 +77,4 @@ An application may want to pass extra parameters not necessary to download a fil
 
 An example link:
 
-`simplex:/file#/?d=chunkSize%3A%2064kb%0Adigest%3A%20OtpnXkECTW4a18Eots2m3O22maeOCMqPUX4ulugIjgMEJfCpTYc_-T257Uw7s9bW_F0G5WBg5BioBWd4Z_OoCw%3D%3D%0Akey%3A%20rNR8_2SJuH7Qve43gV3zszL0R6oY5HSdRZT_paB-wfE%3D%0Anonce%3A%202oKwfK-w75nwyWp8_1Lv6QnQonIRtJmG%0Aparty%3A%20recipient%0Areplicas%3A%0A-%20chunks%3A%0A%20%20-%201%3ATdvaxMnG2Ph1e3QCx3-rpA%3D%3D%3AMC4CAQAwBQYDK2VwBCIEILdErEICvgrBCajDLTX2h3LXyMB7z5vrtLa3XVigJuf-%3ANS46KuYdgOWs6dUeMp7p2oF8rBQ9wQ2Ez6TW6Y6gHg0%3D%0A%20%20-%202%3AH5SRbtKYrXWVXTthrkeWzw%3D%3D%3AMC4CAQAwBQYDK2VwBCIEIGeEPNLt7lUGPfplwsoJLCDFnbIc5Hm31kz5X6rWXmgu%3A7QNRI-gvFx9UM-baXp3YVDli9pcfh3HGFKDhsA9JQHY%3D%0A%20%20-%203%3A_xjukkIl9WZFryUXT0h_TQ%3D%3D%3AMC4CAQAwBQYDK2VwBCIEIIRFBaL1HvUfePvKLuggwUrC_q_ZHd7v08IL9jhM7teC%3Aid2lgLMMjTGsR8SUogJuRdLoEHAc5SDQKFDqlZRSuEY%3D%0A%20%20server%3A%20xftp%3A%2F%2FLcJUMfVhwD8yxjAiSaDzzGF3-kLG4Uh0Fl_ZIjrRwjI%3D%40localhost%3A7002%0Asize%3A%20192kb%0A&_=%7B%22k%22:%22test%22%7D`
+`popopx:/file#/?d=chunkSize%3A%2064kb%0Adigest%3A%20OtpnXkECTW4a18Eots2m3O22maeOCMqPUX4ulugIjgMEJfCpTYc_-T257Uw7s9bW_F0G5WBg5BioBWd4Z_OoCw%3D%3D%0Akey%3A%20rNR8_2SJuH7Qve43gV3zszL0R6oY5HSdRZT_paB-wfE%3D%0Anonce%3A%202oKwfK-w75nwyWp8_1Lv6QnQonIRtJmG%0Aparty%3A%20recipient%0Areplicas%3A%0A-%20chunks%3A%0A%20%20-%201%3ATdvaxMnG2Ph1e3QCx3-rpA%3D%3D%3AMC4CAQAwBQYDK2VwBCIEILdErEICvgrBCajDLTX2h3LXyMB7z5vrtLa3XVigJuf-%3ANS46KuYdgOWs6dUeMp7p2oF8rBQ9wQ2Ez6TW6Y6gHg0%3D%0A%20%20-%202%3AH5SRbtKYrXWVXTthrkeWzw%3D%3D%3AMC4CAQAwBQYDK2VwBCIEIGeEPNLt7lUGPfplwsoJLCDFnbIc5Hm31kz5X6rWXmgu%3A7QNRI-gvFx9UM-baXp3YVDli9pcfh3HGFKDhsA9JQHY%3D%0A%20%20-%203%3A_xjukkIl9WZFryUXT0h_TQ%3D%3D%3AMC4CAQAwBQYDK2VwBCIEIIRFBaL1HvUfePvKLuggwUrC_q_ZHd7v08IL9jhM7teC%3Aid2lgLMMjTGsR8SUogJuRdLoEHAc5SDQKFDqlZRSuEY%3D%0A%20%20server%3A%20xftp%3A%2F%2FLcJUMfVhwD8yxjAiSaDzzGF3-kLG4Uh0Fl_ZIjrRwjI%3D%40localhost%3A7002%0Asize%3A%20192kb%0A&_=%7B%22k%22:%22test%22%7D`

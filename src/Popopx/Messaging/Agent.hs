@@ -1,3 +1,9 @@
+-- Original Work Copyright (C) 2020-2022 simplex.chat
+--
+-- --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+-- This file was modified by POPOPX Team in 2026.
+-- Changes: Updated module reference comment from Simplex to Popopx.
+
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
@@ -20,16 +26,17 @@
 
 -- |
 -- Module      : Popopx.Messaging.Agent
--- Copyright   : (c) popopx.xyz
+-- Copyright   : (c) simplex.chat
+--               (c) popopx.xyz
 -- License     : AGPL-3
 --
--- Maintainer  : team@popopx.xyz
+-- Maintainer  : chat@popopx.xyz
 -- Stability   : experimental
 -- Portability : non-portable
 --
 -- This module defines SMP protocol agent with SQLite persistence.
 --
--- See https://github.com/simplex-chat/simplexmq/blob/master/protocol/agent-protocol.md
+-- See https://github.com/popopx/popopxmq/blob/master/protocol/agent-protocol.md
 module Popopx.Messaging.Agent
   ( -- * SMP agent functional API
     AgentClient (..),

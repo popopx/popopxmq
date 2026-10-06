@@ -1,4 +1,10 @@
-// XFTP HTTP/2 client -- Simplex.FileTransfer.Client
+// Original Work Copyright (C) 2020-2022 simplex.chat
+//
+// --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+// This file was modified by POPOPX Team in 2026.
+// Changes: Updated module reference comments from Simplex.FileTransfer to Popopx.FileTransfer.
+
+// XFTP HTTP/2 client -- Popopx.FileTransfer.Client
 //
 // Connects to XFTP server via HTTP/2, performs web handshake,
 // sends authenticated commands, receives responses.

@@ -18,7 +18,7 @@ HiddenServiceSingleHopMode 1
 
 # Specify folder for smp-tor
 ## Folder for keys, address, etc.
-HiddenServiceDir /var/lib/tor/simplex-smp/
+HiddenServiceDir /var/lib/tor/popopx-smp/
 ## Map smp port (5223) to tor
 HiddenServicePort 5223 localhost:5223
 ...
@@ -33,5 +33,5 @@ sudo systemctl restart tor
 4. Onion address can be obtained from following file:
 
 ```sh
-sudo cat /var/lib/tor/simplex-smp/hostname
+sudo cat /var/lib/tor/popopx-smp/hostname
 ```

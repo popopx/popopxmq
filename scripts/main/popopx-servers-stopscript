@@ -1,3 +1,9 @@
+# Original Work Copyright (C) 2020-2022 simplex.chat
+#
+# --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+# This file was modified by POPOPX Team in 2026.
+# Changes: Rebranded configuration paths from SimpleX to POPOPX.
+
 #!/usr/bin/env sh
 set -eu
 
@@ -14,7 +20,7 @@ NC='\033[0m'
 path_conf_var="/var/opt"
 
 smp_variables() {
-	path_conf_smp="$path_conf_var/simplex"
+	path_conf_smp="$path_conf_var/popopx"
 	path_conf_smp_archive="$path_conf_smp/backups"
 	path_conf_smp_archive_storelog="$path_conf_smp_archive/queues"
 	path_conf_smp_archive_stats="$path_conf_smp_archive/stats"
@@ -30,7 +36,7 @@ smp_variables() {
 }
 
 xftp_variables() {
-	path_conf_xftp="$path_conf_var/simplex-xftp"
+	path_conf_xftp="$path_conf_var/popopx-xftp"
 	path_conf_xftp_archive="$path_conf_xftp/backups"
 
 	path_conf_xftp_archive_storelog="$path_conf_xftp_archive/queues"

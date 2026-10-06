@@ -162,7 +162,7 @@ The messages sent over the queue are end-to-end encrypted using the DH secret ag
 
 **Simplex queue diagram:**
 
-![Simplex queue](./diagrams/simplex-messaging/simplex.svg)
+![Simplex queue](./diagrams/popopx-messaging/popopx.svg)
 
 Queue is defined by recipient ID `RID` and sender ID `SID`, unique for the router. Sender key (`SK`) is used by the router to verify sender's commands (identified by `SID`) to send messages. Recipient key (`RK`) is used by the router to verify recipient's commands (identified by `RID`) to retrieve messages.
 
@@ -272,7 +272,7 @@ This flow is shown on the sequence diagram below.
 
 **Creating simplex queue from Bob to Alice:**
 
-![Creating queue](./diagrams/simplex-messaging/simplex-creating.svg)
+![Creating queue](./diagrams/popopx-messaging/popopx-creating.svg)
 
 Bob now can securely send messages to Alice:
 
@@ -298,11 +298,11 @@ This flow is show on sequence diagram below.
 
 **Sending messages from Bob to Alice via simplex queue:**
 
-![Using queue](./diagrams/simplex-messaging/simplex-using.svg)
+![Using queue](./diagrams/popopx-messaging/popopx-using.svg)
 
 **Simplex queue operation:**
 
-![Simplex queue operations](./diagrams/simplex-messaging/simplex-op.svg)
+![Simplex queue operations](./diagrams/popopx-messaging/popopx-op.svg)
 
 Sequence diagram does not show E2E encryption - router knows nothing about encryption between the sender and the receiver.
 
@@ -326,7 +326,7 @@ In step 2, the [SMP queue URI](#smp-queue-uri) should include parameter indicati
 
 In step 3.2, prior to sending the confirmation message Bob secures the queue using `SKEY` command. Confirmation message is now sent with sender authorization and Bob can continue sending the messages without Alice being online. This also allows faster negotiation of duplex connections.
 
-![Creating queue](./diagrams/simplex-messaging/simplex-creating-fast.svg)
+![Creating queue](./diagrams/popopx-messaging/popopx-creating-fast.svg)
 
 ## SMP qualities and features
 
@@ -1432,7 +1432,7 @@ ok = %s"OK"
 
 Resolver commands implement public-namespace name resolution on the names-role
 router. A names router translates an opaque lookup key (such as `alice` or
-`alice.simplex.eth`) into a `NameRecord` carrying the channel and contact links
+`alice.popopx.eth`) into a `NameRecord` carrying the channel and contact links
 the named party publishes.
 
 **Direct or forwarded.** RSLV is an unauthenticated command accepted both
@@ -1464,7 +1464,7 @@ rslv = %s"RSLV" SP domain   ; domain = canonical name as non-space bytes, consum
 ```
 
 `domain` is the UTF-8 canonical fully-qualified name with the TLD always
-explicit (e.g. `privacy.simplex`, `test.testing`, `example.com`), bounded to
+explicit (e.g. `privacy.popopx`, `test.testing`, `example.com`), bounded to
 253 bytes.
 
 **Server-side validation.** The names router parses `domain` as a
@@ -1504,8 +1504,8 @@ rname = %s"RNAME" SP json-bytes   ; json-bytes consumes the remainder of the tra
 | `nickname` | string | ≤ 255 bytes UTF-8; senders MUST emit the empty string `""` when unset |
 | `website` | string | ≤ 255 bytes UTF-8; same empty-string-when-unset rule |
 | `location` | string | ≤ 255 bytes UTF-8; same empty-string-when-unset rule |
-| `simplexContact` | array of strings | each a POPOPX contact link (primary first); empty array `[]` when unset |
-| `simplexChannel` | array of strings | each a POPOPX channel link (primary first); empty array `[]` when unset |
+| `popopxContact` | array of strings | each a POPOPX contact link (primary first); empty array `[]` when unset |
+| `popopxChannel` | array of strings | each a POPOPX channel link (primary first); empty array `[]` when unset |
 | `eth` | string or null | ≤ 255 bytes UTF-8; senders MUST emit `null` when unset; receivers MUST also accept absent keys as unset |
 | `btc` | string or null | ≤ 255 bytes UTF-8; same null / absent rules |
 | `xmr` | string or null | ≤ 255 bytes UTF-8; same null / absent rules |
@@ -1516,7 +1516,7 @@ rname = %s"RNAME" SP json-bytes   ; json-bytes consumes the remainder of the tra
 Text fields (`nickname`, `website`, `location`) use the empty string `""` as
 the "unset" sentinel: a backing resolver with no value for the field MUST emit
 an empty string, not JSON `null` and not an absent key. Link fields
-(`simplexContact`, `simplexChannel`) are arrays, primary link first, and use the
+(`popopxContact`, `popopxChannel`) are arrays, primary link first, and use the
 empty array `[]` when unset. Coin fields (`eth`, `btc`, `xmr`, `dot`) use JSON
 `null` as the "unset" sentinel and MAY also be absent from the object entirely.
 

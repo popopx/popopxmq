@@ -1,7 +1,13 @@
+# Original Work Copyright (C) 2020-2022 simplex.chat
+#
+# --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+# This file was modified by POPOPX Team in 2026.
+# Changes: Updated project name reference from SimpleX to POPOPX.
+
 [project]
 name = "snrc-resolve"
 version = "0.1.0"
-description = "SimpleX Namespace (SNRC) resolver — REST API over ENS-shaped Ethereum registries"
+description = "Popopx Namespace (SNRC) resolver — REST API over ENS-shaped Ethereum registries"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "AGPL-3.0-only"

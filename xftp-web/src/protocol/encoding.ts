@@ -1,4 +1,10 @@
-// Binary encoding/decoding matching Haskell Simplex.Messaging.Encoding module.
+// Original Work Copyright (C) 2020-2022 simplex.chat
+//
+// --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+// This file was modified by POPOPX Team in 2026.
+// Changes: Updated module reference comments from Simplex.Messaging.Encoding to Popopx.Messaging.Encoding.
+
+// Binary encoding/decoding matching Haskell Popopx.Messaging.Encoding module.
 // All multi-byte integers are big-endian (network byte order).
 
 // -- Decoder: sequential parser over a Uint8Array (equivalent to Attoparsec parser)

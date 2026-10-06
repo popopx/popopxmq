@@ -1,8 +1,14 @@
+# Original Work Copyright (C) 2020-2022 simplex.chat
+#
+# --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+# This file was modified by POPOPX Team in 2026.
+# Changes: Updated domain references from simplexchat.eth to popopxchat.eth.
+
 #!/usr/bin/env python3
 """Resolve an ENS name via local Reth (the same shape SNRC will use).
 
 Usage:
-  ./ens-lookup.py                     # defaults to simplexchat.eth
+  ./ens-lookup.py                     # defaults to popopxchat.eth
   ./ens-lookup.py vitalik.eth
   ./ens-lookup.py corevo.eth
 
@@ -115,7 +121,7 @@ def decode_contenthash(raw: bytes) -> str:
 
 
 def main():
-    name = sys.argv[1] if len(sys.argv) > 1 else "simplexchat.eth"
+    name = sys.argv[1] if len(sys.argv) > 1 else "popopxchat.eth"
 
     print(f"  name:       {name}")
     node = namehash(name)

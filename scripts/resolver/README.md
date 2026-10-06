@@ -62,13 +62,13 @@ curl -s -X POST http://127.0.0.1:8545 \
 **2. resolver is healthy:**
 ```sh
 curl -s http://127.0.0.1:8000/health | jq
-# → {"ok": true, "rpc": "http://reth:8545", "registries": {"testing": "0x…", "simplex": ""}}
+# → {"ok": true, "rpc": "http://reth:8545", "registries": {"testing": "0x…", "popopx": ""}}
 ```
 
 **3. resolver resolves a live name** (`foobar.testing` is a populated test name):
 ```sh
 curl -s http://127.0.0.1:8000/resolve/foobar.testing | jq
-# → {"name":"foobar.testing","nickname":"Foo","simplexContact":["https://smp16.simplex.im/a#…"], … }
+# → {"name":"foobar.testing","nickname":"Foo","popopxContact":["https://smp16.simplex.im/a#…"], … }
 ```
 
 **Wire your smp-server:** in its `[NAMES]` section set
@@ -116,14 +116,14 @@ uv run scripts/resolver/service/snrc-resolve.py  # defaults to local reth + main
 {
   "name": "foobar.testing",
   "nickname": "Foo", "website": "https://foo.bar", "location": "",
-  "simplexContact": ["https://smp16.simplex.im/a#…", "https://smp11…"],  // primary first, fallbacks after
-  "simplexChannel": [],
+  "popopxContact": ["https://smp16.simplex.im/a#…", "https://smp11…"],  // primary first, fallbacks after
+  "popopxChannel": [],
   "eth": null, "btc": "bc1q…", "xmr": "4ANz…", "dot": "139G…",
   "owner": "0xd83b…", "resolver": "0x80fa…"
 }
 ```
 
-`simplexContact`/`simplexChannel` are arrays (a name can advertise multiple SMP
+`popopxContact`/`popopxChannel` are arrays (a name can advertise multiple SMP
 servers; clients try them in order). On-chain they're a single comma-separated
 text record; the resolver splits/trims/drops-empties. Address encodings are
 canonical per chain (EIP-55 / bech32 / SS58 / Monero-base58). Subnames work
@@ -140,7 +140,7 @@ identically (`bar.foobar.testing`).
 
 ### Configuring registries
 
-Defaults to mainnet `.testing` (`0x03f438…`); `.simplex` is unset until
+Defaults to mainnet `.testing` (`0x03f438…`); `.popopx` is unset until
 deployed. Override per TLD via env on the `resolver` service in
-`docker-compose.yml` (`SNRC_REGISTRY_TESTING` / `SNRC_REGISTRY_SIMPLEX`), or as
+`docker-compose.yml` (`SNRC_REGISTRY_TESTING` / `SNRC_REGISTRY_POPOPX`), or as
 env vars for the standalone script.

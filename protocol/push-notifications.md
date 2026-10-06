@@ -13,7 +13,7 @@ This document describes Notification Router protocol version 3. Version history:
 - [Participating routers](#participating-routers)
 - [Register device token to receive push notifications](#register-device-token-to-receive-push-notifications)
 - [Subscribe to connection notifications](#subscribe-to-connection-notifications)
-- [POPOPX Notification Router protocol](#simplex-notification-router-protocol)
+- [POPOPX Notification Router protocol](#popopx-notification-router-protocol)
   - [Register new notification token](#register-new-notification-token)
   - [Verify notification token](#verify-notification-token)
   - [Check notification token status](#check-notification-token-status)

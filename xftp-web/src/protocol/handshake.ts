@@ -1,4 +1,10 @@
-// XFTP handshake encoding/decoding -- Simplex.FileTransfer.Transport
+// Original Work Copyright (C) 2020-2022 simplex.chat
+//
+// --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+// This file was modified by POPOPX Team in 2026.
+// Changes: Updated module reference comments from Simplex.FileTransfer.Transport to Popopx.FileTransfer.Transport.
+
+// XFTP handshake encoding/decoding -- Popopx.FileTransfer.Transport
 //
 // Handles XFTP client/server handshake messages and version negotiation.
 

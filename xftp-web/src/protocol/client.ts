@@ -1,4 +1,10 @@
-// XFTP client protocol operations -- Simplex.FileTransfer.Client + Crypto
+// Original Work Copyright (C) 2020-2022 simplex.chat
+//
+// --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+// This file was modified by POPOPX Team in 2026.
+// Changes: Updated module reference comments from Simplex.FileTransfer to Popopx.FileTransfer.
+
+// XFTP client protocol operations -- Popopx.FileTransfer.Client + Crypto
 //
 // CbAuthenticator-based command authentication and transport-level
 // chunk encryption/decryption for XFTP downloads.

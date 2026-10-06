@@ -234,7 +234,7 @@ File description URI syntax:
 
 ```abnf
 fileDescriptionURI = serviceScheme "/file"  "#/?desc=" description [ "&data=" userData ]
-serviceScheme = (%s"https://" clientAppServer) / %s"simplex:"
+serviceScheme = (%s"https://" clientAppServer) / %s"popopx:"
 clientAppServer = hostname [ ":" port ]
 ; client app server, e.g. simplex.chat
 description = <URI-escaped YAML file description>
@@ -243,7 +243,7 @@ userData = <any URI-compatible string>
 
 clientAppServer is not a server the client connects to - it is a server that shows the instruction on how to download the client app that will connect using this connection request. This server can also host a mobile or desktop app manifest so that this link is opened directly in the app if it is installed on the device.
 
-"simplex" URI scheme in serviceScheme can be used instead of client app server. Client apps MUST support this URI scheme.
+"popopx" URI scheme in serviceScheme can be used instead of client app server. Client apps MUST support this URI scheme.
 
 ## XFTP qualities and features
 

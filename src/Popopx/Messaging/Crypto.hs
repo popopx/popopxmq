@@ -1,3 +1,9 @@
+-- Original Work Copyright (C) 2020-2022 simplex.chat
+--
+-- --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+-- This file was modified by POPOPX Team in 2026.
+-- Changes: Rebranded module from Simplex.Messaging.Crypto to Popopx.Messaging.Crypto.
+
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ConstraintKinds #-}
@@ -26,10 +32,11 @@
 
 -- |
 -- Module      : Popopx.Messaging.Crypto
--- Copyright   : (c) popopx.xyz
+-- Copyright   : (c) simplex.chat
+--               (c) popopx.xyz
 -- License     : AGPL-3
 --
--- Maintainer  : team@popopx.xyz
+-- Maintainer  : chat@popopx.xyz
 -- Stability   : experimental
 -- Portability : non-portable
 --

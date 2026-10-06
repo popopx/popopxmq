@@ -1,4 +1,10 @@
-// Key generation, signing, DH -- Simplex.Messaging.Crypto (Ed25519/X25519/Ed448 functions).
+// Original Work Copyright (C) 2020-2022 simplex.chat
+//
+// --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+// This file was modified by POPOPX Team in 2026.
+// Changes: Updated module reference comments from Simplex.Messaging.Crypto to Popopx.Messaging.Crypto.
+
+// Key generation, signing, DH -- Popopx.Messaging.Crypto (Ed25519/X25519/Ed448 functions).
 
 import sodium from "libsodium-wrappers-sumo"
 await sodium.ready

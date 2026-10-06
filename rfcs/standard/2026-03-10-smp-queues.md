@@ -255,7 +255,7 @@ The syntax:
 
 ```abnf
 shortConnectionLink = uriAuthority "/" linkUri [ "?" param *( "&" param ) ]
-uriAuthority = %s"https://" smpServerHost / "simplex:" ; using simplex: scheme requires including host in the parameter hostParam
+uriAuthority = %s"https://" smpServerHost / "popopx:" ; using popopx: scheme requires including host in the parameter hostParam
 smpServerHost = <hostname> ; RFC1123, RFC5891
 linkUri = %s"i#" oneTimeLink / contactType "#" contactLink
 contactType = %s"a" / %s"g" / %s"c" ; contact / group / channel address, respectively

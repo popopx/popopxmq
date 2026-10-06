@@ -1,3 +1,9 @@
+# Original Work Copyright (C) 2020-2022 simplex.chat
+#
+# --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+# This file was modified by POPOPX Team in 2026.
+# Changes: Updated stopscript reference from simplex-servers-stopscript to popopx-servers-stopscript.
+
 #!/usr/bin/env sh
 set -e
 
@@ -80,7 +86,7 @@ if [ ! -f "${confd}/smp-server.ini" ]; then
 fi
 
 # Backup store log just in case
-DOCKER=true /usr/local/bin/simplex-servers-stopscript smp-server
+DOCKER=true /usr/local/bin/popopx-servers-stopscript smp-server
 
 # Finally, run smp-sever. Notice that "exec" here is important:
 # smp-server replaces our helper script, so that it can catch INT signal

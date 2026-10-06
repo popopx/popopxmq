@@ -1,3 +1,9 @@
+// Original Work Copyright (C) 2020-2022 simplex.chat
+//
+// --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+// This file was modified by POPOPX Team in 2026.
+// Changes: Updated project description reference from SimpleX to POPOPX.
+
 {
   "name": "@popopx/xftp-web",
   "version": "0.3.0",
@@ -5,7 +11,7 @@
   "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/simplex-chat/simplexmq.git",
+    "url": "git+https://github.com/popopx/popopxmq.git",
     "directory": "xftp-web"
   },
   "type": "module",

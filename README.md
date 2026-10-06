@@ -8,6 +8,17 @@ POPOPXMQ is a message broker for managing unidirectional (simplex) message queue
 
 > This is a fork of [simplexmq](https://github.com/simplex-chat/simplexmq), maintained and developed by the [POPOPX](https://popopx.xyz) team.
 
+## Secondary Development Declaration
+
+This project is a derivative work based on the original open-source project [simplexmq](https://github.com/simplex-chat/simplexmq) by [simplex.chat](https://github.com/simplex-chat).
+
+In accordance with the **GNU Affero General Public License v3 (AGPL v3)**, the following modification information is hereby declared:
+
+- **Secondary Developer**: POPOPX Team (<chat@popopx.xyz>)
+- **Modification Start Date**: July 2026
+
+This derivative version is also openly released under the GNU AGPL v3 license.
+
 ## Core Features
 
 - **Unidirectional Queue Management** - Message broker based on simplex queues
@@ -212,6 +223,18 @@ This project is based on [simplexmq](https://github.com/simplex-chat/simplexmq) 
 ## License
 
 This project is licensed under the [AGPL-3.0](./LICENSE) License.
+
+## Source Code Availability (AGPL v3 Section 13)
+
+In compliance with the GNU Affero General Public License v3 (AGPL v3) Section 13, the complete source code of this software is made available to all users interacting with it over a network.
+
+You may obtain the source code by:
+
+- **Downloading from GitHub**: https://github.com/popopx/popopxmq
+- **Building from source**: See the [Installation](#method-2-building-from-source) section above
+- **Requesting source code**: Contact the POPOPX Team at <chat@popopx.xyz>
+
+If you modify and deploy this software as a network service, you are required under AGPL v3 to offer the corresponding source code to your users.
 
 ---
 

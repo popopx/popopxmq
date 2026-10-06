@@ -1,3 +1,9 @@
+# Original Work Copyright (C) 2020-2022 simplex.chat
+#
+# --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+# This file was modified by POPOPX Team in 2026.
+# Changes: Updated project name reference from simplexmq to popopxmq.
+
 #!/usr/bin/env sh
 set -eu
 
@@ -7,7 +13,7 @@ tempdir="$(mktemp -d)"
 init_dir="$PWD"
 
 repo_name="popopxmq"
-repo="https://github.com/simplex-chat/${repo_name}"
+repo="https://github.com/popopx/${repo_name}"
 export DOCKER_BUILDKIT=1
 
 cleanup() {

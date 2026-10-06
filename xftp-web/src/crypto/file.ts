@@ -1,4 +1,10 @@
-// File-level encryption/decryption matching Simplex.FileTransfer.Crypto.
+// Original Work Copyright (C) 2020-2022 simplex.chat
+//
+// --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+// This file was modified by POPOPX Team in 2026.
+// Changes: Updated module reference comments from Simplex.Messaging.Crypto to Popopx.Messaging.Crypto.
+
+// File-level encryption/decryption matching Popopx.FileTransfer.Crypto.
 // Operates on in-memory Uint8Array (no file I/O needed for browser).
 
 import {Decoder, concatBytes, encodeInt64, encodeString, decodeString, encodeMaybe, decodeMaybe} from "../protocol/encoding.js"

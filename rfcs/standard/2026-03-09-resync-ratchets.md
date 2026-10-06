@@ -9,7 +9,7 @@ Protocol: agent-protocol v3
 
 ## Problem
 
-See https://github.com/simplex-chat/popopxmq/pull/743/files for problem and high-level solution.
+See https://github.com/popopx/popopxmq/pull/743/files for problem and high-level solution.
 
 ## Implementation
 

@@ -46,7 +46,7 @@ Extend router INI file with information section:
 [INFORMATION]
 # Please note that under AGPLv3 license conditions you MUST make
 # any source code modifications available to the end users of the router.
-# LICENSE: https://github.com/simplex-chat/popopxmq/blob/stable/LICENSE
+# LICENSE: https://github.com/popopx/popopxmq/blob/stable/LICENSE
 # Not doing so would constitute a license violation.
 # Declaring an incorrect information here amounts to a fraud.
 # The license holders reserve the right to prosecute missing or incorrect
@@ -54,7 +54,7 @@ Extend router INI file with information section:
 # The router will show warning on start if this field is absent
 # and will not launch from v6.0 until this field is added.
 # If any other information field is present, source code property also MUST be present.
-source_code: https://github.com/simplex-chat/popopxmq
+source_code: https://github.com/popopx/popopxmq
 
 # Declaring all below information is optional, any of these fields can be omitted.
 # Declaring an incorrect information here would amount to a fraud.
@@ -68,10 +68,10 @@ server_country: SE
 operator: POPOPX Chat Ltd.
 operator_country: GB # operator country
 website: https://simplex.chat
-admin_simplex: administrative POPOPX address
+admin_popopx: administrative POPOPX address
 admin_email: chat@simplex.chat
 admin_pgp: PGP key
-complaints_simplex: POPOPX address for feedback, comments and complaints
+complaints_popopx: POPOPX address for feedback, comments and complaints
 complaints_email: complaints@simplex.chat
 complaints_pgp: PGP key
 hosting: Linode / Akamai Inc.

@@ -1,3 +1,9 @@
+# Original Work Copyright (C) 2020-2022 simplex.chat
+#
+# --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+# This file was modified by POPOPX Team in 2026.
+# Changes: Updated ExecStopPost reference from simplex-servers-stopscript to popopx-servers-stopscript.
+
 [Unit]
 Description=SMP server
 
@@ -7,7 +13,7 @@ Group=smp
 Type=simple
 
 ExecStart=/usr/local/bin/smp-server start +RTS -N -RTS 
-ExecStopPost=/usr/local/bin/simplex-servers-stopscript smp-server
+ExecStopPost=/usr/local/bin/popopx-servers-stopscript smp-server
 
 LimitNOFILE=65535
 KillSignal=SIGINT

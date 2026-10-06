@@ -1,4 +1,10 @@
-// XFTP chunk sizing -- Simplex.FileTransfer.Chunks + Client
+// Original Work Copyright (C) 2020-2022 simplex.chat
+//
+// --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+// This file was modified by POPOPX Team in 2026.
+// Changes: Updated module reference comments from Simplex.FileTransfer to Popopx.FileTransfer.
+
+// XFTP chunk sizing -- Popopx.FileTransfer.Chunks + Client
 //
 // Computes chunk sizes for file uploads, chunk specifications with offsets,
 // and per-chunk SHA-256 digests.
@@ -6,7 +12,7 @@
 import {kb, mb} from "./description.js"
 import {sha256} from "../crypto/digest.js"
 
-// -- Chunk size constants (Simplex.FileTransfer.Chunks)
+// -- Chunk size constants (Popopx.FileTransfer.Chunks)
 
 export const chunkSize0 = kb(64)   // 65536
 export const chunkSize1 = kb(256)  // 262144
@@ -20,7 +26,7 @@ export const serverChunkSizes = [chunkSize0, chunkSize1, chunkSize2, chunkSize3]
 export const fileSizeLen = 8     // 64-bit file size prefix (padLazy)
 export const authTagSize = 16   // Poly1305 authentication tag
 
-// -- Chunk sizing (Simplex.FileTransfer.Client.prepareChunkSizes)
+// -- Chunk sizing (Popopx.FileTransfer.Client.prepareChunkSizes)
 
 function size34(sz: number): number {
   return Math.floor((sz * 3) / 4)

@@ -1,10 +1,16 @@
+# Original Work Copyright (C) 2020-2022 simplex.chat
+#
+# --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+# This file was modified by POPOPX Team in 2026.
+# Changes: Updated installation paths from SimpleX to POPOPX.
+
 #!/bin/bash
 
 # Download latest release
 bin_dir="/opt/popopx/bin"
 binary="$bin_dir/smp-server"
 mkdir -p $bin_dir
-curl -L -o $binary https://github.com/simplex-chat/popopxmq/releases/latest/download/smp-server-ubuntu-20_04-x86-64
+curl -L -o $binary https://github.com/popopx/popopxmq/releases/latest/download/smp-server-ubuntu-20_04-x86-64
 chmod +x $binary
 
 # / Add to PATH

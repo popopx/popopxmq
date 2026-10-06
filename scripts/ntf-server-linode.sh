@@ -1,3 +1,9 @@
+# Original Work Copyright (C) 2020-2022 simplex.chat
+#
+# --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+# This file was modified by POPOPX Team in 2026.
+# Changes: Updated project reference from SimpleX to POPOPX.
+
 #!/bin/bash
 
 # <UDF name="enable_store_log" label="Store log - persist notification subscriptions to append only log and restore them upon server restart." default="on" oneof="on, off" />
@@ -55,7 +61,7 @@ echo 'root hard nofile unlimited' >> /etc/security/limits.conf
 bin_dir="/opt/popopx-notifications/bin"
 binary="$bin_dir/ntf-server"
 mkdir -p $bin_dir
-curl -L -o $binary https://github.com/simplex-chat/popopxmq/releases/latest/download/ntf-server-ubuntu-20_04-x86-64
+curl -L -o $binary https://github.com/popopx/popopxmq/releases/latest/download/ntf-server-ubuntu-20_04-x86-64
 chmod +x $binary
 
 # / Add to PATH

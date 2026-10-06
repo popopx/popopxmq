@@ -1,4 +1,10 @@
-// XFTP transmission framing -- Simplex.Messaging.Transport + FileTransfer.Protocol
+// Original Work Copyright (C) 2020-2022 simplex.chat
+//
+// --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+// This file was modified by POPOPX Team in 2026.
+// Changes: Updated module reference comments from Simplex.FileTransfer.Protocol to Popopx.FileTransfer.Protocol.
+
+// XFTP transmission framing -- Popopx.Messaging.Transport + FileTransfer.Protocol
 //
 // Handles block-level pad/unpad, batch encoding, and Ed25519 auth signing.
 

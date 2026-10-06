@@ -1,4 +1,10 @@
-// Protocol commands and responses -- Simplex.FileTransfer.Protocol
+// Original Work Copyright (C) 2020-2022 simplex.chat
+//
+// --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+// This file was modified by POPOPX Team in 2026.
+// Changes: Updated module reference comments from Simplex.FileTransfer.Protocol to Popopx.FileTransfer.Protocol.
+
+// Protocol commands and responses -- Popopx.FileTransfer.Protocol
 //
 // Commands (client -> server): FNEW, FADD, FPUT, FDEL, FGET, FACK, PING
 // Responses (server -> client): SIDS, RIDS, FILE, OK, ERR, PONG

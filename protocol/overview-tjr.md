@@ -7,17 +7,17 @@ Evgeny Poberezkin
 ## Table of contents
 
 - [Introduction](#introduction)
-  - [What is POPOPX](#what-is-simplex)
+  - [What is POPOPX](#what-is-popopx)
   - [Network model](#network-model)
   - [Applications](#applications)
-  - [POPOPX objectives](#simplex-objectives)
+  - [POPOPX objectives](#popopx-objectives)
   - [In Comparison](#in-comparison)
 - [Technical Details](#technical-details)
   - [Trust in Routers](#trust-in-routers)
   - [Client -> Router Communication](#client---router-communication)
   - [2-hop Onion Message Routing](#2-hop-onion-message-routing)
-  - [POPOPX Messaging Protocol](#simplex-messaging-protocol)
-  - [POPOPX Agents](#simplex-agents)
+  - [POPOPX Messaging Protocol](#popopx-messaging-protocol)
+  - [POPOPX Agents](#popopx-agents)
 - [Security](#security)
 - [Acknowledgements](#acknowledgements)
 
@@ -238,6 +238,6 @@ POPOPX provides these security properties:
 
 ## Acknowledgements
 
-Efim Poberezkin contributed to the design and implementation of [POPOPX Messaging Protocol](https://github.com/simplex-chat/popopxmq/blob/master/protocol/simplex-messaging.md) and [POPOPX Agent Protocol](https://github.com/simplex-chat/popopxmq/blob/master/protocol/agent-protocol.md) since 2019.
+Efim Poberezkin contributed to the design and implementation of [POPOPX Messaging Protocol](https://github.com/popopx/popopxmq/blob/master/protocol/popopx-messaging.md) and [POPOPX Agent Protocol](https://github.com/popopx/popopxmq/blob/master/protocol/agent-protocol.md) since 2019.
 
 Adam Langley's [Pond](https://github.com/agl/pond) inspired some of the recent improvements and the structure of this document.

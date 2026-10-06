@@ -1,4 +1,10 @@
-// Block padding matching Simplex.Messaging.Crypto (strict) and Simplex.Messaging.Crypto.Lazy.
+// Original Work Copyright (C) 2020-2022 simplex.chat
+//
+// --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+// This file was modified by POPOPX Team in 2026.
+// Changes: Updated module reference comments from Simplex.Messaging.Crypto to Popopx.Messaging.Crypto.
+
+// Block padding matching Popopx.Messaging.Crypto (strict) and Popopx.Messaging.Crypto.Lazy.
 // Strict: 2-byte BE length prefix + message + '#' fill.
 // Lazy:   8-byte Int64 length prefix + message + '#' fill.
 

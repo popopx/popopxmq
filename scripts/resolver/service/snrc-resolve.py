@@ -1,3 +1,9 @@
+# Original Work Copyright (C) 2020-2022 simplex.chat
+#
+# --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+# This file was modified by POPOPX Team in 2026.
+# Changes: Rebranded namespace references, function names, and registry keys from SimpleX to POPOPX.
+
 #!/usr/bin/env python3
 # /// script
 # requires-python = ">=3.11"
@@ -5,18 +11,18 @@
 #   "eth-hash[pycryptodome]>=0.7",
 # ]
 # ///
-"""SimpleX Namespace (SNRC) resolver — REST API.
+"""Popopx Namespace (SNRC) resolver — REST API.
 
-Resolves names like `alice.testing` / `bob.simplex` against the SNRC
+Resolves names like `alice.testing` / `bob.popopx` against the SNRC
 deployment on Ethereum mainnet (or any compatible ENS-shaped registry)
 and returns a flat JSON document with these fields:
 
   name, nickname, website, location,
-  simplexContact, simplexChannel,    -- list[str], primary first
+  popopxContact, popopxChannel,    -- list[str], primary first
   eth, btc, xmr, dot,
   owner, resolver
 
-`simplexContact` and `simplexChannel` are arrays so a name can advertise
+`popopxContact` and `popopxChannel` are arrays so a name can advertise
 multiple SMP servers for redundancy. Clients SHOULD try the URLs in the
 order returned. The on-chain text record stores them as a single
 `LINK_SEPARATOR` (`;`)-joined string; this resolver splits and trims into a list.
@@ -36,7 +42,7 @@ Environment:
   SNRC_REGISTRY_TESTING  ENSRegistry for the .testing deployment
                          (default: mainnet,
                           0x58fc46996d975c57883564648bda5206d1a0102b)
-  SNRC_REGISTRY_SIMPLEX  ENSRegistry for the .simplex deployment
+  SNRC_REGISTRY_POPOPX  ENSRegistry for the .popopx deployment
                          (default: empty — TLD not yet deployed)
   SNRC_PORT              Listen port (default: 8000)
   SNRC_BIND              Bind address (default: 0.0.0.0)
@@ -81,7 +87,7 @@ PORT = int(os.environ.get("SNRC_PORT", "8000"))
 REGISTRIES = {
     "testing": os.environ.get("SNRC_REGISTRY_TESTING", "")
     or "0x58fc46996d975c57883564648bda5206d1a0102b",  # mainnet .testing
-    "simplex": os.environ.get("SNRC_REGISTRY_SIMPLEX", ""),  # not deployed yet
+    "popopx": os.environ.get("SNRC_REGISTRY_POPOPX", ""),  # not deployed yet
 }
 
 # SLIP-44 coin types (https://github.com/satoshilabs/slips/blob/master/slip-0044.md)
@@ -367,14 +373,14 @@ TEXT_KEYS = [
     "description",
     "url",
     "location",
-    "simplex.contact",
-    "simplex.channel",
+    "popopx.contact",
+    "popopx.channel",
 ]
 
 
-# Separator that joins the SMP-server URL list inside a simplex.contact /
-# simplex.channel text record. MUST match SIMPLEX_LINK_SEPARATOR in the dApp
-# (ens-app-v3 src/constants/simplex.ts) — the two sides decode the same record.
+# Separator that joins the SMP-server URL list inside a popopx.contact /
+# popopx.channel text record. MUST match POPOPX_LINK_SEPARATOR in the dApp
+# (ens-app-v3 src/constants/popopx.ts) — the two sides decode the same record.
 LINK_SEPARATOR = ";"
 
 
@@ -384,7 +390,7 @@ def split_links(value: str) -> list:
     Trims whitespace around each element and drops empties so trailing
     separators, doubled separators, and all-whitespace inputs all yield clean
     output. Single-value records yield a 1-element list; empty inputs
-    yield `[]`. Used for `simplex.contact` / `simplex.channel`, which
+    yield `[]`. Used for `popopx.contact` / `popopx.channel`, which
     store one-or-more SMP-server URLs as a single `LINK_SEPARATOR`-joined string.
     """
     return [item.strip() for item in value.split(LINK_SEPARATOR) if item.strip()]
@@ -428,15 +434,15 @@ def resolve(name: str):
     # Keys chosen to be valid Haskell record-field identifiers (lowercase
     # initial, no dots) so consumers can derive aeson FromJSON instances
     # without a key-rewriting layer. On-chain text-record names still
-    # use the ENSIP-5 dot convention (e.g. "simplex.contact") — only the
+    # use the ENSIP-5 dot convention (e.g. "popopx.contact") — only the
     # resolver's JSON surface camelCases them.
     return 200, {
         "name": name,
         "nickname": nickname,
         "website": texts.get("url", ""),
         "location": texts.get("location", ""),
-        "simplexContact": split_links(texts.get("simplex.contact", "")),
-        "simplexChannel": split_links(texts.get("simplex.channel", "")),
+        "popopxContact": split_links(texts.get("popopx.contact", "")),
+        "popopxChannel": split_links(texts.get("popopx.channel", "")),
         "eth": addr_multicoin(resolver_addr, node, COIN_ETH),
         "btc": addr_multicoin(resolver_addr, node, COIN_BTC),
         "xmr": addr_multicoin(resolver_addr, node, COIN_XMR),

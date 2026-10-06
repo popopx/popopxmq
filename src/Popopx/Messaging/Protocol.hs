@@ -1,3 +1,9 @@
+-- Original Work Copyright (C) 2020-2022 simplex.chat
+--
+-- --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+-- This file was modified by POPOPX Team in 2026.
+-- Changes: Updated protocol documentation URL from simplex-messaging.md to popopx-messaging.md.
+
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
@@ -31,16 +37,17 @@
 
 -- |
 -- Module      : Popopx.Messaging.ProtocolEncoding
--- Copyright   : (c) popopx.xyz
+-- Copyright   : (c) simplex.chat
+--               (c) popopx.xyz
 -- License     : AGPL-3
 --
--- Maintainer  : team@popopx.xyz
+-- Maintainer  : chat@popopx.xyz
 -- Stability   : experimental
 -- Portability : non-portable
 --
 -- Types, parsers, serializers and functions to send and receive SMP protocol commands and responses.
 --
--- See https://github.com/simplex-chat/simplexmq/blob/master/protocol/simplex-messaging.md
+-- See https://github.com/popopx/popopxmq/blob/master/protocol/popopx-messaging.md
 module Popopx.Messaging.Protocol
   ( -- * SMP protocol parameters
     supportedSMPClientVRange,

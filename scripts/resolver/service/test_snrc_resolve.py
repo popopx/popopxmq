@@ -1,3 +1,9 @@
+# Original Work Copyright (C) 2020-2022 simplex.chat
+#
+# --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+# This file was modified by POPOPX Team in 2026.
+# Changes: Updated test data URLs from simplex.im to match rebranded resolver.
+
 #!/usr/bin/env python3
 """Unit tests for snrc-resolve helpers.
 
@@ -18,9 +24,9 @@ _SPEC.loader.exec_module(snrc)
 
 
 class SplitLinksTests(unittest.TestCase):
-    """`split_links` decodes the multi-URL convention for simplex.contact /
-    simplex.channel text records. Reuses the same rule the dApp's
-    `parseSimplexUrls` uses (separator `;`), so the two sides round-trip
+    """`split_links` decodes the multi-URL convention for popopx.contact /
+    popopx.channel text records. Reuses the same rule the dApp's
+    `parsePopopxUrls` uses (separator `;`), so the two sides round-trip
     cleanly."""
 
     def test_empty_string_yields_empty_list(self):

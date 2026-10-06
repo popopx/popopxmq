@@ -1,4 +1,10 @@
-// Streaming XSalsa20-Poly1305 -- Simplex.Messaging.Crypto / Crypto.Lazy
+// Original Work Copyright (C) 2020-2022 simplex.chat
+//
+// --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+// This file was modified by POPOPX Team in 2026.
+// Changes: Updated module reference comments from Simplex.Messaging.Crypto to Popopx.Messaging.Crypto.
+
+// Streaming XSalsa20-Poly1305 -- Popopx.Messaging.Crypto / Crypto.Lazy
 //
 // Libsodium-wrappers-sumo does not expose crypto_stream_xsalsa20_xor_ic,
 // so the Salsa20/20 stream cipher core is implemented here.

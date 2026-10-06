@@ -1,3 +1,9 @@
+# Original Work Copyright (C) 2020-2022 simplex.chat
+#
+# --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
+# This file was modified by POPOPX Team in 2026.
+# Changes: Rebranded service names, file paths, and download URLs from SimpleX to POPOPX.
+
 #!/usr/bin/env sh
 set -eu
 
@@ -8,26 +14,26 @@ PATH="/usr/local/bin:$PATH"
 path_bin="/usr/local/bin"
 path_bin_smp="$path_bin/smp-server"
 path_bin_xftp="$path_bin/xftp-server"
-path_bin_update="$path_bin/simplex-servers-update"
-path_bin_uninstall="$path_bin/simplex-servers-uninstall"
-path_bin_stopscript="$path_bin/simplex-servers-stopscript"
+path_bin_update="$path_bin/popopx-servers-update"
+path_bin_uninstall="$path_bin/popopx-servers-uninstall"
+path_bin_stopscript="$path_bin/popopx-servers-stopscript"
 
 path_systemd="/etc/systemd/system"
 path_systemd_smp="$path_systemd/smp-server.service"
 path_systemd_xftp="$path_systemd/xftp-server.service"
 
 # Temporary paths
-path_tmp_bin="/tmp/simplex-servers"
+path_tmp_bin="/tmp/popopx-servers"
 path_tmp_bin_smp="$path_tmp_bin/smp-server"
 path_tmp_bin_xftp="$path_tmp_bin/xftp-server"
-path_tmp_bin_update="$path_tmp_bin/simplex-servers-update"
-path_tmp_bin_uninstall="$path_tmp_bin/simplex-servers-uninstall"
-path_tmp_bin_stopscript="$path_tmp_bin/simplex-servers-stopscript"
+path_tmp_bin_update="$path_tmp_bin/popopx-servers-update"
+path_tmp_bin_uninstall="$path_tmp_bin/popopx-servers-uninstall"
+path_tmp_bin_stopscript="$path_tmp_bin/popopx-servers-stopscript"
 path_tmp_systemd_smp="$path_tmp_bin/smp-server.service"
 path_tmp_systemd_xftp="$path_tmp_bin/xftp-server.service"
 
 path_conf_etc='/etc/opt'
-path_conf_info='/etc/opt/simplex-info'
+path_conf_info='/etc/opt/popopx-info'
 
 GRN='\033[0;32m'
 BLU='\033[1;36m'
@@ -131,7 +137,7 @@ check_versions() {
 
   case "$VER" in 
     latest)
-      remote_version="$(curl --proto '=https' --tlsv1.2 -sSf -L https://api.github.com/repos/simplex-chat/simplexmq/releases/latest 2>/dev/null | grep -i "tag_name" | awk -F \" '{print $4}')"
+      remote_version="$(curl --proto '=https' --tlsv1.2 -sSf -L https://api.github.com/repos/popopx/popopxmq/releases/latest 2>/dev/null | grep -i "tag_name" | awk -F \" '{print $4}')"
 
       if [ -z "$remote_version" ]; then
         printf "${RED}Something went wrong when ${YLW}resolving the lastest version${NC}: either you don't have connection to Github or you're rate-limited.\n"
@@ -140,7 +146,7 @@ check_versions() {
       ;;
     *)
       # Check if this version really exist
-      ver_check="https://github.com/simplex-chat/simplexmq/releases/tag/${VER}"
+      ver_check="https://github.com/popopx/popopxmq/releases/tag/${VER}"
       
       if curl -o /dev/null --proto '=https' --tlsv1.2 -sf -L "${ver_check}"; then
         remote_version="${VER}"
@@ -158,13 +164,13 @@ check_versions() {
   esac
 
   # Links to scripts/configs
-  bin_url="https://github.com/simplex-chat/simplexmq/releases/download/${remote_version}"
-  scripts_url="https://raw.githubusercontent.com/simplex-chat/simplexmq/refs/tags/${remote_version}/scripts/main"
+  bin_url="https://github.com/popopx/popopxmq/releases/download/${remote_version}"
+  scripts_url="https://raw.githubusercontent.com/popopx/popopxmq/refs/tags/${remote_version}/scripts/main"
   scripts_url_systemd_smp="$scripts_url/smp-server.service"
   scripts_url_systemd_xftp="$scripts_url/xftp-server.service"
-  scripts_url_update="$scripts_url/simplex-servers-update"
-  scripts_url_uninstall="$scripts_url/simplex-servers-uninstall"
-  scripts_url_stopscript="$scripts_url/simplex-servers-stopscript"
+  scripts_url_update="$scripts_url/popopx-servers-update"
+  scripts_url_uninstall="$scripts_url/popopx-servers-uninstall"
+  scripts_url_stopscript="$scripts_url/popopx-servers-stopscript"
 
   set +u
   for i in smp xftp; do
@@ -176,7 +182,7 @@ check_versions() {
   set -u
 
   if [ -z "$apps" ]; then
-    printf "${RED}No simplex servers installed! Aborting.${NC}\n"
+    printf "${RED}No popopx servers installed! Aborting.${NC}\n"
     exit 1
   fi
 
@@ -213,7 +219,7 @@ check_distro() {
   case "$VERSION_ID" in
     20.04|22.04) : ;;
     24.04) VERSION_ID='22.04' ;;
-    *) printf "${RED}Unsupported Ubuntu version!${NC}\nPlease file Github issue with request to support Ubuntu %s: https://github.com/simplex-chat/simplexmq/issues/new\n" "$VERSION_ID" && exit 1 ;;
+    *) printf "${RED}Unsupported Ubuntu version!${NC}\nPlease file Github issue with request to support Ubuntu %s: https://github.com/popopx/popopxmq/issues/new\n" "$VERSION_ID" && exit 1 ;;
   esac
 
   version="$(printf '%s' "$VERSION_ID" | tr '.' '_')"
@@ -221,7 +227,7 @@ check_distro() {
 
   case "$arch" in
     x86_64) arch="$(printf '%s' "$arch" | tr '_' '-')" ;;
-    *)  printf "${RED}Unsupported architecture!${NC}\nPlease file Github issue with request to support %s architecture: https://github.com/simplex-chat/simplexmq/issues/new" "$arch" && exit 1 ;;
+    *)  printf "${RED}Unsupported architecture!${NC}\nPlease file Github issue with request to support %s architecture: https://github.com/popopx/popopxmq/issues/new" "$arch" && exit 1 ;;
   esac
 
   bin_url_smp="$bin_url/smp-server-ubuntu-${version}-${arch}"
@@ -283,19 +289,19 @@ download_thing() {
 download_all() {
   download_thing "$scripts_url_update" "$path_tmp_bin_update" 'string: /usr/bin/env' 'Update script'
   if change_check "$path_tmp_bin_update" "$path_bin_update"; then
-    msg_scripts="${msg_scripts+$msg_scripts, }${YLW}simplex-servers-update${NC}"
+    msg_scripts="${msg_scripts+$msg_scripts, }${YLW}popopx-servers-update${NC}"
     msg_scripts_raw="${msg_scripts_raw+$msg_scripts_raw/}update"
   fi
 
   download_thing "$scripts_url_stopscript" "$path_tmp_bin_stopscript" 'string: /usr/bin/env' 'Stop script'
   if change_check "$path_tmp_bin_stopscript" "$path_bin_stopscript"; then
-    msg_scripts="${msg_scripts+$msg_scripts, }${YLW}simplex-servers-stopscript${NC}"
+    msg_scripts="${msg_scripts+$msg_scripts, }${YLW}popopx-servers-stopscript${NC}"
     msg_scripts_raw="${msg_scripts_raw+$msg_scripts_raw/}stop"
   fi
 
   download_thing "$scripts_url_uninstall" "$path_tmp_bin_uninstall" 'string: /usr/bin/env' 'Uninstall script'
   if change_check "$path_tmp_bin_uninstall" "$path_bin_uninstall"; then
-    msg_scripts="${msg_scripts+$msg_scripts, }${YLW}simplex-servers-uninstall${NC}"
+    msg_scripts="${msg_scripts+$msg_scripts, }${YLW}popopx-servers-uninstall${NC}"
     msg_scripts_raw="${msg_scripts_raw+$msg_scripts_raw/}uninstall"
   fi
 
@@ -432,8 +438,8 @@ download_bins() {
 }
 
 menu_init_help() {
-  menu_help="Update script for SimpleX servers and scripts.${NL}${NL}"
-  menu_help="${menu_help}${BLD}${UNDRL}Usage:${NC} [<VARIABLE>] ${BLD}simplex-servers-update${NC}${NL}       [<VARIABLE>] ${BLD}simplex-servers-update${NC} [<SUBCOMMAND>]${NL}${NL}"
+  menu_help="Update script for POPOPX servers and scripts.${NL}${NL}"
+  menu_help="${menu_help}${BLD}${UNDRL}Usage:${NC} [<VARIABLE>] ${BLD}popopx-servers-update${NC}${NL}       [<VARIABLE>] ${BLD}popopx-servers-update${NC} [<SUBCOMMAND>]${NL}${NL}"
   menu_help="${menu_help}${BLD}${UNDRL}Subcommands:${NC}${NL}"
   menu_help_sub="  ${BLD}[a]ll${NC}		Update everything without confirmation${NL}"
   menu_help_sub="${menu_help_sub}  ${BLD}[b]inaries${NC}	Update binaries only without confirmation${NL}"
