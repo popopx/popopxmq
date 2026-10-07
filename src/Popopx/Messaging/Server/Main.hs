@@ -59,7 +59,7 @@ import qualified Data.Text as T
 import Data.Text.Encoding (decodeLatin1, encodeUtf8)
 import qualified Data.Text.IO as T
 import Options.Applicative
-import Popopx.Messaging.Agent.Protocol (ConnectionLink (..), connReqUriP')
+import Popopx.Messaging.Agent.Protocol (ConnectionLink (..), ConnectionMode (..), connReqUriP')
 import Popopx.Messaging.Agent.Store.Postgres.Options (DBOpts (..))
 import Popopx.Messaging.Agent.Store.Shared (MigrationConfirmation (..))
 import Popopx.Messaging.Client (HostMode (..), NetworkConfig (..), ProtocolClientConfig (..), SMPWebPortServers (..), SocksMode (..), defaultNetworkConfig, textToHostMode)
@@ -85,7 +85,7 @@ import Popopx.Messaging.Transport (supportedProxyClientSMPRelayVRange, alpnSuppo
 import Popopx.Messaging.Transport.Client (TransportHost (..), defaultSocksProxy)
 import Popopx.Messaging.Transport.HTTP2 (httpALPN)
 import Popopx.Messaging.Transport.Server (ServerCredentials (..), mkTransportServerConfig)
-import Popopx.Messaging.Util (eitherToMaybe, ifM)
+import Popopx.Messaging.Util (eitherToMaybe, ifM, safeDecodeUtf8)
 import System.Directory (createDirectoryIfMissing, doesDirectoryExist, doesFileExist)
 import System.Exit (exitFailure)
 import System.FilePath (combine)
@@ -355,7 +355,7 @@ smpServerCLI_ generateSite serveStaticFiles attachStaticFiles cfgPath logPath =
             (putStrLn ("Store log file " <> storeLogFile <> " not found") >> exitFailure)
         Nothing -> putStrLn "Store log disabled, see `[STORE_LOG] enable`" >> exitFailure
     iniFile = combine cfgPath "smp-server.ini"
-    serverVersion = "POPOPX SMP server v" <> popopxmqVersionCommit
+    serverVersion = "SMP server v" <> popopxmqVersionCommit
     executableName = "smp-server"
     storeLogFilePath = combine logPath "smp-server-store.log"
     storeMsgsFilePath = combine logPath "smp-server-messages.log"
@@ -387,7 +387,7 @@ smpServerCLI_ generateSite serveStaticFiles attachStaticFiles cfgPath logPath =
           let InitOptions {ip, fqdn, sourceCode = src', webStaticPath = sp', disableWeb = noWeb'} = opts
           putStrLn "Use `smp-server init -h` for available options."
           checkInitOptions opts
-          void $ withPrompt "POPOPX SMP server will be initialized (press Enter)" getLine
+          void $ withPrompt "SMP server will be initialized (press Enter)" getLine
           enableStoreLog <- onOffPrompt "Enable store log to restore queues and messages on server restart" True
           logStats <- onOffPrompt "Enable logging daily statistics" False
           putStrLn "Require a password to create new messaging queues?"
@@ -762,7 +762,7 @@ getServerSourceCode =
     _ -> putStrLn "Invalid source code. URI should start from http:// or https://" >> getServerSourceCode
 
 popopxmqSource :: String
-popopxmqSource = "https://popopx.xyz"
+popopxmqSource = "https://github.com/simplex-chat/popopxmq"
 
 serverPublicInfo :: Ini -> Maybe ServerPublicInfo
 serverPublicInfo ini = serverInfo <$!> infoValue "source_code"
@@ -776,8 +776,8 @@ serverPublicInfo ini = serverInfo <$!> infoValue "source_code"
           serverCountry = countryValue "server_country",
           operator = iniEntity "operator" "operator_country",
           website = infoValue "website",
-          adminContacts = iniContacts "admin_popopx" "admin_email" "admin_pgp" "admin_pgp_fingerprint",
-          complaintsContacts = iniContacts "complaints_popopx" "complaints_email" "complaints_pgp" "complaints_pgp_fingerprint",
+          adminContacts = iniContacts "admin_simplex" "admin_email" "admin_pgp" "admin_pgp_fingerprint",
+          complaintsContacts = iniContacts "complaints_simplex" "complaints_email" "complaints_pgp" "complaints_pgp_fingerprint",
           hosting = iniEntity "hosting" "hosting_country",
           hostingType = either error id <$!> strDecodeIni "INFORMATION" "hosting_type" ini
         }
@@ -786,16 +786,17 @@ serverPublicInfo ini = serverInfo <$!> infoValue "source_code"
       (\name -> Entity {name, country = countryValue countryField})
         <$!> infoValue nameField
     countryValue field = (either error id . validCountryValue (T.unpack field) . T.unpack) <$!> infoValue field
-    iniContacts popopxField emailField pgpKeyUriField pgpKeyFingerprintField =
-      let popopx = either error id . parseAll linkP . encodeUtf8 <$!> eitherToMaybe (lookupValue "INFORMATION" popopxField ini)
+    iniContacts simplexField emailField pgpKeyUriField pgpKeyFingerprintField =
+      let addr :: Maybe (ConnectionLink 'CMContact) = either error id . parseAll linkP . encodeUtf8 <$!> eitherToMaybe (lookupValue "INFORMATION" simplexField ini)
+          simplex = safeDecodeUtf8 . strEncode <$> addr
           linkP = CLFull <$> connReqUriP' Nothing <|> CLShort <$> strP
           email = infoValue emailField
           pkURI_ = infoValue pgpKeyUriField
           pkFingerprint_ = infoValue pgpKeyFingerprintField
-       in case (popopx, email, pkURI_, pkFingerprint_) of
+       in case (addr, email, pkURI_, pkFingerprint_) of
             (Nothing, Nothing, Nothing, _) -> Nothing
             (Nothing, Nothing, _, Nothing) -> Nothing
-            (_, _, pkURI, pkFingerprint) -> Just ServerContactAddress {popopx, email, pgp = PGPKey <$> pkURI <*> pkFingerprint}
+            (_, _, pkURI, pkFingerprint) -> Just ServerContactAddress {simplex, email, pgp = PGPKey <$> pkURI <*> pkFingerprint}
 
 validCountryValue :: String -> String -> Either String Text
 validCountryValue field s

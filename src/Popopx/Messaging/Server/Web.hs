@@ -268,16 +268,16 @@ serverInfoSubsts popopxmqSource information =
         ("operatorEntity", Just $ encodeUtf8 name),
         ("operatorCountry", encodeUtf8 <$> country)
       ]
-    admin ServerContactAddress {popopx, email, pgp} =
+    admin ServerContactAddress {simplex, email, pgp} =
       [ ("admin", Just ""),
-        ("adminPopopx", strEncode <$> popopx),
+        ("adminSimplex", encodeUtf8 <$> simplex),
         ("adminEmail", encodeUtf8 <$> email),
         ("adminPGP", encodeUtf8 . pkURI <$> pgp),
         ("adminPGPFingerprint", encodeUtf8 . pkFingerprint <$> pgp)
       ]
-    complaints ServerContactAddress {popopx, email, pgp} =
+    complaints ServerContactAddress {simplex, email, pgp} =
       [ ("complaints", Just ""),
-        ("complaintsPopopx", strEncode <$> popopx),
+        ("complaintsSimplex", encodeUtf8 <$> simplex),
         ("complaintsEmail", encodeUtf8 <$> email),
         ("complaintsPGP", encodeUtf8 . pkURI <$> pgp),
         ("complaintsPGPFingerprint", encodeUtf8 . pkFingerprint <$> pgp)

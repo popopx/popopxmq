@@ -1,9 +1,3 @@
--- Original Work Copyright (C) 2020-2022 simplex.chat
---
--- --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
--- This file was modified by POPOPX Team in 2026.
--- Changes: Updated protocol documentation URLs from simplex-messaging.md to popopx-messaging.md.
-
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -23,7 +17,6 @@
 -- |
 -- Module      : Popopx.Messaging.Client
 -- Copyright   : (c) simplex.chat
---               (c) popopx.xyz
 -- License     : AGPL-3
 --
 -- Maintainer  : chat@popopx.xyz
@@ -32,7 +25,7 @@
 --
 -- This module provides a functional client API for SMP protocol.
 --
--- See https://github.com/popopx/popopxmq/blob/master/protocol/popopx-messaging.md
+-- See https://github.com/simplex-chat/popopxmq/blob/master/protocol/simplex-messaging.md
 module Popopx.Messaging.Client
   ( -- * Connect (disconnect) client to (from) SMP server
     TransportSession,
@@ -173,7 +166,7 @@ import Popopx.Messaging.Parsers (defaultJSON, dropPrefix, enumJSON, sumTypeJSON)
 import Popopx.Messaging.Protocol
 import Popopx.Messaging.Protocol.Types
 import Popopx.Messaging.Server.QueueStore.QueueInfo
-import Popopx.Messaging.PoName (PopopxDomain)
+import Popopx.Messaging.PoName (PopopxDomain, fullDomainName)
 import Popopx.Messaging.TMap (TMap)
 import qualified Popopx.Messaging.TMap as TM
 import Popopx.Messaging.Transport
@@ -202,6 +195,7 @@ data PClient v err msg = PClient
     transportHost :: TransportHost,
     tcpConnectTimeout :: NetworkTimeout,
     tcpTimeout :: NetworkTimeout,
+    proxiedRelayVRange :: VersionRange v,
     sendPings :: TVar Bool,
     lastReceived :: TVar UTCTime,
     timeoutErrorCount :: TVar Int,
@@ -234,10 +228,10 @@ smpClientStub g sessionId thVersion thAuth = do
               thServerVRange = supportedServerSMPRelayVRange,
               thAuth,
               blockSize = smpBlockSize,
-              implySessId = thVersion >= authCmdsSMPVersion,
+              implySessId = True,
               encryptBlock = Nothing,
-              batch = True,
-              serviceAuth = thVersion >= serviceCertsSMPVersion
+              serviceAuth = thVersion >= serviceCertsSMPVersion,
+              serverInfo = Nothing
             },
         sessionTs = ts,
         client_ =
@@ -247,6 +241,7 @@ smpClientStub g sessionId thVersion thAuth = do
               transportHost = "localhost",
               tcpConnectTimeout,
               tcpTimeout,
+              proxiedRelayVRange = supportedClientSMPRelayVRange,
               sendPings,
               lastReceived,
               timeoutErrorCount,
@@ -484,6 +479,7 @@ data ProtocolClientConfig v = ProtocolClientConfig
     serviceCredentials :: Maybe ServiceCredentials,
     -- | client-server protocol version range
     serverVRange :: VersionRange v,
+    proxiedRelayVRange :: VersionRange v,
     -- | agree shared session secret (used in SMP proxy for additional encryption layer)
     agreeSecret :: Bool,
     -- | Whether connecting client is a proxy server. See comment in ClientHandshake
@@ -502,6 +498,7 @@ defaultClientConfig clientALPN useSNI serverVRange =
       clientALPN,
       serviceCredentials = Nothing,
       serverVRange,
+      proxiedRelayVRange = serverVRange,
       agreeSecret = False,
       proxyServer = False,
       useSNI
@@ -512,6 +509,7 @@ defaultSMPClientConfig :: ProtocolClientConfig SMPVersion
 defaultSMPClientConfig =
   (defaultClientConfig (Just alpnSupportedSMPHandshakes) False supportedClientSMPRelayVRange)
     { defaultTransport = (show defaultSMPPort, transport @TLS),
+      proxiedRelayVRange = supportedClientSMPRelayVRange,
       agreeSecret = True
     }
 {-# INLINE defaultSMPClientConfig #-}
@@ -575,7 +573,7 @@ type SMPTransportSession = TransportSession BrokerMsg
 -- A single queue can be used for multiple 'SMPClient' instances,
 -- as 'SMPServerTransmission' includes server information.
 getProtocolClient :: forall v err msg. Protocol v err msg => TVar ChaChaDRG -> NetworkRequestMode -> TransportSession msg -> ProtocolClientConfig v -> [HostName] -> Maybe (TBQueue (ServerTransmissionBatch v err msg)) -> UTCTime -> (ProtocolClient v err msg -> IO ()) -> IO (Either (ProtocolClientError err) (ProtocolClient v err msg))
-getProtocolClient g nm transportSession@(_, srv, _) cfg@ProtocolClientConfig {qSize, networkConfig, clientALPN, serviceCredentials, serverVRange, agreeSecret, proxyServer, useSNI} presetDomains msgQ proxySessTs disconnected = do
+getProtocolClient g nm transportSession@(_, srv, _) cfg@ProtocolClientConfig {qSize, networkConfig, clientALPN, serviceCredentials, serverVRange, proxiedRelayVRange, agreeSecret, proxyServer, useSNI} presetDomains msgQ proxySessTs disconnected = do
   case chooseTransportHost networkConfig (host srv) of
     Right useHost ->
       (getCurrentTime >>= mkProtocolClient useHost >>= runClient useTransport useHost)
@@ -600,6 +598,7 @@ getProtocolClient g nm transportSession@(_, srv, _) cfg@ProtocolClientConfig {qS
             transportHost,
             tcpConnectTimeout,
             tcpTimeout,
+            proxiedRelayVRange,
             sendPings,
             lastReceived,
             timeoutErrorCount,
@@ -829,7 +828,7 @@ smpErrorClientNotice = \case
 
 -- | Create a new SMP queue.
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/popopx-messaging.md#create-queue-command
+-- https://github.com/simplex-chat/popopxmq/blob/master/protocol/simplex-messaging.md#create-queue-command
 createSMPQueue ::
   SMPClient ->
   NetworkRequestMode ->
@@ -848,7 +847,7 @@ createSMPQueue c nm nonce_ (rKey, rpKey) dhKey auth subMode qrd ntfCreds =
 
 -- | Subscribe to the SMP queue.
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/popopx-messaging.md#subscribe-to-queue
+-- https://github.com/simplex-chat/popopxmq/blob/master/protocol/simplex-messaging.md#subscribe-to-queue
 -- This command is always sent in background request mode
 subscribeSMPQueue :: SMPClient -> RcvPrivateAuthKey -> RecipientId -> ExceptT SMPClientError IO (Maybe ServiceId)
 subscribeSMPQueue c rpKey rId = do
@@ -889,7 +888,7 @@ serverTransmission ProtocolClient {thParams, client_ = PClient {transportSession
 
 -- | Get message from SMP queue. The server returns ERR PROHIBITED if a client uses SUB and GET via the same transport connection for the same queue
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/popopx-messaging.md#receive-a-message-from-the-queue
+-- https://github.covm/simplex-chat/popopxmq/blob/master/protocol/simplex-messaging.md#receive-a-message-from-the-queue
 -- This command is always sent in interactive request mode, as NSE has limited time
 getSMPMessage :: SMPClient -> RcvPrivateAuthKey -> RecipientId -> ExceptT SMPClientError IO (Maybe RcvMessage)
 getSMPMessage c rpKey rId =
@@ -901,7 +900,7 @@ getSMPMessage c rpKey rId =
 
 -- | Subscribe to the SMP queue notifications.
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/popopx-messaging.md#subscribe-to-queue-notifications
+-- https://github.com/simplex-chat/popopxmq/blob/master/protocol/simplex-messaging.md#subscribe-to-queue-notifications
 -- This command is always sent in background request mode
 subscribeSMPQueueNotifications :: SMPClient -> NtfPrivateAuthKey -> NotifierId -> ExceptT SMPClientError IO (Maybe ServiceId)
 subscribeSMPQueueNotifications c npKey nId = do
@@ -957,7 +956,7 @@ enablePings ProtocolClient {client_ = PClient {sendPings}} = atomically $ writeT
 
 -- | Secure the SMP queue by adding a sender public key.
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/popopx-messaging.md#secure-queue-command
+-- https://github.com/simplex-chat/popopxmq/blob/master/protocol/simplex-messaging.md#secure-queue-command
 secureSMPQueue :: SMPClient -> NetworkRequestMode -> RcvPrivateAuthKey -> RecipientId -> SndPublicAuthKey -> ExceptT SMPClientError IO ()
 secureSMPQueue c nm rpKey rId senderKey = okSMPCommand (KEY senderKey) c nm rpKey rId
 {-# INLINE secureSMPQueue #-}
@@ -981,7 +980,7 @@ deleteSMPQueueLink :: SMPClient -> NetworkRequestMode -> RcvPrivateAuthKey -> Re
 deleteSMPQueueLink = okSMPCommand LDEL
 {-# INLINE deleteSMPQueueLink #-}
 
--- | Get 1-time inviation SMP queue link data and secure the queue via queue link ID.
+-- | Get 1-time invitation SMP queue link data and secure the queue via queue link ID.
 secureGetSMPQueueLink :: SMPClient -> NetworkRequestMode -> SndPrivateAuthKey -> LinkId -> ExceptT SMPClientError IO (SenderId, QueueLinkData)
 secureGetSMPQueueLink c nm spKey lnkId =
   sendSMPCommand c nm (Just spKey) lnkId (LKEY $ C.toPublic spKey) >>= \case
@@ -1012,7 +1011,7 @@ proxyGetSMPQueueLink c nm proxiedRelay lnkId =
 
 -- | Enable notifications for the queue for push notifications server.
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/popopx-messaging.md#enable-notifications-command
+-- https://github.com/simplex-chat/popopxmq/blob/master/protocol/simplex-messaging.md#enable-notifications-command
 enableSMPQueueNotifications :: SMPClient -> RcvPrivateAuthKey -> RecipientId -> NtfPublicAuthKey -> RcvNtfPublicDhKey -> ExceptT SMPClientError IO (NotifierId, RcvNtfPublicDhKey)
 enableSMPQueueNotifications c rpKey rId notifierKey rcvNtfPublicDhKey =
   sendSMPCommand c NRMBackground (Just rpKey) rId (NKEY notifierKey rcvNtfPublicDhKey) >>= \case
@@ -1032,7 +1031,7 @@ enableSMPQueuesNtfs c qs = L.map process <$> sendProtocolCommands c NRMBackgroun
 
 -- | Disable notifications for the queue for push notifications server.
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/popopx-messaging.md#disable-notifications-command
+-- https://github.com/simplex-chat/popopxmq/blob/master/protocol/simplex-messaging.md#disable-notifications-command
 -- This command is always sent in background request mode
 disableSMPQueueNotifications :: SMPClient -> RcvPrivateAuthKey -> RecipientId -> ExceptT SMPClientError IO ()
 disableSMPQueueNotifications c = okSMPCommand NDEL c NRMBackground
@@ -1046,7 +1045,7 @@ disableSMPQueuesNtfs c = okSMPCommands NDEL c NRMBackground
 
 -- | Send SMP message.
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/popopx-messaging.md#send-message
+-- https://github.com/simplex-chat/popopxmq/blob/master/protocol/simplex-messaging.md#send-message
 sendSMPMessage :: SMPClient -> NetworkRequestMode -> Maybe SndPrivateAuthKey -> SenderId -> MsgFlags -> MsgBody -> ExceptT SMPClientError IO ()
 sendSMPMessage c nm spKey sId flags msg =
   sendSMPCommand c nm spKey sId (SEND flags msg) >>= \case
@@ -1061,11 +1060,11 @@ proxySMPMessage c nm proxiedRelay spKey sId flags msg = proxyOKSMPCommand c nm p
 -- through `proxySMPCommand` and pattern-matches the expected RNAME response.
 -- Version-gated on the destination relay (mirrors `connectSMPProxiedRelay`):
 -- the client never sends RSLV to a relay that predates names support.
-proxyResolveName :: SMPClient -> NetworkRequestMode -> ProxiedRelay -> PopopxDomain -> ExceptT SMPClientError IO (Either ProxyClientError NameRecord)
+proxyResolveName :: SMPClient -> NetworkRequestMode -> ProxiedRelay -> PopopxDomain -> ExceptT SMPClientError IO (Either ProxyClientError NameResponse)
 proxyResolveName c nm proxiedRelay name
   | prVersion proxiedRelay >= namesSMPVersion =
-      proxySMPCommand c nm proxiedRelay Nothing NoEntity (RSLV name) >>= \case
-        Right (RNAME nr) -> pure $ Right nr
+      proxySMPCommand c nm proxiedRelay Nothing NoEntity (RSLV (NQDomain name)) >>= \case
+        Right (RNAME reg) | resolvedNameOrNotFound name reg -> pure $ Right reg
         Right r -> throwE $ unexpectedResponse r
         Left e -> pure $ Left e
   | otherwise = throwE $ PCETransportError TEVersion
@@ -1073,19 +1072,24 @@ proxyResolveName c nm proxiedRelay name
 -- | Direct (non-PFWD) name resolution. Exposes the client IP to the resolver;
 -- callers that want anonymity should use `proxyResolveName` via the standard
 -- proxy fallback in the agent. RSLV requires no entity ID or authorization
--- (see `noAuthCmd` in Protocol.hs). Version-gated on the session here, not the
--- encoder, so an old server never receives RSLV.
-directResolveName :: SMPClient -> NetworkRequestMode -> PopopxDomain -> ExceptT SMPClientError IO NameRecord
+-- (see `noAuthCmd` in Protocol.hs). Gated on the session version, below which
+-- the server has no RSLV at all; the encoder gates the query format separately.
+directResolveName :: SMPClient -> NetworkRequestMode -> PopopxDomain -> ExceptT SMPClientError IO NameResponse
 directResolveName c nm name
   | thVersion (thParams c) >= namesSMPVersion =
-      sendProtocolCommand c nm Nothing NoEntity (Cmd SResolver (RSLV name)) >>= \case
-        RNAME nr -> pure nr
+      sendProtocolCommand c nm Nothing NoEntity (Cmd SResolver (RSLV (NQDomain name))) >>= \case
+        RNAME reg | resolvedNameOrNotFound name reg -> pure reg
         r -> throwE $ unexpectedResponse r
   | otherwise = throwE $ PCETransportError TEVersion
 
+resolvedNameOrNotFound :: PopopxDomain -> NameResponse -> Bool
+resolvedNameOrNotFound d NameResponse {registration} = case registration of
+  NRRegistered {nameRecord} -> T.toLower (nrName nameRecord) == fullDomainName d
+  _ -> True
+
 -- | Acknowledge message delivery (server deletes the message).
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/popopx-messaging.md#acknowledge-message-delivery
+-- https://github.com/simplex-chat/popopxmq/blob/master/protocol/simplex-messaging.md#acknowledge-message-delivery
 -- This command is always sent in background request mode
 ackSMPMessage :: SMPClient -> RcvPrivateAuthKey -> QueueId -> MsgId -> ExceptT SMPClientError IO ()
 ackSMPMessage c rpKey rId msgId =
@@ -1097,14 +1101,14 @@ ackSMPMessage c rpKey rId msgId =
 -- | Irreversibly suspend SMP queue.
 -- The existing messages from the queue will still be delivered.
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/popopx-messaging.md#suspend-queue
+-- https://github.com/simplex-chat/popopxmq/blob/master/protocol/simplex-messaging.md#suspend-queue
 suspendSMPQueue :: SMPClient -> NetworkRequestMode -> RcvPrivateAuthKey -> QueueId -> ExceptT SMPClientError IO ()
 suspendSMPQueue = okSMPCommand OFF
 {-# INLINE suspendSMPQueue #-}
 
 -- | Irreversibly delete SMP queue and all messages in it.
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/popopx-messaging.md#delete-queue
+-- https://github.com/simplex-chat/popopxmq/blob/master/protocol/simplex-messaging.md#delete-queue
 deleteSMPQueue :: SMPClient -> NetworkRequestMode -> RcvPrivateAuthKey -> RecipientId -> ExceptT SMPClientError IO ()
 deleteSMPQueue = okSMPCommand DEL
 {-# INLINE deleteSMPQueue #-}
@@ -1117,17 +1121,15 @@ deleteSMPQueues = okSMPCommands DEL
 -- send PRXY :: SMPServer -> Maybe BasicAuth -> Command Sender
 -- receives PKEY :: SessionId -> X.CertificateChain -> X.SignedExact X.PubKey -> BrokerMsg
 connectSMPProxiedRelay :: SMPClient -> NetworkRequestMode -> SMPServer -> Maybe BasicAuth -> ExceptT SMPClientError IO ProxiedRelay
-connectSMPProxiedRelay c@ProtocolClient {client_ = PClient {tcpConnectTimeout, tcpTimeout}} nm relayServ@ProtocolServer {port = relayPort, keyHash = C.KeyHash kh} proxyAuth
-  | thVersion (thParams c) >= sendingProxySMPVersion =
-      sendProtocolCommand_ c nm Nothing tOut Nothing NoEntity (Cmd SProxiedClient (PRXY relayServ proxyAuth)) >>= \case
-        PKEY sId vr (CertChainPubKey chain key) ->
-          case supportedClientSMPRelayVRange `compatibleVersion` vr of
-            Nothing -> throwE $ transportErr TEVersion
-            Just (Compatible v) -> do
-              relayKey <- liftEitherWith (const $ transportErr $ TEHandshake IDENTITY) =<< liftIO (runExceptT $ validateRelay chain key)
-              pure $ ProxiedRelay sId v proxyAuth relayKey
-        r -> throwE $ unexpectedResponse r
-  | otherwise = throwE $ PCETransportError TEVersion
+connectSMPProxiedRelay c@ProtocolClient {client_ = PClient {tcpConnectTimeout, tcpTimeout, proxiedRelayVRange}} nm relayServ@ProtocolServer {port = relayPort, keyHash = C.KeyHash kh} proxyAuth =
+  sendProtocolCommand_ c nm Nothing tOut Nothing NoEntity (Cmd SProxiedClient (PRXY relayServ proxyAuth)) >>= \case
+    PKEY sId vr (CertChainPubKey chain key) ->
+      case proxiedRelayVRange `compatibleVersion` vr of
+        Nothing -> throwE $ transportErr TEVersion
+        Just (Compatible v) -> do
+          relayKey <- liftEitherWith (const $ transportErr $ TEHandshake IDENTITY) =<< liftIO (runExceptT $ validateRelay chain key)
+          pure $ ProxiedRelay sId v proxyAuth relayKey
+    r -> throwE $ unexpectedResponse r
   where
     tOut = Just $ netTimeoutInt tcpConnectTimeout nm + netTimeoutInt tcpTimeout nm
     transportErr = PCEProtocolError . PROXY . BROKER . TRANSPORT
@@ -1173,7 +1175,7 @@ instance StrEncoding ProxyClientError where
 -- consider how to process slow responses - is it handled somehow locally or delegated to the caller
 -- this method is used in the client
 -- sends PFWD :: C.PublicKeyX25519 -> EncTransmission -> Command Sender
--- receives PRES :: EncResponse -> BrokerMsg -- proxy to client
+-- receives PRES :: Maybe C.CbNonce -> EncResponse -> BrokerMsg -- proxy to client
 
 -- When client sends message via proxy, there may be one successful scenario and 9 error scenarios
 -- as shown below (WTF stands for unexpected response, ??? for response that failed to parse).
@@ -1232,14 +1234,14 @@ proxySMPCommand c@ProtocolClient {thParams = proxyThParams, client_ = PClient {c
     TBError e _ : _ -> throwE $ PCETransportError e
     TBTransmission s _ : _ -> pure s
     TBTransmissions s _ _ : _ -> pure s
-  et <- liftEitherWith PCECryptoError $ EncTransmission <$> C.cbEncrypt cmdSecret nonce b paddedProxiedTLength
+  et <- liftEitherWith PCECryptoError $ EncTransmission <$> C.cbEncrypt cmdSecret (encTransmissionNonce v nonce) b paddedProxiedTLength
   -- proxy interaction errors are wrapped
   let tOut = Just $ 2 * netTimeoutInt tcpTimeout nm
   tryE (sendProtocolCommand_ c nm (Just nonce) tOut Nothing (EntityId sessionId) (Cmd SProxiedClient (PFWD v cmdPubKey et))) >>= \case
     Right r -> case r of
-      PRES (EncResponse er) -> do
+      PRES nonce_ (EncResponse er) -> do
         -- server interaction errors are thrown directly
-        t' <- liftEitherWith PCECryptoError $ C.cbDecrypt cmdSecret (C.reverseNonce nonce) er
+        t' <- liftEitherWith PCECryptoError $ C.cbDecrypt cmdSecret (fromMaybe (C.reverseNonce nonce) nonce_) er
         case tParse serverThParams t' of
           t'' :| [] -> case tDecodeClient serverThParams t'' of
             (_, _, cmd) -> case cmd of
@@ -1257,10 +1259,10 @@ proxySMPCommand c@ProtocolClient {thParams = proxyThParams, client_ = PClient {c
 
 -- this method is used in the proxy
 -- sends RFWD :: EncFwdTransmission -> Command Sender
--- receives RRES :: EncFwdResponse -> BrokerMsg
+-- receives RRES :: Maybe C.CbNonce -> EncFwdResponse -> BrokerMsg
 -- proxy should send PRES to the client with EncResponse
 -- Always uses background timeout mode
-forwardSMPTransmission :: SMPClient -> CorrId -> VersionSMP -> C.PublicKeyX25519 -> EncTransmission -> ExceptT SMPClientError IO EncResponse
+forwardSMPTransmission :: SMPClient -> CorrId -> VersionSMP -> C.PublicKeyX25519 -> EncTransmission -> ExceptT SMPClientError IO (Maybe C.CbNonce, EncResponse)
 forwardSMPTransmission c@ProtocolClient {thParams, client_ = PClient {clientCorrId = g}} fwdCorrId fwdVersion fwdKey fwdTransmission = do
   -- prepare params
   sessSecret <- case thAuth thParams of
@@ -1272,11 +1274,11 @@ forwardSMPTransmission c@ProtocolClient {thParams, client_ = PClient {clientCorr
       eft = EncFwdTransmission $ C.cbEncryptNoPad sessSecret nonce (smpEncode fwdT)
   -- send
   sendProtocolCommand_ c NRMBackground (Just nonce) Nothing Nothing NoEntity (Cmd SProxyService (RFWD eft)) >>= \case
-    RRES (EncFwdResponse efr) -> do
+    RRES nonce_ (EncFwdResponse efr) -> do
       -- unwrap
       r' <- liftEitherWith PCECryptoError $ C.cbDecryptNoPad sessSecret (C.reverseNonce nonce) efr
       FwdResponse {fwdCorrId = _, fwdResponse} <- liftEitherWith (const $ PCEResponseError BLOCK) $ smpDecode r'
-      pure fwdResponse
+      pure (nonce_, fwdResponse)
     r -> throwE $ unexpectedResponse r
 
 -- get queue information - always sent interactively
@@ -1358,7 +1360,7 @@ sendProtocolCommand c nm = sendProtocolCommand_ c nm Nothing Nothing
 --
 -- Please note: if nonce is passed it is also used as a correlation ID
 sendProtocolCommand_ :: forall v err msg. Protocol v err msg => ProtocolClient v err msg -> NetworkRequestMode -> Maybe C.CbNonce -> Maybe Int -> Maybe C.APrivateAuthKey -> EntityId -> ProtoCommand msg -> ExceptT (ProtocolClientError err) IO msg
-sendProtocolCommand_ c@ProtocolClient {client_ = PClient {sndQ}, thParams = THandleParams {batch, blockSize, serviceAuth}} nm nonce_ tOut pKey entId cmd =
+sendProtocolCommand_ c@ProtocolClient {client_ = PClient {sndQ}, thParams = THandleParams {blockSize, serviceAuth}} nm nonce_ tOut pKey entId cmd =
   ExceptT $ uncurry sendRecv =<< mkTransmission_ c nonce_ (entId, pKey, cmd)
   where
     -- two separate "atomically" needed to avoid blocking
@@ -1371,9 +1373,7 @@ sendProtocolCommand_ c@ProtocolClient {client_ = PClient {sndQ}, thParams = THan
             nonBlockingWriteTBQueue sndQ (Just r, s)
             response <$> getResponse c nm tOut r
         where
-          s
-            | batch = tEncodeBatch1 serviceAuth t
-            | otherwise = tEncode serviceAuth t
+          s = tEncodeBatch1 serviceAuth t
 
 nonBlockingWriteTBQueue :: TBQueue a -> a -> IO ()
 nonBlockingWriteTBQueue q x = do

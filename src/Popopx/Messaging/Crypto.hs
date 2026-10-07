@@ -1,9 +1,3 @@
--- Original Work Copyright (C) 2020-2022 simplex.chat
---
--- --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
--- This file was modified by POPOPX Team in 2026.
--- Changes: Rebranded module from Simplex.Messaging.Crypto to Popopx.Messaging.Crypto.
-
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ConstraintKinds #-}
@@ -33,7 +27,6 @@
 -- |
 -- Module      : Popopx.Messaging.Crypto
 -- Copyright   : (c) simplex.chat
---               (c) popopx.xyz
 -- License     : AGPL-3
 --
 -- Maintainer  : chat@popopx.xyz
@@ -68,6 +61,7 @@ module Popopx.Messaging.Crypto
     APublicAuthKey (..),
     CryptoPublicKey (..),
     CryptoPrivateKey (..),
+    StoredPrivateKey (..),
     AAuthKeyPair,
     KeyPair,
     KeyPairX25519,
@@ -349,8 +343,17 @@ deriving instance Eq (PrivateKey a)
 
 deriving instance Show (PrivateKey a)
 
--- Do not enable, to avoid leaking key data
--- instance StrEncoding (PrivateKey Ed25519) where
+-- Do not enable, to avoid leaking key data, use StoredPrivateKey instead
+-- instance StrEncoding (PrivateKey a) where
+
+newtype StoredPrivateKey a = StoredPrivateKey {unStored :: PrivateKey a}
+  deriving (Show)
+
+instance AlgorithmI a => StrEncoding (StoredPrivateKey a) where
+  strEncode = strEncode . encodePrivKey . unStored
+  {-# INLINE strEncode #-}
+  strDecode = fmap StoredPrivateKey . decodePrivKey
+  {-# INLINE strDecode #-}
 
 -- Used in notification store log
 instance StrEncoding (PrivateKey X25519) where
@@ -928,6 +931,8 @@ data CryptoError
     CERatchetEarlierMessage Word32
   | -- | duplicate message number
     CERatchetDuplicateMessage
+  | -- | KEM key generation failed, indicating a broken RNG
+    CryptoKEMKeyGenError
   deriving (Eq, Show, Exception)
 
 aesKeySize :: Int
@@ -1042,9 +1047,7 @@ md5Hash = BA.convert . (hash :: ByteString -> Digest MD5)
 
 -- | AEAD-GCM encryption with associated data.
 --
--- Used as part of double ratchet encryption.
--- This function requires 16 bytes IV, it transforms IV in cryptonite_aes_gcm_init here:
--- https://github.com/haskell-crypto/cryptonite/blob/master/cbits/cryptonite_aes.c
+-- Used as part of double ratchet encryption, with a 16-byte IV (see @initAEAD@).
 encryptAEAD :: Key -> IV -> Int -> ByteString -> ByteString -> ExceptT CryptoError IO (AuthTag, ByteString)
 encryptAEAD aesKey ivBytes paddedLen ad msg = do
   aead <- initAEAD @AES256 aesKey ivBytes
@@ -1064,10 +1067,7 @@ encryptAEADNoPad aesKey ivBytes ad msg = do
 
 -- | AEAD-GCM decryption with associated data.
 --
--- Used as part of double ratchet encryption.
--- This function requires 16 bytes IV, it transforms IV in cryptonite_aes_gcm_init here:
--- https://github.com/haskell-crypto/cryptonite/blob/master/cbits/cryptonite_aes.c
--- To make it compatible with WebCrypto we will need to start using initAEADGCM.
+-- Used as part of double ratchet encryption, with a 16-byte IV (see @initAEAD@).
 decryptAEAD :: Key -> IV -> ByteString -> ByteString -> AuthTag -> ExceptT CryptoError IO ByteString
 decryptAEAD aesKey ivBytes ad msg (AuthTag authTag) = do
   aead <- initAEAD @AES256 aesKey ivBytes
@@ -1145,9 +1145,9 @@ maxLength :: forall i. KnownNat i => Int
 maxLength = fromIntegral (natVal $ Proxy @i)
 {-# INLINE maxLength #-}
 
--- this function requires 16 bytes IV, it transforms IV in cryptonite_aes_gcm_init here:
--- https://github.com/haskell-crypto/cryptonite/blob/master/cbits/cryptonite_aes.c
--- This is used for double ratchet encryption, so to make it compatible with WebCrypto we will need to deprecate it and start using initAEADGCM
+-- The 16-byte double ratchet IV is intentionally not the 96-bit IV recommended by NIST SP 800-38D, so GCM derives J0 = GHASH(IV || 0^64 || [128]_64),
+-- as in crypton_aes_gcm_init: https://hackage.haskell.org/package/crypton-0.34/src/cbits/crypton_aes.c
+-- WebCrypto and other SP 800-38D implementations interoperate only when given all 16 IV bytes.
 initAEAD :: forall c. AES.BlockCipher c => Key -> IV -> ExceptT CryptoError IO (AES.AEAD c)
 initAEAD (Key aesKey) (IV ivBytes) = do
   iv <- makeIV @c ivBytes
@@ -1465,14 +1465,14 @@ newtype SbChainKey = SecretBoxChainKey {unSbChainKey :: ByteString}
 sbcInit :: ByteArrayAccess secret => ByteString -> secret -> (SbChainKey, SbChainKey)
 sbcInit salt secret = (SecretBoxChainKey ck1, SecretBoxChainKey ck2)
   where
-    (ck1, ck2) = B.splitAt 32 $ hkdf salt secret "POPOPXSbChainInit" 64
+    (ck1, ck2) = B.splitAt 32 $ hkdf salt secret "SimpleXSbChainInit" 64
 
 type SbKeyNonce = (SbKey, CbNonce)
 
 sbcHkdf :: SbChainKey -> (SbKeyNonce, SbChainKey)
 sbcHkdf (SecretBoxChainKey ck) = ((SecretBoxKey sk, CryptoBoxNonce nonce), SecretBoxChainKey ck')
   where
-    out = hkdf "" ck "POPOPXSbChain" 88 -- = 32 (new chain key) + 32 (secret_box key) + 24 (nonce)
+    out = hkdf "" ck "SimpleXSbChain" 88 -- = 32 (new chain key) + 32 (secret_box key) + 24 (nonce)
     (ck', rest) = B.splitAt 32 out
     (sk, nonce) = B.splitAt 32 rest
 

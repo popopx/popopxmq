@@ -25,8 +25,8 @@ serverChoiceTests = do
   describe "Server operators" $ do
     it "should choose server of different operator" $ ioProperty $ testChooseDifferentOperator
 
-operatorPopopx :: Maybe OperatorId
-operatorPopopx = Just 1
+operatorSimpleX :: Maybe OperatorId
+operatorSimpleX = Just 1
 
 operator2 :: Maybe OperatorId
 operator2 = Just 2
@@ -45,8 +45,8 @@ testOp2Srv2 = "smp://LcJU@srv2.example.com"
 
 testSMPServers :: NonEmpty (ServerCfg 'PSMP)
 testSMPServers =
-  [ presetServerCfg True allRoles operatorPopopx testOp1Srv1,
-    presetServerCfg True allRoles operatorPopopx testOp1Srv2,
+  [ presetServerCfg True allRoles operatorSimpleX testOp1Srv1,
+    presetServerCfg True allRoles operatorSimpleX testOp1Srv2,
     presetServerCfg True proxyOnly operator2 testOp2Srv1,
     presetServerCfg True proxyOnly operator2 testOp2Srv2
   ]
@@ -63,6 +63,7 @@ initServers =
     { smp = M.fromList [(1, testSMPServers)],
       ntf = [testNtfServer],
       xftp = userServers [testXFTPServer],
+      entitlements = M.empty,
       netCfg = defaultNetworkConfig,
       useServices = M.empty,
       presetDomains = [],
@@ -70,9 +71,7 @@ initServers =
     }
 
 testChooseDifferentOperator :: IO ()
-testChooseDifferentOperator = do
-  c <- getSMPAgentClient' 1 agentCfg initServers testDB
-  runRight_ $ do
+testChooseDifferentOperator = withAgent 1 agentCfg initServers testDB $ \c -> runRight_ $ do
     -- chooses the only operator with storage role
     srv1 <- withAgentEnv c $ getNextServer c 1 storageSrvs []
     liftIO $ srv1 == testOp1Srv1 || srv1 == testOp1Srv2 `shouldBe` True

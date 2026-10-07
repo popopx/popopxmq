@@ -1,9 +1,3 @@
--- Original Work Copyright (C) 2020-2022 simplex.chat
---
--- --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
--- This file was modified by POPOPX Team in 2026.
--- Changes: Updated protocol documentation URL from simplex-messaging.md to popopx-messaging.md.
-
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
@@ -38,7 +32,6 @@
 -- |
 -- Module      : Popopx.Messaging.ProtocolEncoding
 -- Copyright   : (c) simplex.chat
---               (c) popopx.xyz
 -- License     : AGPL-3
 --
 -- Maintainer  : chat@popopx.xyz
@@ -47,7 +40,7 @@
 --
 -- Types, parsers, serializers and functions to send and receive SMP protocol commands and responses.
 --
--- See https://github.com/popopx/popopxmq/blob/master/protocol/popopx-messaging.md
+-- See https://github.com/simplex-chat/popopxmq/blob/master/protocol/simplex-messaging.md
 module Popopx.Messaging.Protocol
   ( -- * SMP protocol parameters
     supportedSMPClientVRange,
@@ -87,6 +80,12 @@ module Popopx.Messaging.Protocol
     ErrorType (..),
     CommandError (..),
     ProxyError (..),
+    NameQuery (..),
+    NameResponse (..),
+    NameRegistration (..),
+    NamePricing (..),
+    USDCents (..),
+    NameReservedReason (..),
     NameErrorType (..),
     BrokerErrorType (..),
     NetworkError (..),
@@ -169,6 +168,7 @@ module Popopx.Messaging.Protocol
     EncFwdTransmission (..),
     EncResponse (..),
     EncTransmission (..),
+    encTransmissionNonce,
     FwdResponse (..),
     FwdTransmission (..),
     NameRecord (..),
@@ -242,6 +242,7 @@ import Data.Attoparsec.ByteString.Char8 (Parser, (<?>))
 import qualified Data.Attoparsec.ByteString.Char8 as A
 import Data.Bifunctor (bimap, first)
 import Data.Bits (xor)
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base64 as B64
 import Data.ByteString.Char8 (ByteString)
@@ -272,15 +273,15 @@ import Popopx.Messaging.Agent.Store.DB (Binary (..), FromField (..), ToField (..
 import qualified Popopx.Messaging.Crypto as C
 import Popopx.Messaging.Encoding
 import Popopx.Messaging.Encoding.String
-import Popopx.Messaging.Names.Record (NameRecord (..))
+import Popopx.Messaging.Names.Record
 import Popopx.Messaging.Parsers
 import Popopx.Messaging.Protocol.Types
 import Popopx.Messaging.Server.QueueStore.QueueInfo
 import Popopx.Messaging.ServiceScheme
-import Popopx.Messaging.PoName (PopopxDomain)
+import Popopx.Messaging.PoName (LabelHash, PopopxDomain (..), PopopxTLD (..), fullDomainName, labelHash)
 import Popopx.Messaging.Transport
 import Popopx.Messaging.Transport.Client (TransportHost, TransportHosts (..))
-import Popopx.Messaging.Util (bshow, eitherToMaybe, safeDecodeUtf8, (<$?>))
+import Popopx.Messaging.Util (bshow, eitherToMaybe, packZipWith, safeDecodeUtf8, (<$?>))
 import Popopx.Messaging.Version
 import Popopx.Messaging.Version.Internal
 
@@ -319,18 +320,13 @@ currentSMPClientVersion = VersionSMPC 4
 supportedSMPClientVRange :: VersionRangeSMPC
 supportedSMPClientVRange = mkVersionRange initialSMPClientVersion currentSMPClientVersion
 
--- TODO v6.0 remove dependency on version
-maxMessageLength :: VersionSMP -> Int
-maxMessageLength v
-  | v >= encryptedBlockSMPVersion = 16048 -- max 16048
-  | v >= sendingProxySMPVersion = 16064 -- max 16067
-  | otherwise = 16088 -- 16048 - always use this size to determine allowed ranges
+maxMessageLength :: Int
+maxMessageLength = 16048 -- max 16048
 
 paddedProxiedTLength :: Int
 paddedProxiedTLength = 16226 -- 16225 .. 16227
 
--- TODO v7.0 change to 16048
-type MaxMessageLen = 16088
+type MaxMessageLen = 16048
 
 -- 16 extra bytes: 8 for timestamp and 8 for flags (7 flags and the space, only 1 flag is currently used)
 type MaxRcvMessageLen = MaxMessageLen + 16 -- 16104, the padded size is 16106
@@ -614,8 +610,8 @@ data Command (p :: Party) where
   -- - entity ID: empty
   -- - corrId: unique correlation ID between proxy and relay, also used as a nonce to encrypt forwarded transmission
   RFWD :: EncFwdTransmission -> Command ProxyService -- use CorrId as CbNonce, proxy to relay
-  -- Resolve POPOPX name.
-  RSLV :: PopopxDomain -> Command Resolver
+  -- Resolve SimpleX name.
+  RSLV :: NameQuery -> Command Resolver
 
 deriving instance Show (Command p)
 
@@ -707,6 +703,11 @@ instance Encoding NewNtfCreds where
 newtype EncTransmission = EncTransmission ByteString
   deriving (Show)
 
+encTransmissionNonce :: VersionSMP -> C.CbNonce -> C.CbNonce
+encTransmissionNonce v nonce@(C.CbNonce s)
+  | v >= fwdNoncesSMPVersion = C.cbNonce $ packZipWith xor (smpEncode v) s <> BS.drop 2 s
+  | otherwise = nonce
+
 data FwdTransmission = FwdTransmission
   { fwdCorrId :: CorrId,
     fwdVersion :: VersionSMP,
@@ -742,8 +743,8 @@ data BrokerMsg where
   NMSG :: C.CbNonce -> EncNMsgMeta -> BrokerMsg
   -- Should include certificate chain
   PKEY :: SessionId -> VersionRangeSMP -> CertChainPubKey -> BrokerMsg -- TLS-signed server key for proxy shared secret and initial sender key
-  RRES :: EncFwdResponse -> BrokerMsg -- relay to proxy
-  PRES :: EncResponse -> BrokerMsg -- proxy to client
+  RRES :: Maybe C.CbNonce -> EncFwdResponse -> BrokerMsg -- relay to proxy
+  PRES :: Maybe C.CbNonce -> EncResponse -> BrokerMsg -- proxy to client
   END :: BrokerMsg
   ENDS :: Int64 -> IdsHash -> BrokerMsg
   DELD :: BrokerMsg
@@ -751,8 +752,8 @@ data BrokerMsg where
   OK :: BrokerMsg
   ERR :: ErrorType -> BrokerMsg
   PONG :: BrokerMsg
-  -- Resolved POPOPX name.
-  RNAME :: NameRecord -> BrokerMsg
+  -- What the router knows about a SimpleX name.
+  RNAME :: NameResponse -> BrokerMsg
   deriving (Eq, Show)
 
 data RcvMessage = RcvMessage
@@ -1329,7 +1330,10 @@ instance ProtocolTypeI p => FromJSON (ProtocolServer p) where
   parseJSON = strParseJSON "ProtocolServer"
 
 newtype BasicAuth = BasicAuth {unBasicAuth :: ByteString}
-  deriving (Eq, Ord, Show)
+  deriving (Ord, Show)
+
+instance Eq BasicAuth where
+  BasicAuth s == BasicAuth s' = BA.constEq s s'
 
 instance IsString BasicAuth where fromString = BasicAuth . B.pack
 
@@ -1589,7 +1593,7 @@ data ErrorType
     STORE {storeErr :: Text}
   | -- | ACK command is sent without message to be acknowledged
     NO_MSG
-  | -- | sent message is too large (> maxMessageLength = 16088 bytes)
+  | -- | sent message is too large (> maxMessageLength = 16048 bytes)
     LARGE_MSG
   | -- | relay public key is expired
     EXPIRED
@@ -1601,11 +1605,28 @@ data ErrorType
     DUPLICATE_ -- not part of SMP protocol, used internally
   deriving (Eq, Show)
 
+-- | What RSLV asks about: a name, or the hash of a second-level label.
+data NameQuery = NQDomain PopopxDomain | NQHash LabelHash PopopxTLD
+  deriving (Eq, Show)
+
+instance Encoding NameQuery where
+  smpEncode = \case
+    NQDomain d -> encodeUtf8 $ fullDomainName d
+    NQHash h tld -> strEncode h <> strEncode tld
+  smpP = NQHash <$> strP <*> strP <|> NQDomain <$> strP
+
+-- | Hashed from v22, except a name with subnames or a web TLD.
+hashedQuery :: NameQuery -> NameQuery
+hashedQuery q = case q of
+  NQDomain PopopxDomain {nameTLD, domain, subDomain}
+    | null subDomain && nameTLD /= TLDWeb -> NQHash (labelHash domain) nameTLD
+  _ -> q
+
 -- | Name resolution error
 data NameErrorType
   = -- | the names role / resolver is not configured on this server
     NO_RESOLVER
-  | -- | the name is not registered (resolver returned not-found)
+  | -- | the name does not resolve; sent only to a session below v22
     NOT_FOUND
   | -- | backing resolver/RPC failure - contains the diagnostic detail
     RESOLVER {resolverErr :: Text}
@@ -1802,13 +1823,10 @@ instance PartyI p => ProtocolEncoding SMPVersion ErrorType (Command p) where
   type Tag (Command p) = CommandTag p
   encodeProtocol v = \case
     NEW NewQueueReq {rcvAuthKey = rKey, rcvDhKey = dhKey, auth_, subMode, queueReqData, ntfCreds}
-      | v >= newNtfCredsSMPVersion -> new <> e (auth_, subMode, queueReqData, ntfCreds)
-      | v >= shortLinksSMPVersion -> new <> e (auth_, subMode, queueReqData)
-      | v >= sndAuthKeySMPVersion -> new <> e (auth_, subMode, senderCanSecure (queueReqMode <$> queueReqData))
-      | otherwise -> new <> auth <> e subMode
+      | v >= newNtfCredsSMPVersion -> new <> e (subMode, queueReqData, ntfCreds)
+      | otherwise -> new <> e (subMode, queueReqData)
       where
-        new = e (NEW_, ' ', rKey, dhKey)
-        auth = maybe "" (e . ('A',)) auth_
+        new = e (NEW_, ' ', rKey, dhKey, auth_)
     SUB -> e SUB_
     SUBS n idsHash
       | v >= rcvServiceSMPVersion -> e (SUBS_, ' ', n, idsHash)
@@ -1836,7 +1854,7 @@ instance PartyI p => ProtocolEncoding SMPVersion ErrorType (Command p) where
     PRXY host auth_ -> e (PRXY_, ' ', host, auth_)
     PFWD fwdV pubKey (EncTransmission s) -> e (PFWD_, ' ', fwdV, pubKey, Tail s)
     RFWD (EncFwdTransmission s) -> e (RFWD_, ' ', Tail s)
-    RSLV d -> e (RSLV_, ' ', d)
+    RSLV q -> e (RSLV_, ' ', if v >= nameAvailSMPVersion then hashedQuery q else q)
     where
       e :: Encoding a => a -> ByteString
       e = smpEncode
@@ -1893,22 +1911,18 @@ instance ProtocolEncoding SMPVersion ErrorType Cmd where
     CT SCreator NEW_ -> Cmd SCreator <$> newCmd
       where
         newCmd
-          | v >= newNtfCredsSMPVersion = new smpP smpP smpP
-          | v >= shortLinksSMPVersion = new smpP smpP nothing
-          | v >= sndAuthKeySMPVersion = new smpP (qReq <$> smpP) nothing
-          | otherwise = new auth nothing nothing
+          | v >= newNtfCredsSMPVersion = new smpP
+          | otherwise = new nothing
           where
             nothing = pure Nothing
-            new p1 p2 p3 = NEW <$> do
+            new p3 = NEW <$> do
               rcvAuthKey <- _smpP
               rcvDhKey <- smpP
-              auth_ <- p1
+              auth_ <- smpP
               subMode <- smpP
-              queueReqData <- p2
+              queueReqData <- smpP
               ntfCreds <- p3
               pure NewQueueReq {rcvAuthKey, rcvDhKey, auth_, subMode, queueReqData, ntfCreds}
-            auth = optional (A.char 'A' *> smpP)
-            qReq sndSecure = Just $ if sndSecure then QRMessaging Nothing else QRContact Nothing
     CT SRecipient tag ->
       Cmd SRecipient <$> case tag of
         SUB_ -> pure SUB
@@ -1945,7 +1959,7 @@ instance ProtocolEncoding SMPVersion ErrorType Cmd where
     CT SNotifierService NSUBS_
       | v >= rcvServiceSMPVersion -> Cmd SNotifierService <$> (NSUBS <$> _smpP <*> smpP)
       | otherwise -> pure $ Cmd SNotifierService $ NSUBS (-1) mempty
-    CT SResolver RSLV_ -> Cmd SResolver . RSLV <$> _smpP <* A.takeByteString
+    CT SResolver RSLV_ -> Cmd SResolver . RSLV <$> _smpP
 
   fromProtocolError = fromProtocolError @SMPVersion @ErrorType @BrokerMsg
   {-# INLINE fromProtocolError #-}
@@ -1957,11 +1971,9 @@ instance ProtocolEncoding SMPVersion ErrorType BrokerMsg where
   type Tag BrokerMsg = BrokerMsgTag
   encodeProtocol v = \case
     IDS QIK {rcvId, sndId, rcvPublicDhKey = srvDh, queueMode, linkId, serviceId, serverNtfCreds}
-      | v >= newNtfCredsSMPVersion -> ids <> e queueMode <> e linkId <> e serviceId <> e serverNtfCreds
-      | v >= serviceCertsSMPVersion -> ids <> e queueMode <> e linkId <> e serviceId
-      | v >= shortLinksSMPVersion -> ids <> e queueMode <> e linkId
-      | v >= sndAuthKeySMPVersion -> ids <> e (senderCanSecure queueMode)
-      | otherwise -> ids
+      | v >= newNtfCredsSMPVersion -> ids <> e (queueMode, linkId, serviceId, serverNtfCreds)
+      | v >= serviceCertsSMPVersion -> ids <> e (queueMode, linkId, serviceId)
+      | otherwise -> ids <> e (queueMode, linkId)
       where
         ids = e (IDS_, ' ', rcvId, sndId, srvDh)
     LNK sId d -> e (LNK_, ' ', sId, d)
@@ -1975,30 +1987,34 @@ instance ProtocolEncoding SMPVersion ErrorType BrokerMsg where
     NID nId srvNtfDh -> e (NID_, ' ', nId, srvNtfDh)
     NMSG nmsgNonce encNMsgMeta -> e (NMSG_, ' ', nmsgNonce, encNMsgMeta)
     PKEY sid vr certKey -> e (PKEY_, ' ', sid, vr, certKey)
-    RRES (EncFwdResponse encBlock) -> e (RRES_, ' ', Tail encBlock)
-    PRES (EncResponse encBlock) -> e (PRES_, ' ', Tail encBlock)
+    RRES nonce_ (EncFwdResponse encBlock) -> fwdResp RRES_ nonce_ encBlock
+    PRES nonce_ (EncResponse encBlock) -> fwdResp PRES_ nonce_ encBlock
     END -> e END_
     ENDS n idsHash -> serviceResp ENDS_ n idsHash
-    DELD
-      | v >= deletedEventSMPVersion -> e DELD_
-      | otherwise -> e END_
+    DELD -> e DELD_
     INFO info -> e (INFO_, ' ', info)
     OK -> e OK_
     ERR err -> e (ERR_, ' ', err')
       where
         err' = case err of
           BLOCKED info
-            | v < blockedEntitySMPVersion -> AUTH
             | v < clientNoticesSMPVersion -> BLOCKED info {notice = Nothing}
           _ -> err
     PONG -> e PONG_
-    RNAME rec -> e (RNAME_, ' ', Tail $ LB.toStrict $ J.encode rec)
+    RNAME res
+      | v >= nameAvailSMPVersion -> e (RNAME_, ' ', Tail $ LB.toStrict $ J.encode res)
+      | otherwise -> case registration res of
+          NRRegistered {nameRecord} -> e (RNAME_, ' ', Tail $ LB.toStrict $ J.encode nameRecord)
+          _ -> e (ERR_, ' ', NAME NOT_FOUND)
     where
       e :: Encoding a => a -> ByteString
       e = smpEncode
       serviceResp tag n idsHash
         | v >= rcvServiceSMPVersion = e (tag, ' ', n, idsHash)
         | otherwise = e (tag, ' ', n)
+      fwdResp tag nonce_ encBlock
+        | v >= fwdNoncesSMPVersion = e (tag, ' ', nonce_, Tail encBlock)
+        | otherwise = e (tag, ' ', Tail encBlock)
 
   protocolP v = \case
     MSG_ -> do
@@ -2008,20 +2024,17 @@ instance ProtocolEncoding SMPVersion ErrorType BrokerMsg where
         bodyP = EncRcvMsgBody . unTail <$> smpP
     ALLS_ -> pure ALLS
     IDS_
-      | v >= newNtfCredsSMPVersion -> ids smpP smpP smpP smpP
-      | v >= serviceCertsSMPVersion -> ids smpP smpP smpP nothing
-      | v >= shortLinksSMPVersion -> ids smpP smpP nothing nothing
-      | v >= sndAuthKeySMPVersion -> ids (qm <$> smpP) nothing nothing nothing
-      | otherwise -> ids nothing nothing nothing nothing
+      | v >= newNtfCredsSMPVersion -> ids smpP smpP
+      | v >= serviceCertsSMPVersion -> ids smpP nothing
+      | otherwise -> ids nothing nothing
       where
-        qm sndSecure = Just $ if sndSecure then QMMessaging else QMContact
         nothing = pure Nothing
-        ids p1 p2 p3 p4 = do
+        ids p3 p4 = do
           rcvId <- _smpP
           sndId <- smpP
           rcvPublicDhKey <- smpP
-          queueMode <- p1
-          linkId <- p2
+          queueMode <- smpP
+          linkId <- smpP
           serviceId <- p3
           serverNtfCreds <- p4
           pure $ IDS QIK {rcvId, sndId, rcvPublicDhKey, queueMode, linkId, serviceId, serverNtfCreds}
@@ -2031,8 +2044,8 @@ instance ProtocolEncoding SMPVersion ErrorType BrokerMsg where
     NID_ -> NID <$> _smpP <*> smpP
     NMSG_ -> NMSG <$> _smpP <*> smpP
     PKEY_ -> PKEY <$> _smpP <*> smpP <*> smpP
-    RRES_ -> RRES <$> (EncFwdResponse . unTail <$> _smpP)
-    PRES_ -> PRES <$> (EncResponse . unTail <$> _smpP)
+    RRES_ -> fwdRespP RRES EncFwdResponse
+    PRES_ -> fwdRespP PRES EncResponse
     END_ -> pure END
     ENDS_ -> serviceRespP ENDS
     DELD_ -> pure DELD
@@ -2040,11 +2053,18 @@ instance ProtocolEncoding SMPVersion ErrorType BrokerMsg where
     OK_ -> pure OK
     ERR_ -> ERR <$> _smpP
     PONG_ -> pure PONG
-    RNAME_ -> fmap RNAME . J.eitherDecodeStrict . unTail <$?> _smpP
+    RNAME_
+      | v >= nameAvailSMPVersion -> fmap RNAME . J.eitherDecodeStrict . unTail <$?> _smpP
+      | otherwise -> fmap (RNAME . oldResponse) . J.eitherDecodeStrict . unTail <$?> _smpP
     where
+      oldResponse nameRecord =
+        NameResponse {lastBlockTs = Nothing, registration = NRRegistered {expires = Nothing, graceUntil = Nothing, reservedReason_ = Nothing, nameRecord}}
       serviceRespP resp
         | v >= rcvServiceSMPVersion = resp <$> _smpP <*> smpP
         | otherwise = resp <$> _smpP <*> pure mempty
+      fwdRespP :: (Maybe C.CbNonce -> a -> BrokerMsg) -> (ByteString -> a) -> Parser BrokerMsg
+      fwdRespP resp enc = resp <$> (A.space *> nonceP) <*> (enc <$> A.takeByteString)
+      nonceP = if v >= fwdNoncesSMPVersion then smpP else pure Nothing
 
   fromProtocolError = \case
     PECmdSyntax -> CMD SYNTAX
@@ -2061,9 +2081,9 @@ instance ProtocolEncoding SMPVersion ErrorType BrokerMsg where
     -- PONG response must not have queue ID
     PONG -> noEntityMsg
     PKEY {} -> noEntityMsg
-    RRES _ -> noEntityMsg
+    RRES {} -> noEntityMsg
     ALLS -> noEntityMsg
-    RNAME _ -> noEntityMsg
+    RNAME {} -> noEntityMsg
     -- other broker responses must have queue ID
     _
       | B.null entId -> Left $ CMD NO_ENTITY
@@ -2297,19 +2317,8 @@ batchTransmissions params = batchTransmissions' params . L.map (,())
 
 -- | encodes and batches transmissions into blocks
 batchTransmissions' :: forall v p r. THandleParams v p -> NonEmpty (Either TransportError SentRawTransmission, r) -> [TransportBatch r]
-batchTransmissions' THandleParams {batch, blockSize = bSize, serviceAuth} ts
-  | batch = batchTransmissions_ bSize $ L.map (first $ fmap $ tEncodeForBatch serviceAuth) ts
-  | otherwise = map mkBatch1 $ L.toList ts
-  where
-    mkBatch1 :: (Either TransportError SentRawTransmission, r) -> TransportBatch r
-    mkBatch1 (t_, r) = case t_ of
-      Left e -> TBError e r
-      Right t
-        -- 2 bytes are reserved for pad size
-        | B.length s <= bSize - 2 -> TBTransmission s r
-        | otherwise -> TBError TELargeMsg r
-        where
-          s = tEncode serviceAuth t
+batchTransmissions' THandleParams {blockSize, serviceAuth} ts =
+  batchTransmissions_ blockSize $ L.map (first $ fmap $ tEncodeForBatch serviceAuth) ts
 
 -- | Pack encoded transmissions into batches
 batchTransmissions_ :: Int -> NonEmpty (Either TransportError ByteString, r) -> [TransportBatch r]
@@ -2373,9 +2382,8 @@ tGetParse th@THandle {params} = eitherList (tParse params) <$> tGetBlock th
 {-# INLINE tGetParse #-}
 
 tParse :: THandleParams v p -> ByteString -> NonEmpty (Either TransportError RawTransmission)
-tParse thParams@THandleParams {batch} s
-  | batch = eitherList (L.map (\(Large t) -> tParse1 t)) ts
-  | otherwise = [tParse1 s]
+tParse thParams s =
+  eitherList (L.map (tParse1 . unLarge)) ts
   where
     tParse1 = parse (transmissionP thParams) TEBadBlock
     ts = parse smpP TEBadBlock s
@@ -2445,3 +2453,4 @@ $(J.deriveJSON defaultJSON ''BlockingInfo)
 
 -- run deriveJSON in one TH splice to allow mutual instance
 $(concat <$> mapM @[] (J.deriveJSON (sumTypeJSON id)) [''ProxyError, ''NameErrorType, ''ErrorType])
+

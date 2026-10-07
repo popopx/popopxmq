@@ -45,6 +45,8 @@ module Popopx.Messaging.Agent.Store
     AcceptedConfirmation (..),
     NewInvitation (..),
     Invitation (..),
+    ContactRequest (..),
+    DRInvitation (..),
     PrevExternalSndId,
     PrevRcvMsgHash,
     PrevSndMsgHash,
@@ -205,12 +207,13 @@ rcvSMPQueueAddress :: RcvQueue -> SMPQueueAddress
 rcvSMPQueueAddress RcvQueue {server, sndId, e2ePrivKey, queueMode} =
   SMPQueueAddress server sndId (C.publicKey e2ePrivKey) queueMode
 
-canAbortRcvSwitch :: RcvQueue -> Bool
-canAbortRcvSwitch = maybe False canAbort . rcvSwchStatus
+canAbortRcvSwitch :: ConnData -> RcvQueue -> Bool
+canAbortRcvSwitch ConnData {connAgentVersion} = maybe False canAbort . rcvSwchStatus
   where
     canAbort = \case
       RSSwitchStarted -> True
-      RSSendingQADD -> True
+      -- at agent version 8 and above the peer always chooses fast rotation, so a sent QADD is committed
+      RSSendingQADD -> connAgentVersion < rpcAddressSMPAgentVersion
       -- if switch is in RSSendingQUSE, a race condition with sender deleting the original queue is possible
       RSSendingQUSE -> False
       -- if switch is in RSReceivedMessage status, aborting switch (deleting new queue)
@@ -463,7 +466,9 @@ data ConnData = ConnData
     lastExternalSndId :: PrevExternalSndId,
     deleted :: Bool,
     ratchetSyncState :: RatchetSyncState,
-    pqSupport :: PQSupport
+    pqSupport :: PQSupport,
+    -- client side: set on the requester's connection for a service request; Nothing otherwise. The time the client stops waiting for the response (created + serviceRequestTimeout or per-call override).
+    serviceRequestExpiresAt :: Maybe UTCTime
   }
   deriving (Eq, Show)
 
@@ -471,8 +476,8 @@ type NoticeId = Int64
 
 -- this function should be mirrored in the clients
 ratchetSyncAllowed :: ConnData -> Bool
-ratchetSyncAllowed ConnData {ratchetSyncState, connAgentVersion} =
-  connAgentVersion >= ratchetSyncSMPAgentVersion && (ratchetSyncState `elem` ([RSAllowed, RSRequired] :: [RatchetSyncState]))
+ratchetSyncAllowed ConnData {ratchetSyncState} =
+  ratchetSyncState `elem` ([RSAllowed, RSRequired] :: [RatchetSyncState])
 
 -- this function should be mirrored in the clients
 ratchetSyncSendProhibited :: ConnData -> Bool
@@ -484,7 +489,8 @@ data PendingCommand = PendingCommand
     corrId :: ACorrId,
     userId :: UserId,
     connId :: ConnId,
-    command :: AgentCommand
+    command :: AgentCommand,
+    createdAt :: UTCTime
   }
 
 data AgentCmdType = ACClient | ACInternal
@@ -534,7 +540,9 @@ data InternalCommand
   | ICDeleteConn
   | ICDeleteRcvQueue SMP.RecipientId
   | ICQSecure SMP.RecipientId SMP.SndPublicAuthKey
+  | ICQSndSecure SMP.SenderId
   | ICQDelete SMP.RecipientId
+  | ICReplyDel
 
 data InternalCommandTag
   = ICAck_
@@ -544,7 +552,9 @@ data InternalCommandTag
   | ICDeleteConn_
   | ICDeleteRcvQueue_
   | ICQSecure_
+  | ICQSndSecure_
   | ICQDelete_
+  | ICReplyDel_
   deriving (Show)
 
 instance StrEncoding InternalCommand where
@@ -556,7 +566,9 @@ instance StrEncoding InternalCommand where
     ICDeleteConn -> strEncode ICDeleteConn_
     ICDeleteRcvQueue rId -> strEncode (ICDeleteRcvQueue_, rId)
     ICQSecure rId senderKey -> strEncode (ICQSecure_, rId, senderKey)
+    ICQSndSecure sId -> strEncode (ICQSndSecure_, sId)
     ICQDelete rId -> strEncode (ICQDelete_, rId)
+    ICReplyDel -> strEncode ICReplyDel_
   strP =
     strP >>= \case
       ICAck_ -> ICAck <$> _strP <*> _strP
@@ -566,7 +578,9 @@ instance StrEncoding InternalCommand where
       ICDeleteConn_ -> pure ICDeleteConn
       ICDeleteRcvQueue_ -> ICDeleteRcvQueue <$> _strP
       ICQSecure_ -> ICQSecure <$> _strP <*> _strP
+      ICQSndSecure_ -> ICQSndSecure <$> _strP
       ICQDelete_ -> ICQDelete <$> _strP
+      ICReplyDel_ -> pure ICReplyDel
 
 instance StrEncoding InternalCommandTag where
   strEncode = \case
@@ -577,7 +591,9 @@ instance StrEncoding InternalCommandTag where
     ICDeleteConn_ -> "DELETE_CONN"
     ICDeleteRcvQueue_ -> "DELETE_RCV_QUEUE"
     ICQSecure_ -> "QSECURE"
+    ICQSndSecure_ -> "QSND_SECURE"
     ICQDelete_ -> "QDELETE"
+    ICReplyDel_ -> "REPLY_DEL"
   strP =
     A.takeTill (== ' ') >>= \case
       "ACK" -> pure ICAck_
@@ -587,7 +603,9 @@ instance StrEncoding InternalCommandTag where
       "DELETE_CONN" -> pure ICDeleteConn_
       "DELETE_RCV_QUEUE" -> pure ICDeleteRcvQueue_
       "QSECURE" -> pure ICQSecure_
+      "QSND_SECURE" -> pure ICQSndSecure_
       "QDELETE" -> pure ICQDelete_
+      "REPLY_DEL" -> pure ICReplyDel_
       _ -> fail "bad InternalCommandTag"
 
 agentCommandTag :: AgentCommand -> AgentCommandTag
@@ -604,7 +622,9 @@ internalCmdTag = \case
   ICDeleteConn -> ICDeleteConn_
   ICDeleteRcvQueue {} -> ICDeleteRcvQueue_
   ICQSecure {} -> ICQSecure_
+  ICQSndSecure {} -> ICQSndSecure_
   ICQDelete _ -> ICQDelete_
+  ICReplyDel -> ICReplyDel_
 
 -- * Confirmation types
 
@@ -626,18 +646,27 @@ data AcceptedConfirmation = AcceptedConfirmation
 
 data NewInvitation = NewInvitation
   { contactConnId :: ConnId,
-    connReq :: ConnectionRequestUri 'CMInvitation,
-    recipientConnInfo :: ConnInfo
+    connReq :: ContactRequest,
+    recipientConnInfo :: ConnInfo,
+    -- service side: the received request is a service request (SREQ) not a contact request (REQ)
+    serviceRequest :: Bool
   }
 
 data Invitation = Invitation
   { invitationId :: InvitationId,
     contactConnId_ :: Maybe ConnId,
-    connReq :: ConnectionRequestUri 'CMInvitation,
+    connReq :: ContactRequest,
     recipientConnInfo :: ConnInfo,
     ownConnInfo :: Maybe ConnInfo,
-    accepted :: Bool
+    accepted :: Bool,
+    -- service side: the received request is a service request (SREQ) not a contact request (REQ)
+    serviceRequest :: Bool,
+    createdAt :: UTCTime
   }
+
+data ContactRequest
+  = CRInvitation (ConnectionRequestUri 'CMInvitation)
+  | CRInvitationDR DRInvitation
 
 -- * Message integrity validation types
 

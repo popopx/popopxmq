@@ -20,12 +20,13 @@ import Control.Concurrent.Async (concurrently_)
 import Control.Concurrent.MVar
 import Control.Concurrent.STM
 import Control.Exception (SomeException)
-import Control.Monad (replicateM_)
+import Control.Monad (forM_, replicateM_)
 import Control.Monad.Trans.Except
 import Crypto.Random (ChaChaDRG)
 import Data.ByteArray (ScrubbedBytes)
 import Data.ByteString.Char8 (ByteString)
 import Data.List (isInfixOf)
+import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
 import Data.Time
@@ -51,6 +52,7 @@ import qualified Popopx.Messaging.Crypto as C
 import Popopx.Messaging.Crypto.File (CryptoFile (..))
 import Popopx.Messaging.Crypto.Ratchet (pattern IKPQOn)
 import qualified Popopx.Messaging.Crypto.Ratchet as CR
+import Popopx.Messaging.Encoding (Encoding (..))
 import Popopx.Messaging.Encoding.String (StrEncoding (..))
 import Popopx.Messaging.Protocol (EntityId (..), QueueMode (..), SubscriptionMode (..), pattern VersionSMPC)
 import qualified Popopx.Messaging.Protocol as SMP
@@ -135,6 +137,8 @@ storeTests = do
           testCreateRcvMsg
           testCreateSndMsg
           testCreateRcvAndSndMsgs
+      describe "deleteRatchetKeyHashesExpired" testDeleteRatchetKeyHashesExpired
+      it "should keep only the newest skipped message keys" testGetSkippedMsgKeys
       describe "Work items" $ do
         it "should getPendingQueueMsg" testGetPendingQueueMsg
         it "should getPendingServerCommand" testGetPendingServerCommand
@@ -198,7 +202,8 @@ cData1 =
       lastExternalSndId = 0,
       deleted = False,
       ratchetSyncState = RSOk,
-      pqSupport = CR.PQSupportOn
+      pqSupport = CR.PQSupportOn,
+      serviceRequestExpiresAt = Nothing
     }
 
 testPrivateAuthKey :: C.APrivateAuthKey
@@ -598,6 +603,42 @@ testCreateRcvAndSndMsgs =
       testCreateSndMsg_ db "snd_hash_1" connId sq $ mkSndMsgData (InternalId 5) (InternalSndId 2) "snd_hash_2"
       testCreateSndMsg_ db "snd_hash_2" connId sq $ mkSndMsgData (InternalId 6) (InternalSndId 3) "snd_hash_3"
 
+testDeleteRatchetKeyHashesExpired :: SpecWith DBStore
+testDeleteRatchetKeyHashesExpired =
+  it "should delete expired ratchet key hashes except the newest in each connection" . withStoreTransaction $ \db -> do
+    g <- C.newRandom
+    Right connId <- createNewConn db g cData1 {connId = ""} SCMInvitation
+    Right connId' <- createNewConn db g cData1 {connId = ""} SCMContact
+    let hashes = ["h1", "h2", "h3", "h4", "h5", "h6"]
+    forM_ hashes $ addProcessedRatchetKeyHash db connId
+    forM_ (take 4 hashes) $ addProcessedRatchetKeyHash db connId'
+    deleteRatchetKeyHashesExpired db 86400 4
+    mapM (checkRatchetKeyHashExists db connId) hashes `shouldReturn` replicate 6 True
+    deleteRatchetKeyHashesExpired db 0 4
+    mapM (checkRatchetKeyHashExists db connId) hashes `shouldReturn` [False, False, True, True, True, True]
+    mapM (checkRatchetKeyHashExists db connId') (take 4 hashes) `shouldReturn` replicate 4 True
+
+testGetSkippedMsgKeys :: DBStore -> Expectation
+testGetSkippedMsgKeys st = do
+  g <- C.newRandom
+  withTransaction st $ \db -> do
+    Right connId <- createNewConn db g cData1 {connId = ""} SCMInvitation
+    Right connId' <- createNewConn db g cData1 {connId = ""} SCMInvitation
+    createSkippedKeys db connId'
+    createSkippedKeys db connId
+    M.map M.keys <$> getSkippedMsgKeys db connId 4
+      `shouldReturn` M.singleton (C.Key "header_key") [1, 2, 3, 4]
+    getMsgNs db connId `shouldReturn` [1 .. 4]
+    getMsgNs db connId' `shouldReturn` [1 .. 10]
+  where
+    createSkippedKeys :: DB.Connection -> ConnId -> IO ()
+    createSkippedKeys db connId = do
+      DB.execute db "INSERT INTO ratchets (conn_id) VALUES (?)" (Only connId)
+      forM_ ([10, 9 .. 1] :: [Int]) $ \msgN ->
+        DB.execute db "INSERT INTO skipped_messages (conn_id, header_key, msg_n, msg_key) VALUES (?, ?, ?, ?)" (connId, "header_key" :: ByteString, msgN, smpEncode ("key" :: ByteString, "iv" :: ByteString))
+    getMsgNs :: DB.Connection -> ConnId -> IO [Int]
+    getMsgNs db connId = map fromOnly <$> DB.query db "SELECT msg_n FROM skipped_messages WHERE conn_id = ? ORDER BY msg_n" (Only connId)
+
 testCloseReopenStore :: IO ()
 testCloseReopenStore = do
   st <- createStore'
@@ -647,7 +688,7 @@ hasMigrations :: DBStore -> Expectation
 hasMigrations st = getMigrations st `shouldReturn` True
 
 errorGettingMigrations :: DBStore -> Expectation
-errorGettingMigrations st = getMigrations st `shouldThrow` \(e :: SomeException) -> "ErrorMisuse" `isInfixOf` show e
+errorGettingMigrations st = getMigrations st `shouldThrow` \(e :: SomeException) -> "withTransaction: database closed" `isInfixOf` show e
 
 testGetPendingQueueMsg :: DBStore -> Expectation
 testGetPendingQueueMsg st = do
@@ -696,7 +737,7 @@ testGetPendingServerCommand st = do
     Right (Just PendingCommand {corrId = corrId'}) <- getPendingServerCommand db connId (Just smpServer1)
     corrId' `shouldBe` "4"
   where
-    command = AClientCommand $ NEW True (ACM SCMInvitation) IKPQOn SMSubscribe
+    command = AClientCommand $ NEW True (ACM SCMInvitation) IKPQOn SMSubscribe False
     corruptCmd :: DB.Connection -> ByteString -> ConnId -> IO ()
     corruptCmd db corrId connId = DB.execute db "UPDATE commands SET command = cast('bad' as blob) WHERE conn_id = ? AND corr_id = ?" (connId, corrId)
 
@@ -742,9 +783,11 @@ testGetNextRcvChunkToDownload st = do
   withTransaction st $ \db -> do
     Right Nothing <- getNextRcvChunkToDownload db xftpServer1 86400
 
-    Right _ <- createRcvFile db g 1 rcvFileDescr1 "filepath" "filepath" (CryptoFile "filepath" Nothing) True
+    Right fId1 <- createRcvFile db g 1 rcvFileDescr1 "filepath" "filepath" (CryptoFile "filepath" Nothing) True
+    Right _ <- startPreparedRcvFile db fId1
     DB.execute_ db "UPDATE rcv_file_chunk_replicas SET replica_key = cast('bad' as blob) WHERE rcv_file_chunk_replica_id = 1"
     Right fId2 <- createRcvFile db g 1 rcvFileDescr1 "filepath" "filepath" (CryptoFile "filepath" Nothing) True
+    Right _ <- startPreparedRcvFile db fId2
 
     Left e <- getNextRcvChunkToDownload db xftpServer1 86400
     show e `shouldContain` "ConversionFailed"
@@ -781,7 +824,8 @@ testGetNextSndFileToPrepare st = do
     -- Can't test it with strict tables
     -- Right _ <- createSndFile db g 1 (CryptoFile "filepath" Nothing) 1 "filepath" testFileSbKey testFileCbNonce Nothing
     -- DB.execute_ db "UPDATE snd_files SET status = 'new', num_recipients = 'bad' WHERE snd_file_id = 1"
-    Right fId2 <- createSndFile db g 1 (CryptoFile "filepath" Nothing) 1 "filepath" testFileSbKey testFileCbNonce Nothing
+    Right fId2 <- createSndFile db g 1 (CryptoFile "filepath" Nothing) 1 "filepath" testFileSbKey testFileCbNonce Nothing Nothing
+    Right _ <- startPreparedSndFile db fId2
     DB.execute_ db "UPDATE snd_files SET status = 'new' WHERE snd_file_id = 2"
 
     -- Left e <- getNextSndFileToPrepare db 86400
@@ -797,7 +841,8 @@ newSndChunkReplica1 =
     { server = xftpServer1,
       replicaId = ChunkReplicaId $ EntityId "abc",
       replicaKey = testFileReplicaKey,
-      rcvIdsKeys = [(ChunkReplicaId $ EntityId "abc", testFileReplicaKey)]
+      rcvIdsKeys = [(ChunkReplicaId $ EntityId "abc", testFileReplicaKey)],
+      expiresAt = Nothing
     }
 
 testGetNextSndChunkToUpload :: DBStore -> Expectation
@@ -807,13 +852,13 @@ testGetNextSndChunkToUpload st = do
     Right Nothing <- getNextSndChunkToUpload db xftpServer1 86400
 
     -- create file 1
-    Right _ <- createSndFile db g 1 (CryptoFile "filepath" Nothing) 1 "filepath" testFileSbKey testFileCbNonce Nothing
+    Right _ <- createSndFile db g 1 (CryptoFile "filepath" Nothing) 1 "filepath" testFileSbKey testFileCbNonce Nothing Nothing
     updateSndFileEncrypted db 1 (FileDigest "abc") [(XFTPChunkSpec "filepath" 1 1, FileDigest "ghi")]
     -- Can't test it with strict tables
     -- createSndFileReplica_ db 1 newSndChunkReplica1
     -- DB.execute_ db "UPDATE snd_files SET num_recipients = 'bad' WHERE snd_file_id = 1"
     -- create file 2
-    Right fId2 <- createSndFile db g 1 (CryptoFile "filepath" Nothing) 1 "filepath" testFileSbKey testFileCbNonce Nothing
+    Right fId2 <- createSndFile db g 1 (CryptoFile "filepath" Nothing) 1 "filepath" testFileSbKey testFileCbNonce Nothing Nothing
     updateSndFileEncrypted db 2 (FileDigest "abc") [(XFTPChunkSpec "filepath" 1 1, FileDigest "ghi")]
     createSndFileReplica_ db 2 newSndChunkReplica1
 

@@ -39,6 +39,7 @@ import Data.Text.Encoding (encodeUtf8)
 import Data.Word (Word32)
 import Popopx.FileTransfer.Client (XFTPChunkSpec (..))
 import Popopx.FileTransfer.Description
+import Popopx.FileTransfer.Protocol (GrantedStorageTime (..))
 import Popopx.Messaging.Agent.Store.DB (FromField (..), ToField (..), fromTextField_)
 import qualified Popopx.Messaging.Crypto as C
 import Popopx.Messaging.Crypto.File (CryptoFile (..))
@@ -92,7 +93,8 @@ data RcvFile = RcvFile
   deriving (Show)
 
 data RcvFileStatus
-  = RFSReceiving
+  = RFSPrepared
+  | RFSReceiving
   | RFSReceived
   | RFSDecrypting
   | RFSComplete
@@ -105,6 +107,7 @@ instance ToField RcvFileStatus where toField = toField . textEncode
 
 instance TextEncoding RcvFileStatus where
   textDecode = \case
+    "prepared" -> Just RFSPrepared
     "receiving" -> Just RFSReceiving
     "received" -> Just RFSReceived
     "decrypting" -> Just RFSDecrypting
@@ -112,6 +115,7 @@ instance TextEncoding RcvFileStatus where
     "error" -> Just RFSError
     _ -> Nothing
   textEncode = \case
+    RFSPrepared -> "prepared"
     RFSReceiving -> "receiving"
     RFSReceived -> "received"
     RFSDecrypting -> "decrypting"
@@ -167,7 +171,8 @@ data SndFile = SndFile
     prefixPath :: Maybe FilePath,
     status :: SndFileStatus,
     deleted :: Bool,
-    redirect :: Maybe RedirectFileInfo
+    redirect :: Maybe RedirectFileInfo,
+    storageHours :: Maybe Word32
   }
   deriving (Show)
 
@@ -175,7 +180,8 @@ sndFileEncPath :: FilePath -> FilePath
 sndFileEncPath prefixPath = prefixPath </> "xftp.encrypted"
 
 data SndFileStatus
-  = SFSNew -- db record created
+  = SFSPrepared
+  | SFSNew -- db record created
   | SFSEncrypting -- encryption started
   | SFSEncrypted -- encryption complete
   | SFSUploading -- all chunk replicas are created on servers
@@ -189,6 +195,7 @@ instance ToField SndFileStatus where toField = toField . textEncode
 
 instance TextEncoding SndFileStatus where
   textDecode = \case
+    "prepared" -> Just SFSPrepared
     "new" -> Just SFSNew
     "encrypting" -> Just SFSEncrypting
     "encrypted" -> Just SFSEncrypted
@@ -197,6 +204,7 @@ instance TextEncoding SndFileStatus where
     "error" -> Just SFSError
     _ -> Nothing
   textEncode = \case
+    SFSPrepared -> "prepared"
     SFSNew -> "new"
     SFSEncrypting -> "encrypting"
     SFSEncrypted -> "encrypted"
@@ -225,7 +233,8 @@ data NewSndChunkReplica = NewSndChunkReplica
   { server :: XFTPServer,
     replicaId :: ChunkReplicaId,
     replicaKey :: C.APrivateAuthKey,
-    rcvIdsKeys :: [(ChunkReplicaId, C.APrivateAuthKey)]
+    rcvIdsKeys :: [(ChunkReplicaId, C.APrivateAuthKey)],
+    expiresAt :: Maybe GrantedStorageTime
   }
   deriving (Show)
 
@@ -237,7 +246,8 @@ data SndFileChunkReplica = SndFileChunkReplica
     rcvIdsKeys :: [(ChunkReplicaId, C.APrivateAuthKey)],
     replicaStatus :: SndFileReplicaStatus,
     delay :: Maybe Int64,
-    retries :: Int
+    retries :: Int,
+    expiresAt :: Maybe GrantedStorageTime
   }
   deriving (Show)
 

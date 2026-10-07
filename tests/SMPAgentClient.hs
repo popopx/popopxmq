@@ -15,7 +15,7 @@ import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as L
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
-import SMPClient (proxyVRangeV8, ntfTestPort, testPort)
+import SMPClient (ntfTestPort, testPort)
 import Popopx.Messaging.Agent.Env.SQLite
 import Popopx.Messaging.Agent.Protocol
 import Popopx.Messaging.Agent.RetryInterval
@@ -64,6 +64,7 @@ initAgentServers =
     { smp = userServers [testSMPServer],
       ntf = [testNtfServer],
       xftp = userServers [testXFTPServer],
+      entitlements = M.empty,
       netCfg = defaultNetworkConfig {tcpTimeout = NetworkTimeout 500000 500000, tcpConnectTimeout = NetworkTimeout 500000 500000},
       useServices = M.empty,
       presetDomains = [],
@@ -102,9 +103,6 @@ agentCfg =
     }
   where
     networkConfig = defaultNetworkConfig {tcpConnectTimeout = NetworkTimeout 1_000000 1_000000, tcpTimeout = NetworkTimeout 2_000000 2_000000}
-
-agentProxyCfgV8 :: AgentConfig
-agentProxyCfgV8 = agentCfg {smpCfg = (smpCfg agentCfg) {serverVRange = proxyVRangeV8}}
 
 fastRetryInterval :: RetryInterval
 fastRetryInterval = defaultReconnectInterval {initialInterval = 50_000}

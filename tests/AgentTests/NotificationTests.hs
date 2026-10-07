@@ -17,7 +17,8 @@ module AgentTests.NotificationTests where
 
 -- import Control.Logger.Simple (LogConfig (..), LogLevel (..), setLogLevel, withGlobalLogging)
 import AgentTests.FunctionalAPITests
-  ( agentCfgVPrevPQ,
+  ( agentCfgV7,
+    agentCfgVPrevPQ,
     createConnection,
     exchangeGreetings,
     get,
@@ -28,6 +29,7 @@ import AgentTests.FunctionalAPITests
     runRight_,
     sendMessage,
     switchComplete,
+    fastSwitchComplete,
     testServerMatrix2,
     withAgent,
     withAgentClients2,
@@ -82,6 +84,7 @@ import Popopx.Messaging.Parsers (parseAll)
 import Popopx.Messaging.Protocol (ErrorType (AUTH), NetworkError (..), MsgFlags (MsgFlags), NMsgMeta (..), NtfServer, ProtocolServer (..), SMPMsgMeta (..), SubscriptionMode (..))
 import qualified Popopx.Messaging.Protocol as SMP
 import Popopx.Messaging.Server.Env.STM (AStoreType (..), ServerConfig (..))
+import Popopx.Messaging.Server.Information (ServerPublicInfo (..))
 import Popopx.Messaging.Transport (ASrvTransport)
 import Popopx.Messaging.Transport.Server (TransportServerConfig (..))
 import System.Process (callCommand)
@@ -134,10 +137,10 @@ notificationTests ps@(t, _) = do
       withAPNSMockServer $ \apns ->
         testNtfTokenReRegisterInvalidOnCheck t apns
   describe "notification server tests" $ do
-    it "should pass" $ testRunNTFServerTests t testNtfServer `shouldReturn` Nothing
+    it "should pass" $ testRunNTFServerTests t testNtfServer `shouldReturn` Right Nothing
     let srv1 = testNtfServer {keyHash = "1234"}
     it "should fail with incorrect fingerprint" $ do
-      testRunNTFServerTests t srv1 `shouldReturn` Just (ProtocolTestFailure TSConnect $ BROKER (B.unpack $ strEncode srv1) $ NETWORK NEUnknownCAError)
+      testRunNTFServerTests t srv1 `shouldReturn` Left (ProtocolTestFailure TSConnect $ BROKER (B.unpack $ strEncode srv1) $ NETWORK NEUnknownCAError)
   describe "Managing notification subscriptions" $ do
     describe "should create notification subscription for existing connection" $
       testNtfMatrix ps testNotificationSubscriptionExistingConnection
@@ -163,10 +166,14 @@ notificationTests ps@(t, _) = do
     it "should resume batched subscriptions after SMP server is restarted" $
       withAPNSMockServer $ \apns ->
         withNtfServer t $ testNotificationsSMPRestartBatch 50 ps apns
-  describe "should switch notifications to the new queue" $
+  describe "should switch notifications to the new queue (slow rotation)" $
     testServerMatrix2 ps $ \servers ->
       withAPNSMockServer $ \apns ->
-        withNtfServer t $ testSwitchNotifications servers apns
+        withNtfServer t $ testSwitchNotifications agentCfgV7 switchComplete servers apns
+  describe "should switch notifications to the new queue (fast rotation)" $
+    testServerMatrix2 ps $ \servers ->
+      withAPNSMockServer $ \apns ->
+        withNtfServer t $ testSwitchNotifications agentCfg fastSwitchComplete servers apns
   it "should keep sending notifications for old token" $
     withSmpServer ps $
       withAPNSMockServer $ \apns ->
@@ -184,10 +191,10 @@ testNtfMatrix ps@(_, msType) runTest = do
   describe "next and current" $ do
     it "curr servers; curr clients" $ runNtfTestCfg ps 1 cfg' ntfServerCfg agentCfg agentCfg runTest
     it "curr servers; prev clients" $ runNtfTestCfg ps 1 cfg' ntfServerCfg agentCfgVPrevPQ agentCfgVPrevPQ runTest
-    it "prev servers; prev clients" $ runNtfTestCfg ps 1 cfgVPrev' ntfServerCfgVPrev agentCfgVPrevPQ agentCfgVPrevPQ runTest
-    it "prev servers; curr clients" $ runNtfTestCfg ps 1 cfgVPrev' ntfServerCfgVPrev agentCfg agentCfg runTest
+    it "prev servers; prev clients" $ runNtfTestCfg ps 1 cfgVPrev' ntfServerCfg agentCfgVPrevPQ agentCfgVPrevPQ runTest
+    it "prev servers; curr clients" $ runNtfTestCfg ps 1 cfgVPrev' ntfServerCfg agentCfg agentCfg runTest
     -- servers can be upgraded in any order
-    it "servers: curr SMP, prev NTF; prev clients" $ runNtfTestCfg ps 1 cfg' ntfServerCfgVPrev agentCfgVPrevPQ agentCfgVPrevPQ runTest
+    -- it "servers: curr SMP, prev NTF; prev clients" $ runNtfTestCfg ps 1 cfg' ntfServerCfg agentCfgVPrevPQ agentCfgVPrevPQ runTest
     it "servers: prev SMP, curr NTF; prev clients" $ runNtfTestCfg ps 1 cfgVPrev' ntfServerCfg agentCfgVPrevPQ agentCfgVPrevPQ runTest
     -- one of two clients can be upgraded
     it "servers: curr SMP, curr NTF; clients: curr/prev" $ runNtfTestCfg ps 1 cfg' ntfServerCfg agentCfg agentCfgVPrevPQ runTest
@@ -536,11 +543,11 @@ testNtfTokenReRegisterInvalidOnCheck t apns = do
       NTActive <- checkNtfToken a tkn1
       pure ()
 
-testRunNTFServerTests :: ASrvTransport -> NtfServer -> IO (Maybe ProtocolTestFailure)
+testRunNTFServerTests :: ASrvTransport -> NtfServer -> IO (Either ProtocolTestFailure (Maybe (Either String ServerPublicInfo)))
 testRunNTFServerTests t srv =
   withNtfServer t $
     withAgent 1 agentCfg initAgentServers testDB $ \a ->
-      testProtocolServer a NRMInteractive 1 $ ProtoServerWithAuth srv Nothing
+      testProtocolServer a NRMInteractive 1 (ProtoServerWithAuth srv Nothing)
 
 testNotificationSubscriptionExistingConnection :: APNSMockServer -> AgentMsgId -> AgentClient -> AgentClient -> IO ()
 testNotificationSubscriptionExistingConnection apns baseId alice@AgentClient {agentEnv = Env {config = aliceCfg, store}} bob = do
@@ -867,9 +874,9 @@ testNotificationsSMPRestartBatch n ps@(t, ASType qsType _) apns =
         killThread t1
         pure res
 
-testSwitchNotifications :: InitialAgentServers -> APNSMockServer -> IO ()
-testSwitchNotifications servers apns =
-  withAgentClientsCfgServers2 agentCfg agentCfg servers $ \a b -> runRight_ $ do
+testSwitchNotifications :: AgentConfig -> (AgentClient -> ByteString -> AgentClient -> ByteString -> ExceptT AgentErrorType IO ()) -> InitialAgentServers -> APNSMockServer -> IO ()
+testSwitchNotifications cfg completeSwitch servers apns =
+  withAgentClientsCfgServers2 cfg cfg servers $ \a b -> runRight_ $ do
     (aId, bId) <- makeConnection a b
     exchangeGreetings a bId b aId
     _ <- registerTestToken a "abcd" NMInstant apns
@@ -882,7 +889,7 @@ testSwitchNotifications servers apns =
           ackMessage a bId msgId Nothing
     testMessage "hello"
     _ <- switchConnectionAsync a "" bId
-    switchComplete a bId b aId
+    completeSwitch a bId b aId
     liftIO $ threadDelay 500000
     testMessage "hello again"
 

@@ -56,7 +56,6 @@ import Popopx.Messaging.Server.StoreLog (StoreLogRecord (..), closeStoreLog)
 import Popopx.Messaging.Transport
 import Popopx.Messaging.Transport.Credentials
 import Popopx.Messaging.Util (whenM)
-import Popopx.Messaging.Version (mkVersionRange)
 import System.Directory (doesDirectoryExist, doesFileExist, removeDirectoryRecursive, removeFile)
 import System.IO (IOMode (..), withFile)
 import System.TimeIt (timeItT)
@@ -261,12 +260,12 @@ testCreateSecure =
       Resp "dabc" _ err5 <- sendRecv s ("", "dabc", sId, _SEND "hello")
       (err5, ERR AUTH) #== "rejects unsigned SEND"
 
-      let maxAllowedMessage = B.replicate (maxMessageLength currentClientSMPRelayVersion) '-'
+      let maxAllowedMessage = B.replicate maxMessageLength '-'
       Resp "bcda" _ OK <- signSendRecv s sKey ("bcda", sId, _SEND maxAllowedMessage)
       Resp "" _ (Msg mId3 msg3) <- tGet1 r
       (dec mId3 msg3, Right maxAllowedMessage) #== "delivers message of max size"
 
-      let biggerMessage = B.replicate (maxMessageLength currentClientSMPRelayVersion + 1) '-'
+      let biggerMessage = B.replicate (maxMessageLength + 1) '-'
       Resp "bcda" _ (ERR LARGE_MSG) <- signSendRecv s sKey ("bcda", sId, _SEND biggerMessage)
       pure ()
 
@@ -308,12 +307,12 @@ testCreateSndSecure =
       Resp "dabc" _ err5 <- sendRecv s ("", "dabc", sId, _SEND "hello")
       (err5, ERR AUTH) #== "rejects unsigned SEND"
 
-      let maxAllowedMessage = B.replicate (maxMessageLength currentClientSMPRelayVersion) '-'
+      let maxAllowedMessage = B.replicate maxMessageLength '-'
       Resp "bcda" _ OK <- signSendRecv s sKey ("bcda", sId, _SEND maxAllowedMessage)
       Resp "" _ (Msg mId3 msg3) <- tGet1 r
       (dec mId3 msg3, Right maxAllowedMessage) #== "delivers message of max size"
 
-      let biggerMessage = B.replicate (maxMessageLength currentClientSMPRelayVersion + 1) '-'
+      let biggerMessage = B.replicate (maxMessageLength + 1) '-'
       Resp "bcda" _ (ERR LARGE_MSG) <- signSendRecv s sKey ("bcda", sId, _SEND biggerMessage)
       pure ()
 
@@ -467,7 +466,7 @@ testAllowNewQueues =
 
 testDuplex :: SpecWith (ASrvTransport, AStoreType)
 testDuplex =
-  it "should create 2 popopx connections and exchange messages" $ \(ATransport t, msType) ->
+  it "should create 2 simplex connections and exchange messages" $ \(ATransport t, msType) ->
     smpTest2 t msType $ \alice bob -> do
       g <- C.newRandom
       (arPub, arKey) <- atomically $ C.generateAuthKeyPair C.SEd448 g
@@ -522,7 +521,7 @@ testDuplex =
 
 testSwitchSub :: SpecWith (ASrvTransport, AStoreType)
 testSwitchSub =
-  it "should create popopx connections and switch subscription to another TCP connection" $ \(ATransport t, msType) ->
+  it "should create simplex connections and switch subscription to another TCP connection" $ \(ATransport t, msType) ->
     smpTest3 t msType $ \rh1 rh2 sh -> do
       g <- C.newRandom
       (rPub, rKey) <- atomically $ C.generateAuthKeyPair C.SEd448 g
@@ -540,7 +539,7 @@ testSwitchSub =
       (dec mId2 msg2, Right "test2, no ACK") #== "test message 2 delivered, no ACK"
 
       (Resp "bcda" _ (SOK Nothing), Resp "" _ (Msg mId2' msg2')) <- signSendRecv2 rh2 rKey ("bcda", rId, SUB)
-      (dec mId2' msg2', Right "test2, no ACK") #== "same popopx queue via another TCP connection, tes2 delivered again (no ACK in 1st queue)"
+      (dec mId2' msg2', Right "test2, no ACK") #== "same simplex queue via another TCP connection, tes2 delivered again (no ACK in 1st queue)"
       Resp "cdab" _ OK <- signSendRecv rh2 rKey ("cdab", rId, ACK mId2')
 
       Resp "" _ end <- tGet1 rh1
@@ -939,7 +938,7 @@ testServiceSubsTotalCount =
 
 readServiceSubsMetric :: String -> Maybe Int
 readServiceSubsMetric content =
-  case filter ("popopx_smp_subscribtion_service_subs_total " `isPrefixOf`) (lines content) of
+  case filter ("simplex_smp_subscribtion_service_subs_total " `isPrefixOf`) (lines content) of
     (line : _) -> case words line of
       [_, val, _] -> readMaybe val
       [_, val] -> readMaybe val
@@ -961,7 +960,7 @@ receiveInAnyOrder h = fmap reverse . go []
 
 testWithStoreLog :: SpecWith (ASrvTransport, AStoreType)
 testWithStoreLog =
-  it "should store popopx queues to log and restore them after server restart" $ \(at@(ATransport t), msType) -> do
+  it "should store simplex queues to log and restore them after server restart" $ \(at@(ATransport t), msType) -> do
     g <- C.newRandom
     (sPub1, sKey1) <- atomically $ C.generateAuthKeyPair C.SEd25519 g
     (sPub2, sKey2) <- atomically $ C.generateAuthKeyPair C.SEd25519 g
@@ -1272,7 +1271,7 @@ testTiming =
   describe "should have similar time for auth error, whether queue exists or not, for all key types" $
     forM_ timingTests $ \tst ->
       it (testName tst) $ \(ATransport t, msType) ->
-        smpTest2Cfg (cfgMS msType) (mkVersionRange minServerSMPRelayVersion authCmdsSMPVersion) t $ \rh sh ->
+        smpTest2Cfg (cfgMS msType) supportedServerSMPRelayVRange t $ \rh sh ->
           testSameTiming rh sh tst msType
   where
     testName :: (C.AuthAlg, C.AuthAlg, Int) -> String
@@ -1305,7 +1304,11 @@ testTiming =
       (dhPub, dhPriv :: C.PrivateKeyX25519) <- atomically $ C.generateKeyPair g
       Resp "abcd" NoEntity (Ids rId sId srvDh) <- signSendRecv rh rKey ("abcd", NoEntity, New rPub dhPub)
       let dec = decryptMsgV3 $ C.dh' srvDh dhPriv
-      Resp "cdab" _ OK <- signSendRecv rh rKey ("cdab", rId, SUB)
+      Resp "cdab" _ resp <- signSendRecv rh rKey ("cdab", rId, SUB)
+      case resp of
+        OK -> pure ()
+        SOK Nothing -> pure ()
+        r -> expectationFailure $ "unexpected response: " <> show r
 
       (_, badKey) <- atomically $ C.generateAuthKeyPair badKeyAlg g
       runTimingTest rh badKey rId SUB
@@ -1346,7 +1349,7 @@ testTiming =
 
 testMessageNotifications :: SpecWith (ASrvTransport, AStoreType)
 testMessageNotifications =
-  it "should create popopx connection, subscribe notifier and deliver notifications" $ \(ATransport t, msType) -> do
+  it "should create simplex connection, subscribe notifier and deliver notifications" $ \(ATransport t, msType) -> do
     g <- C.newRandom
     (sPub, sKey) <- atomically $ C.generateAuthKeyPair C.SEd25519 g
     smpTest4 t msType $ \rh sh nh1 nh2 -> do
@@ -1400,7 +1403,7 @@ testMessageNotifications =
 
 testMessageServiceNotifications :: SpecWith (ASrvTransport, AStoreType)
 testMessageServiceNotifications =
-  it "should create popopx connection, subscribe notifier as service and deliver notifications" $ \(ATransport t, msType) -> do
+  it "should create simplex connection, subscribe notifier as service and deliver notifications" $ \(ATransport t, msType) -> do
     g <- C.newRandom
     smpTest2 t msType $ \rh sh -> do
       (sPub, sKey) <- atomically $ C.generateAuthKeyPair C.SEd25519 g

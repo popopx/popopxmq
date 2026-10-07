@@ -61,7 +61,7 @@ import Popopx.Messaging.Agent.Store.DB (FromField (..), ToField (..), fromTextFi
 import qualified Popopx.Messaging.Crypto as C
 import Popopx.Messaging.Encoding
 import Popopx.Messaging.Encoding.String
-import Popopx.Messaging.Notifications.Transport (NTFVersion, invalidReasonNTFVersion, ntfClientHandshake)
+import Popopx.Messaging.Notifications.Transport (NTFVersion, ntfClientHandshake)
 import Popopx.Messaging.Protocol hiding (Command (..), CommandTag (..))
 import Popopx.Messaging.Util (eitherToMaybe, (<$?>))
 
@@ -329,18 +329,12 @@ data NtfResponse
 
 instance ProtocolEncoding NTFVersion ErrorType NtfResponse where
   type Tag NtfResponse = NtfResponseTag
-  encodeProtocol v = \case
+  encodeProtocol _v = \case
     NRTknId entId dhKey -> e (NRTknId_, ' ', entId, dhKey)
     NRSubId entId -> e (NRSubId_, ' ', entId)
     NROk -> e NROk_
     NRErr err -> e (NRErr_, ' ', err)
-    NRTkn stat -> e (NRTkn_, ' ', stat')
-      where
-        stat'
-          | v >= invalidReasonNTFVersion = stat
-          | otherwise = case stat of
-              NTInvalid _ -> NTInvalid Nothing
-              _ -> stat
+    NRTkn stat -> e (NRTkn_, ' ', stat)
     NRSub stat -> e (NRSub_, ' ', stat)
     NRPong -> e NRPong_
     where

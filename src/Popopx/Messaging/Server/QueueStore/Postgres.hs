@@ -159,7 +159,8 @@ instance StoreQueueClass q => QueueStoreClass q (PostgresQueueStore q) where
           db
           [sql|
             SELECT
-              (SELECT COUNT(1) FROM msg_queues WHERE deleted_at IS NULL) AS queue_count,
+              -- estimate via reltuples to avoid a full heap scan on every scrape
+              (SELECT GREATEST(reltuples, 0)::bigint FROM pg_class WHERE oid = 'msg_queues'::regclass) AS queue_count,
               (SELECT COUNT(1) FROM msg_queues WHERE deleted_at IS NULL AND notifier_id IS NOT NULL) AS notifier_count,
               (SELECT COUNT(1) FROM services WHERE service_role = ?) AS rcv_service_count,
               (SELECT COUNT(1) FROM services WHERE service_role = ?) AS ntf_service_count,
@@ -313,9 +314,9 @@ instance StoreQueueClass q => QueueStoreClass q (PostgresQueueStore q) where
   addQueueLinkData st sq lnkId d =
     withQueueRec sq "addQueueLinkData" $ \q -> case queueData q of
       Nothing ->
-        addLink q $ \db -> DB.execute db qry (d :. (lnkId, rId))
+        addLink q $ \db -> DB.execute db qry (d :. (lnkId, rId, QMContact))
       Just (lnkId', _) | lnkId' == lnkId ->
-        addLink q $ \db -> DB.execute db (qry <> " AND (fixed_data IS NULL OR fixed_data = ?)") (d :. (lnkId, rId, fst d))
+        addLink q $ \db -> DB.execute db (qry <> " AND (fixed_data IS NULL OR fixed_data = ?)") (d :. (lnkId, rId, QMContact, fst d))
       _ -> throwE AUTH
     where
       rId = recipientId sq
@@ -323,7 +324,8 @@ instance StoreQueueClass q => QueueStoreClass q (PostgresQueueStore q) where
         assertUpdated $ withDB' "addQueueLinkData" st update
         atomically $ writeTVar (queueRec sq) $ Just q {queueData = Just (lnkId, d)}
         withLog "addQueueLinkData" st $ \s -> logCreateLink s rId lnkId d
-      qry = "UPDATE msg_queues SET fixed_data = ?, user_data = ?, link_id = ? WHERE recipient_id = ? AND deleted_at IS NULL"
+      -- the sender key condition is checked in SQL because without cache each command reads its own copy of the queue record
+      qry = "UPDATE msg_queues SET fixed_data = ?, user_data = ?, link_id = ? WHERE recipient_id = ? AND deleted_at IS NULL AND (sender_key IS NULL OR queue_mode = ?)"
 
   deleteQueueLinkData :: PostgresQueueStore q -> q -> IO (Either ErrorType ())
   deleteQueueLinkData st sq =
@@ -342,7 +344,7 @@ instance StoreQueueClass q => QueueStoreClass q (PostgresQueueStore q) where
     withQueueRec sq "secureQueue" $ \q -> do
       verify q
       assertUpdated $ withDB' "secureQueue" st $ \db ->
-        DB.execute db "UPDATE msg_queues SET sender_key = ? WHERE recipient_id = ? AND deleted_at IS NULL" (sKey, rId)
+        DB.execute db "UPDATE msg_queues SET sender_key = ? WHERE recipient_id = ? AND deleted_at IS NULL AND (sender_key IS NULL OR sender_key = ?)" (sKey, rId, sKey)
       atomically $ writeTVar (queueRec sq) $ Just q {senderKey = Just sKey}
       withLog "secureQueue" st $ \s -> logSecureQueue s rId sKey
     where

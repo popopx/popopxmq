@@ -5,9 +5,10 @@
 module AgentTests.EqInstances where
 
 import Data.Type.Equality
-import Popopx.Messaging.Agent.Protocol (ShortLinkCreds (..))
+import Popopx.Messaging.Agent.Protocol (ABinaryConnectionRequestUri (..), AMessage (..), AMessageReceipt (..), AgentMessage (..), APrivHeader (..), ShortLinkCreds (..))
 import Popopx.Messaging.Agent.Store
 import Popopx.Messaging.Client (ProxiedRelay (..))
+import Popopx.Messaging.Server.Information
 
 instance (Eq rq, Eq sq) => Eq (SomeConn' rq sq) where
   SomeConn d c == SomeConn d' c' = case testEquality d d' of
@@ -31,3 +32,30 @@ deriving instance Eq ShortLinkCreds
 deriving instance Show ProxiedRelay
 
 deriving instance Eq ProxiedRelay
+
+instance Eq ABinaryConnectionRequestUri where
+  ABCR m cr == ABCR m' cr' = case testEquality m m' of
+    Just Refl -> cr == cr'
+    _ -> False
+
+deriving instance Show ABinaryConnectionRequestUri
+
+deriving instance Eq APrivHeader
+
+deriving instance Eq AMessageReceipt
+
+deriving instance Eq AMessage
+
+deriving instance Eq AgentMessage
+
+deriving instance Eq Entity
+
+deriving instance Eq HostingType
+
+deriving instance Eq PGPKey
+
+deriving instance Eq ServerConditions
+
+deriving instance Eq ServerContactAddress
+
+deriving instance Eq ServerPublicInfo

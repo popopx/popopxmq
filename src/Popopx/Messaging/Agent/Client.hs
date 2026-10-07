@@ -41,6 +41,7 @@ module Popopx.Messaging.Agent.Client
     reconnectServerClients,
     reconnectSMPServer,
     closeXFTPServerClient,
+    closeUserXFTPClients,
     runSMPServerTest,
     runXFTPServerTest,
     runNTFServerTest,
@@ -227,7 +228,7 @@ import Data.Text (Text)
 import Data.Text.Encoding
 import Data.Time (UTCTime, addUTCTime, defaultTimeLocale, formatTime, getCurrentTime)
 import Data.Time.Clock.System (getSystemTime)
-import Data.Word (Word16)
+import Data.Word (Word16, Word32)
 import qualified Data.X509.Validation as XV
 import Network.Socket (HostName)
 import Popopx.FileTransfer.Client (XFTPChunkSpec (..), XFTPClient, XFTPClientConfig (..), XFTPClientError)
@@ -253,6 +254,8 @@ import Popopx.Messaging.Agent.TSessionSubs (TSessionSubs)
 import qualified Popopx.Messaging.Agent.TSessionSubs as SS
 import Popopx.Messaging.Client
 import qualified Popopx.Messaging.Crypto as C
+import Popopx.Messaging.Crypto.BBS (BBSPresHeader (..), BBSPublicKey)
+import Popopx.Messaging.Crypto.Entitlement (EntitlementCredential, EntitlementProof, generateEntitlementProof)
 import Popopx.Messaging.Encoding
 import Popopx.Messaging.Encoding.String
 import Popopx.Messaging.Notifications.Client
@@ -269,7 +272,7 @@ import Popopx.Messaging.Protocol
     NetworkError (..),
     MsgFlags (..),
     MsgId,
-    NameRecord,
+    NameResponse,
     NtfServer,
     NtfServerWithAuth,
     ProtoServer,
@@ -304,11 +307,12 @@ import Popopx.Messaging.Protocol
 import qualified Popopx.Messaging.Protocol as SMP
 import Popopx.Messaging.Protocol.Types
 import Popopx.Messaging.Server.QueueStore.QueueInfo
+import Popopx.Messaging.Server.Information (ServerPublicInfo)
 import Popopx.Messaging.Session
 import Popopx.Messaging.SystemTime
 import Popopx.Messaging.TMap (TMap)
 import qualified Popopx.Messaging.TMap as TM
-import Popopx.Messaging.Transport (HandshakeError (..), SMPServiceRole (..), SMPVersion, ServiceCredentials (..), SessionId, THClientService' (..), THandleAuth (..), THandleParams (sessionId, thAuth, thVersion), TransportError (..), TransportPeer (..), sndAuthKeySMPVersion, shortLinksSMPVersion, newNtfCredsSMPVersion)
+import Popopx.Messaging.Transport (HandshakeError (..), SMPServiceRole (..), SMPVersion, ServiceCredentials (..), SessionId, THClientService' (..), THandleAuth (..), THandleParams (sessionId, thAuth, thVersion, serverInfo), TransportError (..), newNtfCredsSMPVersion)
 import Popopx.Messaging.Transport.Client (TransportHost (..))
 import Popopx.Messaging.Transport.Credentials
 import Popopx.Messaging.Util
@@ -353,6 +357,7 @@ data AgentClient = AgentClient
     ntfClients :: TMap NtfTransportSession NtfClientVar,
     xftpServers :: TMap UserId (UserServers 'PXFTP),
     xftpClients :: TMap XFTPTransportSession XFTPClientVar,
+    userEntitlements :: TMap UserId EntitlementCredential,
     useNetworkConfig :: TVar (NetworkConfig, NetworkConfig), -- (slow, fast) networks
     presetDomains :: [HostName],
     presetServers :: [SMPServer],
@@ -384,6 +389,7 @@ data AgentClient = AgentClient
     clientId :: Int,
     agentEnv :: Env,
     proxySessTs :: TVar UTCTime,
+    serviceRequests :: TMap ConnId (TMVar (Either AgentErrorType SMP.MsgBody)),
     smpServersStats :: TMap (UserId, SMPServer) AgentSMPServerStats,
     xftpServersStats :: TMap (UserId, XFTPServer) AgentXFTPServerStats,
     ntfServersStats :: TMap (UserId, NtfServer) AgentNtfServerStats,
@@ -509,7 +515,7 @@ data UserNetworkType = UNNone | UNCellular | UNWifi | UNEthernet | UNOther
 
 -- | Creates an SMP agent client instance that receives commands and sends responses via 'TBQueue's.
 newAgentClient :: Int -> InitialAgentServers -> UTCTime -> Map (Maybe SMPServer) (Maybe SystemSeconds) -> Env -> IO AgentClient
-newAgentClient clientId InitialAgentServers {smp, ntf, xftp, netCfg, useServices, presetDomains, presetServers} currentTs notices agentEnv = do
+newAgentClient clientId InitialAgentServers {smp, ntf, xftp, entitlements, netCfg, useServices, presetDomains, presetServers} currentTs notices agentEnv = do
   let cfg = config agentEnv
       qSize = tbqSize cfg
   proxySessTs <- newTVarIO =<< getCurrentTime
@@ -525,6 +531,7 @@ newAgentClient clientId InitialAgentServers {smp, ntf, xftp, netCfg, useServices
   ntfClients <- TM.emptyIO
   xftpServers <- newTVarIO $ M.map mkUserServers xftp
   xftpClients <- TM.emptyIO
+  userEntitlements <- newTVarIO entitlements
   useNetworkConfig <- newTVarIO (slowNetworkConfig netCfg, netCfg)
   userNetworkInfo <- newTVarIO $ UserNetworkInfo UNOther True
   userNetworkUpdated <- newTVarIO Nothing
@@ -547,6 +554,7 @@ newAgentClient clientId InitialAgentServers {smp, ntf, xftp, netCfg, useServices
   invLocks <- TM.emptyIO
   deleteLock <- createLockIO
   smpSubWorkers <- TM.emptyIO
+  serviceRequests <- TM.emptyIO
   smpServersStats <- TM.emptyIO
   xftpServersStats <- TM.emptyIO
   ntfServersStats <- TM.emptyIO
@@ -565,6 +573,7 @@ newAgentClient clientId InitialAgentServers {smp, ntf, xftp, netCfg, useServices
         ntfClients,
         xftpServers,
         xftpClients,
+        userEntitlements,
         useNetworkConfig,
         presetDomains,
         presetServers,
@@ -592,6 +601,7 @@ newAgentClient clientId InitialAgentServers {smp, ntf, xftp, netCfg, useServices
         clientId,
         agentEnv,
         proxySessTs,
+        serviceRequests,
         smpServersStats,
         xftpServersStats,
         ntfServersStats,
@@ -627,7 +637,7 @@ getServiceCredentials c userId srv =
           getClientServiceCredentials db userId srv >>= \case
             Just service -> pure service
             Nothing -> do
-              cred <- genCredentials g Nothing (25, 24 * 999999) "popopx"
+              cred <- genCredentials g Nothing (25, 24 * 999999) "simplex"
               createClientService db userId srv $ tlsCredentials [cred]
       serviceSignKey <- liftEitherWith INTERNAL $ C.x509ToPrivate' $ snd serviceCreds
       let creds = ServiceCredentials {serviceRole = SRMessaging, serviceCreds, serviceCertHash = XV.Fingerprint kh, serviceSignKey}
@@ -710,7 +720,7 @@ getSMPProxyClient c@AgentClient {active, smpClients, smpProxiedRelays, workerSeq
       pure (clnt, sess)
     newProxiedRelay :: SMPConnectedClient -> Maybe SMP.BasicAuth -> ProxiedRelayVar -> AM (Either AgentErrorType ProxiedRelay)
     newProxiedRelay (SMPConnectedClient smp prs) proxyAuth rv =
-      tryAllErrors (liftClient SMP (clientServer smp) $ connectSMPProxiedRelay smp nm destSrv proxyAuth) >>= \case
+      tryAllErrors (liftClient proxyRelayError (clientServer smp) $ connectSMPProxiedRelay smp nm destSrv proxyAuth) >>= \case
         Right sess -> do
           atomically $ putTMVar (sessionVar rv) (Right sess)
           pure $ Right sess
@@ -721,6 +731,18 @@ getSMPProxyClient c@AgentClient {active, smpClients, smpProxiedRelays, workerSeq
               TM.delete destSess smpProxiedRelays
             putTMVar (sessionVar rv) (Left e)
             pure $ Left e
+      where
+        -- proxy reports BROKER errors about the relay, not about its own connection,
+        -- so they include both addresses, same as PFWD errors.
+        proxyRelayError :: HostName -> ErrorType -> AgentErrorType
+        proxyRelayError proxyHost = \case
+          e@(SMP.PROXY (SMP.BROKER _)) ->
+            PROXY
+              { proxyServer = protocolClientServer smp,
+                relayServer = B.unpack $ strEncode destSrv,
+                proxyErr = ProxyProtocolError e
+              }
+          e -> SMP proxyHost e
     waitForProxiedRelay :: SMPTransportSession -> ProxiedRelayVar -> AM (Either AgentErrorType ProxiedRelay)
     waitForProxiedRelay (_, srv, _) rv = do
       NetworkConfig {tcpConnectTimeout} <- getNetworkConfig c
@@ -862,7 +884,7 @@ getNtfServerClient c@AgentClient {active, ntfClients, workerSeq, proxySessTs, pr
       logInfo . decodeUtf8 $ "Agent disconnected from " <> showServer srv
 
 getXFTPServerClient :: AgentClient -> XFTPTransportSession -> AM XFTPClient
-getXFTPServerClient c@AgentClient {active, xftpClients, workerSeq, proxySessTs, presetDomains} tSess@(_, srv, _) = do
+getXFTPServerClient c@AgentClient {active, xftpClients, userEntitlements, workerSeq, proxySessTs, presetDomains} tSess@(userId, srv, _) = do
   unlessM (readTVarIO active) $ throwE INACTIVE
   ts <- liftIO getCurrentTime
   withGetSessVar workerSeq tSess xftpClients ts (newProtocolClient c tSess xftpClients connectClient) (waitForProtocolClient c NRMBackground tSess xftpClients)
@@ -870,11 +892,27 @@ getXFTPServerClient c@AgentClient {active, xftpClients, workerSeq, proxySessTs, 
     connectClient :: XFTPClientVar -> AM XFTPClient
     connectClient v = do
       cfg <- asks $ xftpCfg . config
+      keys <- asks $ entitlementKeys . config
       xftpNetworkConfig <- getNetworkConfig c
       ts <- readTVarIO proxySessTs
       liftError' (protocolClientError XFTP $ B.unpack $ strEncode srv) $
-        X.getXFTPClient tSess cfg {xftpNetworkConfig} presetDomains ts $
+        X.getXFTPClient tSess cfg {xftpNetworkConfig} presetDomains ts (mkEntitlementProof keys) $
           clientDisconnected v
+
+    mkEntitlementProof :: Map Word16 BBSPublicKey -> SessionId -> IO (Maybe EntitlementProof)
+    mkEntitlementProof keys sessId =
+      ifM knownServer proof (pure Nothing)
+      where
+        -- the entitlement is presented only to the servers of this user, matched by key hash that TLS pins,
+        -- so a file description of the sender cannot direct it to another server
+        knownServer = maybe False (any (sameKeyHash . snd) . storageSrvs) <$> TM.lookupIO userId (xftpServers c)
+        sameKeyHash (ProtoServerWithAuth srv' _) = srvKeyHash srv' == srvKeyHash srv
+        srvKeyHash (ProtocolServer _ _ _ kh) = kh
+        proof =
+          TM.lookupIO userId userEntitlements $>>= \cred ->
+            generateEntitlementProof keys cred (BBSPresHeader sessId) >>= \case
+              Right p -> pure $ Just p
+              Left e -> Nothing <$ logError ("entitlement proof error: " <> tshow e)
 
     clientDisconnected :: XFTPClientVar -> XFTPClient -> IO ()
     clientDisconnected v client = do
@@ -1020,6 +1058,13 @@ reconnectSMPServer c userId srv = do
     srvClient (userId', srv', _) v
       | userId == userId' && srv == srv' = (v :)
       | otherwise = id
+
+closeUserXFTPClients :: AgentClient -> UserId -> IO ()
+closeUserXFTPClients c userId = do
+  vs <- atomically $ stateTVar (xftpClients c) $ \cs ->
+    let (userCs, cs') = M.partitionWithKey (\(userId', _, _) _ -> userId == userId') cs
+     in (M.elems userCs, cs')
+  mapM_ (forkIO . closeClient_ c) vs
 
 closeClient :: ProtocolServerClient v err msg => AgentClient -> (AgentClient -> TMap (TransportSession msg) (ClientVar msg)) -> TransportSession msg -> IO ()
 closeClient c clientSel tSess =
@@ -1216,9 +1261,12 @@ sendOrProxySMPCommand c nm userId destSrv@ProtocolServer {host = destHosts} conn
           Left e -> throwE e
 
 ipAddressProtected :: NetworkConfig -> ProtocolServer p -> Bool
-ipAddressProtected NetworkConfig {socksProxy, hostMode} (ProtocolServer _ hosts _ _) = do
-  isJust socksProxy || (hostMode == HMOnion && any isOnionHost hosts)
+ipAddressProtected NetworkConfig {socksProxy, socksMode, hostMode} (ProtocolServer _ hosts _ _)
+  | isJust socksProxy = socksMode == SMAlways || if hostMode == HMPublic then allOnion else anyOnion
+  | otherwise = hostMode == HMOnion && anyOnion
   where
+    anyOnion = any isOnionHost hosts
+    allOnion = all isOnionHost hosts
     isOnionHost = \case THOnionHost _ -> True; _ -> False
 
 withNtfClient :: AgentClient -> NetworkRequestMode -> NtfServer -> EntityId -> ByteString -> (NtfClient -> ExceptT NtfClientError IO a) -> AM a
@@ -1281,7 +1329,7 @@ data ProtocolTestFailure = ProtocolTestFailure
   }
   deriving (Eq, Show)
 
-runSMPServerTest :: AgentClient -> NetworkRequestMode -> UserId -> SMPServerWithAuth -> AM' (Maybe ProtocolTestFailure)
+runSMPServerTest :: AgentClient -> NetworkRequestMode -> UserId -> SMPServerWithAuth -> AM' (Either ProtocolTestFailure (Maybe (Either String ServerPublicInfo)))
 runSMPServerTest c@AgentClient {presetDomains} nm userId (ProtoServerWithAuth srv auth) = do
   cfg <- getClientConfig c smpCfg
   C.AuthAlg ra <- asks $ rcvAuthAlg . config
@@ -1303,14 +1351,14 @@ runSMPServerTest c@AgentClient {presetDomains} nm userId (ProtoServerWithAuth sr
               _ -> secureSMPQueue smp nm rpKey rcvId sKey
           liftError (testErr TSDeleteQueue) $ deleteSMPQueue smp nm rpKey rcvId
         ok <- netTimeoutInt (tcpTimeout $ networkConfig cfg) nm `timeout` closeProtocolClient smp
-        pure $ either Just (const Nothing) r <|> maybe (Just (ProtocolTestFailure TSDisconnect $ BROKER addr TIMEOUT)) (const Nothing) ok
-      Left e -> pure (Just $ testErr TSConnect e)
+        pure $ r >> maybe (Left (ProtocolTestFailure TSDisconnect $ BROKER addr TIMEOUT)) (const $ Right $ serverInfo (thParams smp)) ok
+      Left e -> pure $ Left (testErr TSConnect e)
   where
     addr = B.unpack $ strEncode srv
     testErr :: ProtocolTestStep -> SMPClientError -> ProtocolTestFailure
     testErr step = ProtocolTestFailure step . protocolClientError SMP addr
 
-runXFTPServerTest :: AgentClient -> NetworkRequestMode -> UserId -> XFTPServerWithAuth -> AM' (Maybe ProtocolTestFailure)
+runXFTPServerTest :: AgentClient -> NetworkRequestMode -> UserId -> XFTPServerWithAuth -> AM' (Either ProtocolTestFailure (Maybe (Either String ServerPublicInfo)))
 runXFTPServerTest c@AgentClient {presetDomains} nm userId (ProtoServerWithAuth srv auth) = do
   cfg <- asks $ xftpCfg . config
   g <- asks random
@@ -1321,7 +1369,7 @@ runXFTPServerTest c@AgentClient {presetDomains} nm userId (ProtoServerWithAuth s
   liftIO $ do
     let tSess = (userId, srv, Nothing)
     ts <- readTVarIO $ proxySessTs c
-    X.getXFTPClient tSess cfg {xftpNetworkConfig} presetDomains ts (\_ -> pure ()) >>= \case
+    X.getXFTPClient tSess cfg {xftpNetworkConfig} presetDomains ts (\_ -> pure Nothing) (\_ -> pure ()) >>= \case
       Right xftp -> withTestChunk filePath $ do
         (sndKey, spKey) <- atomically $ C.generateAuthKeyPair C.SEd25519 g
         (rcvKey, rpKey) <- atomically $ C.generateAuthKeyPair C.SEd25519 g
@@ -1329,15 +1377,15 @@ runXFTPServerTest c@AgentClient {presetDomains} nm userId (ProtoServerWithAuth s
         let file = FileInfo {sndKey, size = chSize, digest}
             chunkSpec = X.XFTPChunkSpec {filePath, chunkOffset = 0, chunkSize = chSize}
         r <- runExceptT $ do
-          (sId, [rId]) <- liftError (testErr TSCreateFile) $ X.createXFTPChunk xftp spKey file [rcvKey] auth
+          (sId, [rId], _) <- liftError (testErr TSCreateFile) $ X.createXFTPChunk xftp spKey file [rcvKey] auth Nothing
           liftError (testErr TSUploadFile) $ X.uploadXFTPChunk xftp spKey sId chunkSpec
           liftError (testErr TSDownloadFile) $ X.downloadXFTPChunk g xftp rpKey rId $ XFTPRcvChunkSpec rcvPath chSize digest
           rcvDigest <- liftIO $ C.sha256Hash <$> B.readFile rcvPath
           unless (digest == rcvDigest) $ throwE $ ProtocolTestFailure TSCompareFile $ XFTP (B.unpack $ strEncode srv) DIGEST
           liftError (testErr TSDeleteFile) $ X.deleteXFTPChunk xftp spKey sId
         ok <- netTimeoutInt (tcpTimeout xftpNetworkConfig) nm `timeout` X.closeXFTPClient xftp
-        pure $ either Just (const Nothing) r <|> maybe (Just (ProtocolTestFailure TSDisconnect $ BROKER addr TIMEOUT)) (const Nothing) ok
-      Left e -> pure (Just $ testErr TSConnect e)
+        pure $ r >> maybe (Left (ProtocolTestFailure TSDisconnect $ BROKER addr TIMEOUT)) (const $ Right $ serverInfo (X.thParams xftp)) ok
+      Left e -> pure $ Left (testErr TSConnect e)
   where
     addr = B.unpack $ strEncode srv
     testErr :: ProtocolTestStep -> XFTPClientError -> ProtocolTestFailure
@@ -1451,7 +1499,7 @@ newRcvQueue_ c nm userId connId (ProtoServerWithAuth srv auth) vRange cqrd enabl
   let sessServiceId = (\THClientService {serviceId = sId} -> sId) <$> (clientService =<< thAuth thParams')
   when (isJust serviceId && serviceId /= sessServiceId) $ logError "incorrect service ID in NEW response"
   liftIO . logServer "<--" c srv NoEntity $ B.unwords ["IDS", logSecret rcvId, logSecret sndId]
-  shortLink <- mkShortLinkCreds thParams' qik
+  shortLink <- mkShortLinkCreds qik
   let rq =
         RcvQueue
           { userId,
@@ -1492,8 +1540,8 @@ newRcvQueue_ c nm userId connId (ProtoServerWithAuth srv auth) vRange cqrd enabl
       (Just ((ntfPublicKey, ntfPrivateKey), dhpk), Just (ServerNtfCreds notifierId dhk')) ->
         Just ClientNtfCreds {ntfPublicKey, ntfPrivateKey, notifierId, rcvNtfDhSecret = C.dh' dhk' dhpk}
       _ -> Nothing
-    mkShortLinkCreds :: THandleParams SMPVersion 'TClient -> QueueIdsKeys -> AM (Maybe ShortLinkCreds)
-    mkShortLinkCreds thParams' QIK {sndId, queueMode, linkId} = case (cqrd, queueMode) of
+    mkShortLinkCreds :: QueueIdsKeys -> AM (Maybe ShortLinkCreds)
+    mkShortLinkCreds QIK {sndId, queueMode, linkId} = case (cqrd, queueMode) of
       (CQRMessaging ld, Just QMMessaging) ->
         withLinkData ld $ \lnkId CQRData {linkKey, privSigKey, srvReq = (sndId', d)} ->
           if sndId == sndId'
@@ -1504,16 +1552,12 @@ newRcvQueue_ c nm userId connId (ProtoServerWithAuth srv auth) vRange cqrd enabl
           if sndId == sndId' && lnkId == lnkId'
             then pure $ Just $ ShortLinkCreds lnkId linkKey privSigKey Nothing (fst d)
             else newErr "different sender or link IDs"
-      (_, Nothing) -> case linkId of
-        Nothing | v < sndAuthKeySMPVersion -> pure Nothing
-        _ -> newErr "unexpected link ID"
+      (_, Nothing) -> newErr "unexpected link ID"
       _ -> newErr "unexpected queue mode"
       where
-        v = thVersion thParams'
         withLinkData :: Maybe d -> (SMP.LinkId -> d -> AM (Maybe ShortLinkCreds)) -> AM (Maybe ShortLinkCreds)
         withLinkData ld_ mkLink = case (ld_, linkId) of
           (Just ld, Just lnkId) -> mkLink lnkId ld
-          (Just _, Nothing) | v < shortLinksSMPVersion -> pure Nothing
           (Nothing, Nothing) -> pure Nothing
           _ -> newErr "unexpected or absent link ID"
         newErr :: String -> AM (Maybe ShortLinkCreds)
@@ -1913,17 +1957,10 @@ sendConfirmation c nm sq@SndQueue {userId, server, connId, sndId, queueMode, snd
   sendOrProxySMPMessage c nm userId server connId "<CONF>" spKey sndId (MsgFlags {notification = True}) msg
 sendConfirmation _ _ _ _ = throwE $ INTERNAL "sendConfirmation called without snd_queue public key(s) in the database"
 
-sendInvitation :: AgentClient -> NetworkRequestMode -> UserId -> ConnId -> Compatible SMPQueueInfo -> Compatible VersionSMPA -> ConnectionRequestUri 'CMInvitation -> ConnInfo -> AM (Maybe SMPServer)
-sendInvitation c nm userId connId (Compatible (SMPQueueInfo v SMPQueueAddress {smpServer, senderId, dhPublicKey})) (Compatible agentVersion) connReq connInfo = do
-  msg <- mkInvitation
+sendInvitation :: AgentClient -> NetworkRequestMode -> UserId -> ConnId -> Compatible SMPQueueInfo -> AgentMsgEnvelope -> AM (Maybe SMPServer)
+sendInvitation c nm userId connId (Compatible (SMPQueueInfo v SMPQueueAddress {smpServer, senderId, dhPublicKey})) agentEnvelope = do
+  msg <- agentCbEncryptOnce v dhPublicKey . smpEncode $ SMP.ClientMessage SMP.PHEmpty (smpEncode agentEnvelope)
   sendOrProxySMPMessage c nm userId smpServer connId "<INV>" Nothing senderId (MsgFlags {notification = True}) msg
-  where
-    mkInvitation :: AM ByteString
-    -- this is only encrypted with per-queue E2E, not with double ratchet
-    mkInvitation = do
-      let agentEnvelope = AgentInvitation {agentVersion, connReq, connInfo}
-      agentCbEncryptOnce v dhPublicKey . smpEncode $
-        SMP.ClientMessage SMP.PHEmpty (smpEncode agentEnvelope)
 
 getQueueMessage :: AgentClient -> RcvQueue -> AM (Maybe SMPMsgMeta)
 getQueueMessage c rq@RcvQueue {server, rcvId, rcvPrivateKey} = do
@@ -1943,7 +1980,7 @@ getQueueMessage c rq@RcvQueue {server, rcvId, rcvPrivateKey} = do
 
 decryptSMPMessage :: RcvQueue -> SMP.RcvMessage -> AM SMP.ClientRcvMsgBody
 decryptSMPMessage rq SMP.RcvMessage {msgId, msgBody = SMP.EncRcvMsgBody body} =
-  liftEither $ parse SMP.clientRcvMsgBodyP (AGENT A_MESSAGE) =<< decrypt body
+  liftEither $ parse SMP.clientRcvMsgBodyP (AGENT $ A_MESSAGE "decrypt message") =<< decrypt body
   where
     decrypt = agentCbDecrypt (rcvDhSecret rq) (C.cbNonce msgId)
 
@@ -1986,7 +2023,7 @@ getQueueLink c nm userId server lnkId =
 -- resolver) and falls back to a direct send when the proxy is unavailable
 -- (faster but exposes the client IP). Mode selection is delegated to
 -- `sendOrProxySMPCommand`, which honours the network config (SPMNever etc.).
-resolveName :: AgentClient -> NetworkRequestMode -> UserId -> SMPServer -> PopopxDomain -> AM NameRecord
+resolveName :: AgentClient -> NetworkRequestMode -> UserId -> SMPServer -> PopopxDomain -> AM NameResponse
 resolveName c nm userId server domain =
   snd <$> sendOrProxySMPCommand c nm userId server "" "RSLV" NoEntity resolveViaProxy resolveDirectly
   where
@@ -2179,16 +2216,17 @@ agentXFTPDownloadChunk c userId (FileDigest chunkDigest) RcvFileChunkReplica {se
   g <- asks random
   withXFTPClient c (userId, server, chunkDigest) "FGET" $ \xftp -> X.downloadXFTPChunk g xftp replicaKey fId chunkSpec
 
-agentXFTPNewChunk :: AgentClient -> SndFileChunk -> Int -> XFTPServerWithAuth -> AM NewSndChunkReplica
-agentXFTPNewChunk c SndFileChunk {userId, chunkSpec = XFTPChunkSpec {chunkSize}, digest = FileDigest chunkDigest} n (ProtoServerWithAuth srv auth) = do
+agentXFTPNewChunk :: AgentClient -> SndFileChunk -> Int -> XFTPServerWithAuth -> Maybe Word32 -> AM NewSndChunkReplica
+agentXFTPNewChunk c SndFileChunk {userId, chunkSpec = XFTPChunkSpec {chunkSize}, digest = FileDigest chunkDigest} n (ProtoServerWithAuth srv auth) storageHours = do
   rKeys <- xftpRcvKeys n
   (sndKey, replicaKey) <- atomically . C.generateAuthKeyPair C.SEd25519 =<< asks random
   let fileInfo = FileInfo {sndKey, size = chunkSize, digest = chunkDigest}
   logServer "-->" c srv NoEntity "FNEW"
   tSess <- mkTransportSession c userId srv chunkDigest
-  (sndId, rIds) <- withClient c NRMBackground tSess $ \xftp -> X.createXFTPChunk xftp replicaKey fileInfo (L.map fst rKeys) auth
+  (sndId, rIds, expiresAt) <- withClient c NRMBackground tSess $ \xftp ->
+    X.createXFTPChunk xftp replicaKey fileInfo (L.map fst rKeys) auth storageHours
   logServer "<--" c srv NoEntity $ B.unwords ["SIDS", logSecret sndId]
-  pure NewSndChunkReplica {server = srv, replicaId = ChunkReplicaId sndId, replicaKey, rcvIdsKeys = L.toList $ xftpRcvIdsKeys rIds rKeys}
+  pure NewSndChunkReplica {server = srv, replicaId = ChunkReplicaId sndId, replicaKey, rcvIdsKeys = L.toList $ xftpRcvIdsKeys rIds rKeys, expiresAt}
 
 agentXFTPUploadChunk :: AgentClient -> UserId -> FileDigest -> SndFileChunkReplica -> XFTPChunkSpec -> AM ()
 agentXFTPUploadChunk c userId (FileDigest chunkDigest) SndFileChunkReplica {server, replicaId = ChunkReplicaId fId, replicaKey} chunkSpec =
@@ -2247,7 +2285,7 @@ agentCbDecrypt dhSecret nonce msg =
 cryptoError :: C.CryptoError -> AgentErrorType
 cryptoError = \case
   C.CryptoLargeMsgError -> CMD LARGE "CryptoLargeMsgError"
-  C.CryptoHeaderError _ -> AGENT A_MESSAGE -- parsing error
+  C.CryptoHeaderError e -> AGENT $ A_MESSAGE $ "parse msg header " <> e
   C.CERatchetDuplicateMessage -> AGENT $ A_DUPLICATE Nothing
   C.AESDecryptError -> c DECRYPT_AES
   C.CBDecryptError -> c DECRYPT_CB
@@ -2442,8 +2480,8 @@ storeError = \case
   SEUserNotFound -> NO_USER
   SERatchetNotFound -> CONN NOT_FOUND ""
   SEConnDuplicate -> CONN DUPLICATE ""
-  SEBadConnType cxt CRcv -> CONN ONE_WAY cxt
-  SEBadConnType cxt CSnd -> CONN ONE_WAY cxt
+  SEBadConnType cxt CRcv -> CONN SIMPLEX cxt
+  SEBadConnType cxt CSnd -> CONN SIMPLEX cxt
   SEInvitationNotFound cxt invId -> CMD PROHIBITED $ "SEInvitationNotFound " <> cxt <> ", invitationId = " <> show invId
   -- this error is never reported as store error,
   -- it is used to wrap agent operations when "transaction-like" store access is needed
