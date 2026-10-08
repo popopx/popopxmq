@@ -31,7 +31,7 @@ import Popopx.Messaging.SystemTime (SystemSeconds)
 --   resolver REST output; both FromJSON (resolver -> server) and ToJSON
 --   (server diagnostics) are TH-derived from one Options value, so the Haskell
 --   type IS the schema. Text fields use the empty string as the "unset"
---   sentinel; coin fields use JSON null. simplexContact / simplexChannel are
+--   sentinel; coin fields use JSON null. popopxContact / popopxChannel are
 --   arrays of links (primary first, empty when unset) so a name can advertise
 --   fallback SMP servers. owner / resolver are 0x-hex Ethereum addresses, kept
 --   verbatim as text (the resolver is the source of truth for their validity).
@@ -41,8 +41,8 @@ data NameRecord = NameRecord
     nrNickname :: Text,
     nrWebsite :: Text,
     nrLocation :: Text,
-    nrSimplexContact :: [Text],
-    nrSimplexChannel :: [Text],
+    nrPopopxContact :: [Text],
+    nrPopopxChannel :: [Text],
     nrEth :: Maybe Text,
     nrBtc :: Maybe Text,
     nrXmr :: Maybe Text,
@@ -103,7 +103,7 @@ data NamePricing = NamePricing
 
 -- | Why the registry holds a name back.
 data NameReservedReason
-  = -- | held for SimpleX
+  = -- | held for POPOPX
     NRRInternal
   | NRRTrademark
   | NRRCommunity

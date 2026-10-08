@@ -762,7 +762,7 @@ getServerSourceCode =
     _ -> putStrLn "Invalid source code. URI should start from http:// or https://" >> getServerSourceCode
 
 popopxmqSource :: String
-popopxmqSource = "https://github.com/simplex-chat/popopxmq"
+popopxmqSource = "https://github.com/popopx/popopxmq"
 
 serverPublicInfo :: Ini -> Maybe ServerPublicInfo
 serverPublicInfo ini = serverInfo <$!> infoValue "source_code"
@@ -776,8 +776,8 @@ serverPublicInfo ini = serverInfo <$!> infoValue "source_code"
           serverCountry = countryValue "server_country",
           operator = iniEntity "operator" "operator_country",
           website = infoValue "website",
-          adminContacts = iniContacts "admin_simplex" "admin_email" "admin_pgp" "admin_pgp_fingerprint",
-          complaintsContacts = iniContacts "complaints_simplex" "complaints_email" "complaints_pgp" "complaints_pgp_fingerprint",
+          adminContacts = iniContacts "admin_popopx" "admin_email" "admin_pgp" "admin_pgp_fingerprint",
+          complaintsContacts = iniContacts "complaints_popopx" "complaints_email" "complaints_pgp" "complaints_pgp_fingerprint",
           hosting = iniEntity "hosting" "hosting_country",
           hostingType = either error id <$!> strDecodeIni "INFORMATION" "hosting_type" ini
         }
@@ -786,9 +786,9 @@ serverPublicInfo ini = serverInfo <$!> infoValue "source_code"
       (\name -> Entity {name, country = countryValue countryField})
         <$!> infoValue nameField
     countryValue field = (either error id . validCountryValue (T.unpack field) . T.unpack) <$!> infoValue field
-    iniContacts simplexField emailField pgpKeyUriField pgpKeyFingerprintField =
-      let addr :: Maybe (ConnectionLink 'CMContact) = either error id . parseAll linkP . encodeUtf8 <$!> eitherToMaybe (lookupValue "INFORMATION" simplexField ini)
-          simplex = safeDecodeUtf8 . strEncode <$> addr
+    iniContacts popopxField emailField pgpKeyUriField pgpKeyFingerprintField =
+      let addr :: Maybe (ConnectionLink 'CMContact) = either error id . parseAll linkP . encodeUtf8 <$!> eitherToMaybe (lookupValue "INFORMATION" popopxField ini)
+          popopx = safeDecodeUtf8 . strEncode <$> addr
           linkP = CLFull <$> connReqUriP' Nothing <|> CLShort <$> strP
           email = infoValue emailField
           pkURI_ = infoValue pgpKeyUriField
@@ -796,7 +796,7 @@ serverPublicInfo ini = serverInfo <$!> infoValue "source_code"
        in case (addr, email, pkURI_, pkFingerprint_) of
             (Nothing, Nothing, Nothing, _) -> Nothing
             (Nothing, Nothing, _, Nothing) -> Nothing
-            (_, _, pkURI, pkFingerprint) -> Just ServerContactAddress {simplex, email, pgp = PGPKey <$> pkURI <*> pkFingerprint}
+            (_, _, pkURI, pkFingerprint) -> Just ServerContactAddress {popopx, email, pgp = PGPKey <$> pkURI <*> pkFingerprint}
 
 validCountryValue :: String -> String -> Either String Text
 validCountryValue field s

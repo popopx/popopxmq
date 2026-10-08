@@ -128,18 +128,18 @@ xftpServerCLI_ generateSite serveStaticFiles cfgPath logPath = do
           "[INFORMATION]\n\
           \# AGPLv3 license requires that you make any source code modifications\n\
           \# available to the end users of the server.\n\
-          \# LICENSE: https://github.com/simplex-chat/popopxmq/blob/stable/LICENSE\n\
+          \# LICENSE: https://github.com/popopx/popopxmq/blob/stable/LICENSE\n\
           \# Include correct source code URI in case the server source code is modified in any way.\n\
-          \# source_code = https://github.com/simplex-chat/popopxmq\n\
+          \# source_code = https://github.com/popopx/popopxmq\n\
           \\n\
           \# Declaring all below information is optional, any of these fields can be omitted.\n\
           \# server_country = ISO-3166 2-letter code\n\
           \# operator = entity (organization or person name)\n\
           \# operator_country = ISO-3166 2-letter code\n\
           \# website =\n\
-          \# admin_simplex = SimpleX address\n\
+          \# admin_popopx = POPOPX address\n\
           \# admin_email =\n\
-          \# complaints_simplex = SimpleX address\n\
+          \# complaints_popopx = POPOPX address\n\
           \# complaints_email =\n\
           \# hosting = entity (organization or person name)\n\
           \# hosting_country = ISO-3166 2-letter code\n\

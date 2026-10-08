@@ -268,16 +268,16 @@ serverInfoSubsts popopxmqSource information =
         ("operatorEntity", Just $ encodeUtf8 name),
         ("operatorCountry", encodeUtf8 <$> country)
       ]
-    admin ServerContactAddress {simplex, email, pgp} =
+    admin ServerContactAddress {popopx, email, pgp} =
       [ ("admin", Just ""),
-        ("adminSimplex", encodeUtf8 <$> simplex),
+        ("adminSimplex", encodeUtf8 <$> popopx),
         ("adminEmail", encodeUtf8 <$> email),
         ("adminPGP", encodeUtf8 . pkURI <$> pgp),
         ("adminPGPFingerprint", encodeUtf8 . pkFingerprint <$> pgp)
       ]
-    complaints ServerContactAddress {simplex, email, pgp} =
+    complaints ServerContactAddress {popopx, email, pgp} =
       [ ("complaints", Just ""),
-        ("complaintsSimplex", encodeUtf8 <$> simplex),
+        ("complaintsSimplex", encodeUtf8 <$> popopx),
         ("complaintsEmail", encodeUtf8 <$> email),
         ("complaintsPGP", encodeUtf8 . pkURI <$> pgp),
         ("complaintsPGPFingerprint", encodeUtf8 . pkFingerprint <$> pgp)
@@ -292,7 +292,7 @@ serverInfoSubsts popopxmqSource information =
         ("hostingType", (\s -> maybe s (\(c, rest) -> toUpper c `B.cons` rest) $ B.uncons s) . strEncode <$> hostingType spi)
       ]
 
--- Copy-pasted from simplex-chat Popopx.Chat.Types.Preferences
+-- Copy-pasted from popopx-chat Popopx.Chat.Types.Preferences
 {-# INLINE timedTTLText #-}
 timedTTLText :: (Integral i, Show i) => i -> String
 timedTTLText 0 = "0 sec"

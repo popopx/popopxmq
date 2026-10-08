@@ -130,7 +130,7 @@ testDhKeyStr = strEncode testDhKey
 connReqData :: ConnReqUriData
 connReqData =
   ConnReqUriData
-    { crScheme = SSSimplex,
+    { crScheme = SSPopopx,
       crAgentVRange = supportedSMPAgentVRange,
       crSmpQueues = [queue],
       crClientData = Nothing
@@ -266,27 +266,27 @@ connectionRequestTests =
       queueV1NoPort #== ("smp://1234-w==@smp.simplex.im/3456-w==#/?v=1-1&dh=" <> url testDhKeyStr <> "&srv=jjbyvoemxysm7qxap7m5d5m35jzv5qq6gnlv7s4rsn7tdwwmuqciwpid.onion")
       queueV1NoPort #== ("smp://1234-w==@smp.simplex.im,jjbyvoemxysm7qxap7m5d5m35jzv5qq6gnlv7s4rsn7tdwwmuqciwpid.onion/3456-w==#" <> testDhKeyStr)
     it "should serialize and parse connection invitations and contact addresses" $ do
-      connectionRequest #==# ("simplex:/invitation#/?v=6-8&smp=" <> url queueStr <> "&e2e=" <> testE2ERatchetParamsStrUri)
-      connectionRequest #== ("https://simplex.chat/invitation#/?v=6-8&smp=" <> url queueStr <> "&e2e=" <> testE2ERatchetParamsStrUri)
-      connectionRequestNoQM #==# ("simplex:/invitation#/?v=6-8&smp=" <> url queueStrNoQM <> "&e2e=" <> testE2ERatchetParamsStrUri)
-      connectionRequest1 #==# ("simplex:/invitation#/?v=6-8&smp=" <> url queue1Str <> "&e2e=" <> testE2ERatchetParamsStrUri)
-      connectionRequest2queues #==# ("simplex:/invitation#/?v=6-8&smp=" <> url (queueStr <> ";" <> queueStr) <> "&e2e=" <> testE2ERatchetParamsStrUri)
-      connectionRequestNew #==# ("simplex:/invitation#/?v=6-8&smp=" <> url queueNewStr <> "&e2e=" <> testE2ERatchetParamsStrUri)
-      connectionRequestNew1 #==# ("simplex:/invitation#/?v=6-8&smp=" <> url queueNew1Str <> "&e2e=" <> testE2ERatchetParamsStrUri)
-      connectionRequest2queuesNew #==# ("simplex:/invitation#/?v=6-8&smp=" <> url (queueNewStr <> ";" <> queueNewStr) <> "&e2e=" <> testE2ERatchetParamsStrUri)
-      connectionRequestV1 #== ("https://simplex.chat/invitation#/?v=1&smp=" <> url queueStr <> "&e2e=" <> testE2ERatchetParamsStrUri)
-      connectionRequestClientDataEmpty #==# ("simplex:/invitation#/?v=6-8&smp=" <> url queueStr <> "&e2e=" <> testE2ERatchetParamsStrUri <> "&data=" <> url "{}")
-      contactAddress #==# ("simplex:/contact#/?v=6-8&smp=" <> url queueStr)
-      contactAddressDR #==# ("simplex:/contact#/?v=6-8&smp=" <> url queueStr <> "&e2e=" <> testE2ERatchetParamsStrUri <> "&rk=MDEyMzQ1Njc4OWFiY2RlZg%3D%3D")
-      contactAddress #== ("https://simplex.chat/contact#/?v=6-8&smp=" <> url queueStr)
-      contactAddress2queues #==# ("simplex:/contact#/?v=6-8&smp=" <> url (queueStr <> ";" <> queueStr))
-      contactAddressNew #==# ("simplex:/contact#/?v=6-8&smp=" <> url queueNewStr)
-      contactAddress2queuesNew #==# ("simplex:/contact#/?v=6-8&smp=" <> url (queueNewStr <> ";" <> queueNewStr))
-      contactAddressV6 #==# ("simplex:/contact#/?v=6&smp=" <> url queueStr)
-      contactAddressV6 #== ("https://simplex.chat/contact#/?v=1&smp=" <> url queueStr) -- adjusted to v6
-      contactAddressV6 #== ("https://simplex.chat/contact#/?v=1-2&smp=" <> url queueStr) -- adjusted to v6
-      contactAddressV6 #== ("https://simplex.chat/contact#/?v=2-2&smp=" <> url queueStr)
-      contactAddressClientData #==# ("simplex:/contact#/?v=6-8&smp=" <> url queueStr <> "&data=" <> url "{\"type\":\"group_link\", \"group_link_id\":\"abc\"}")
+      connectionRequest #==# ("popopx:/invitation#/?v=6-8&smp=" <> url queueStr <> "&e2e=" <> testE2ERatchetParamsStrUri)
+      connectionRequest #== ("https://popopx.chat/invitation#/?v=6-8&smp=" <> url queueStr <> "&e2e=" <> testE2ERatchetParamsStrUri)
+      connectionRequestNoQM #==# ("popopx:/invitation#/?v=6-8&smp=" <> url queueStrNoQM <> "&e2e=" <> testE2ERatchetParamsStrUri)
+      connectionRequest1 #==# ("popopx:/invitation#/?v=6-8&smp=" <> url queue1Str <> "&e2e=" <> testE2ERatchetParamsStrUri)
+      connectionRequest2queues #==# ("popopx:/invitation#/?v=6-8&smp=" <> url (queueStr <> ";" <> queueStr) <> "&e2e=" <> testE2ERatchetParamsStrUri)
+      connectionRequestNew #==# ("popopx:/invitation#/?v=6-8&smp=" <> url queueNewStr <> "&e2e=" <> testE2ERatchetParamsStrUri)
+      connectionRequestNew1 #==# ("popopx:/invitation#/?v=6-8&smp=" <> url queueNew1Str <> "&e2e=" <> testE2ERatchetParamsStrUri)
+      connectionRequest2queuesNew #==# ("popopx:/invitation#/?v=6-8&smp=" <> url (queueNewStr <> ";" <> queueNewStr) <> "&e2e=" <> testE2ERatchetParamsStrUri)
+      connectionRequestV1 #== ("https://popopx.chat/invitation#/?v=1&smp=" <> url queueStr <> "&e2e=" <> testE2ERatchetParamsStrUri)
+      connectionRequestClientDataEmpty #==# ("popopx:/invitation#/?v=6-8&smp=" <> url queueStr <> "&e2e=" <> testE2ERatchetParamsStrUri <> "&data=" <> url "{}")
+      contactAddress #==# ("popopx:/contact#/?v=6-8&smp=" <> url queueStr)
+      contactAddressDR #==# ("popopx:/contact#/?v=6-8&smp=" <> url queueStr <> "&e2e=" <> testE2ERatchetParamsStrUri <> "&rk=MDEyMzQ1Njc4OWFiY2RlZg%3D%3D")
+      contactAddress #== ("https://popopx.chat/contact#/?v=6-8&smp=" <> url queueStr)
+      contactAddress2queues #==# ("popopx:/contact#/?v=6-8&smp=" <> url (queueStr <> ";" <> queueStr))
+      contactAddressNew #==# ("popopx:/contact#/?v=6-8&smp=" <> url queueNewStr)
+      contactAddress2queuesNew #==# ("popopx:/contact#/?v=6-8&smp=" <> url (queueNewStr <> ";" <> queueNewStr))
+      contactAddressV6 #==# ("popopx:/contact#/?v=6&smp=" <> url queueStr)
+      contactAddressV6 #== ("https://popopx.chat/contact#/?v=1&smp=" <> url queueStr) -- adjusted to v6
+      contactAddressV6 #== ("https://popopx.chat/contact#/?v=1-2&smp=" <> url queueStr) -- adjusted to v6
+      contactAddressV6 #== ("https://popopx.chat/contact#/?v=2-2&smp=" <> url queueStr)
+      contactAddressClientData #==# ("popopx:/contact#/?v=6-8&smp=" <> url queueStr <> "&data=" <> url "{\"type\":\"group_link\", \"group_link_id\":\"abc\"}")
     it "should reject KEM ciphertext without KEM key in e2e params" $
       strDecode @(RcvE2ERatchetParamsUri 'C.X448) (strEncode testE2ERatchetParams <> "&kem_ct=" <> strEncode (B.replicate 1039 '\0'))
         `shouldSatisfy` isLeft
@@ -322,11 +322,11 @@ connectionRequestTests =
       CSLContact SLSServer CCTContact shortSrv (LinkKey "0123456789abcdef0123456789abcdef") #==# "https://smp.simplex.im/a#MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY"
       CSLInvitation SLSServer srv (EntityId "0123456789abcdef01234567") (LinkKey "0123456789abcdef0123456789abcdef") #==# "https://smp.simplex.im/i#MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3/MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY?h=jjbyvoemxysm7qxap7m5d5m35jzv5qq6gnlv7s4rsn7tdwwmuqciwpid.onion&p=5223&c=1234-w"
       CSLInvitation SLSServer shortSrv (EntityId "0123456789abcdef01234567") (LinkKey "0123456789abcdef0123456789abcdef") #==# "https://smp.simplex.im/i#MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3/MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY"
-      CSLContact SLSSimplex CCTContact srv (LinkKey "0123456789abcdef0123456789abcdef") #==# "simplex:/a#MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY?h=smp.simplex.im%2Cjjbyvoemxysm7qxap7m5d5m35jzv5qq6gnlv7s4rsn7tdwwmuqciwpid.onion&p=5223&c=1234-w"
-      CSLContact SLSSimplex CCTGroup srv (LinkKey "0123456789abcdef0123456789abcdef") #==# "simplex:/g#MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY?h=smp.simplex.im%2Cjjbyvoemxysm7qxap7m5d5m35jzv5qq6gnlv7s4rsn7tdwwmuqciwpid.onion&p=5223&c=1234-w"
-      CSLContact SLSSimplex CCTContact shortSrv (LinkKey "0123456789abcdef0123456789abcdef") #==# "simplex:/a#MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY?h=smp.simplex.im"
-      CSLInvitation SLSSimplex srv (EntityId "0123456789abcdef01234567") (LinkKey "0123456789abcdef0123456789abcdef") #==# "simplex:/i#MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3/MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY?h=smp.simplex.im%2Cjjbyvoemxysm7qxap7m5d5m35jzv5qq6gnlv7s4rsn7tdwwmuqciwpid.onion&p=5223&c=1234-w"
-      CSLInvitation SLSSimplex shortSrv (EntityId "0123456789abcdef01234567") (LinkKey "0123456789abcdef0123456789abcdef") #==# "simplex:/i#MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3/MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY?h=smp.simplex.im"
+      CSLContact SLSPopopx CCTContact srv (LinkKey "0123456789abcdef0123456789abcdef") #==# "popopx:/a#MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY?h=smp.simplex.im%2Cjjbyvoemxysm7qxap7m5d5m35jzv5qq6gnlv7s4rsn7tdwwmuqciwpid.onion&p=5223&c=1234-w"
+      CSLContact SLSPopopx CCTGroup srv (LinkKey "0123456789abcdef0123456789abcdef") #==# "popopx:/g#MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY?h=smp.simplex.im%2Cjjbyvoemxysm7qxap7m5d5m35jzv5qq6gnlv7s4rsn7tdwwmuqciwpid.onion&p=5223&c=1234-w"
+      CSLContact SLSPopopx CCTContact shortSrv (LinkKey "0123456789abcdef0123456789abcdef") #==# "popopx:/a#MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY?h=smp.simplex.im"
+      CSLInvitation SLSPopopx srv (EntityId "0123456789abcdef01234567") (LinkKey "0123456789abcdef0123456789abcdef") #==# "popopx:/i#MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3/MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY?h=smp.simplex.im%2Cjjbyvoemxysm7qxap7m5d5m35jzv5qq6gnlv7s4rsn7tdwwmuqciwpid.onion&p=5223&c=1234-w"
+      CSLInvitation SLSPopopx shortSrv (EntityId "0123456789abcdef01234567") (LinkKey "0123456789abcdef0123456789abcdef") #==# "popopx:/i#MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3/MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY?h=smp.simplex.im"
     it "should shorten / restore short links" $ do
       let contact = CSLContact SLSServer CCTContact
       shortenShortLink [srv] (contact srv (LinkKey "0123456789abcdef0123456789abcdef"))

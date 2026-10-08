@@ -111,7 +111,7 @@ data Entity = Entity {name :: Text, country :: Maybe Text}
   deriving (Show)
 
 data ServerContactAddress = ServerContactAddress
-  { simplex :: Maybe Text,
+  { popopx :: Maybe Text,
     email :: Maybe Text, -- it is recommended that it matches DNS email address, if either is present
     pgp :: Maybe PGPKey
   }

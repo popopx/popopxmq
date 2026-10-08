@@ -29,7 +29,7 @@
 --
 -- This module defines SMP protocol agent with SQLite persistence.
 --
--- See https://github.com/simplex-chat/popopxmq/blob/master/protocol/agent-protocol.md
+-- See https://github.com/popopx/popopxmq/blob/master/protocol/agent-protocol.md
 module Popopx.Messaging.Agent
   ( -- * SMP agent functional API
     AgentClient (..),
@@ -979,7 +979,7 @@ ackMessageAsync' c corrId connId msgId rcptInfo_ = do
   case cType of
     SCDuplex -> enqueueAck
     SCRcv -> enqueueAck
-    SCSnd -> throwE $ CONN SIMPLEX "ackMessageAsync"
+    SCSnd -> throwE $ CONN POPOPX "ackMessageAsync"
     SCContact -> throwE $ CMD PROHIBITED "ackMessageAsync: SCContact"
     SCNew -> throwE $ CMD PROHIBITED "ackMessageAsync: SCNew"
   where
@@ -1861,7 +1861,7 @@ subscribeConnections_ c conns = do
     sndSubResult :: SndQueue -> Either AgentErrorType ()
     sndSubResult SndQueue {status} = case status of
       Confirmed -> Right ()
-      Active -> Left $ CONN SIMPLEX "subscribeConnections"
+      Active -> Left $ CONN POPOPX "subscribeConnections"
       _ -> Left $ INTERNAL "unexpected queue status"
     rcvQueues :: (ConnId, SomeConnSub) -> [RcvQueueSub]
     rcvQueues (_, SomeConn _ conn) = connRcvQueues conn
@@ -2035,7 +2035,7 @@ getConnectionMessages' c = mapM $ tryAllErrors' . getConnectionMessage
         DuplexConnection _ (rq :| _) _ -> pure rq
         RcvConnection _ rq -> pure rq
         ContactConnection _ rq -> pure rq
-        SndConnection _ _ -> throwE $ CONN SIMPLEX "getConnectionMessage"
+        SndConnection _ _ -> throwE $ CONN POPOPX "getConnectionMessage"
         NewConnection _ -> throwE $ CMD PROHIBITED "getConnectionMessage: NewConnection"
       whenM (atomically $ hasActiveSubscription c rq) . throwE $ CMD PROHIBITED "getConnectionMessage: subscribed"
       msg_ <- getQueueMessage c rq `catchAllErrors` \e -> atomically (releaseGetLock c rq) >> throwError e
@@ -2123,7 +2123,7 @@ sendMessagesB_ c reqs connIds = withConnLocks c connIds "sendMessages" $ do
         DuplexConnection cData _ sqs -> prepareMsg cData sqs
         SndConnection cData sq -> prepareMsg cData [sq]
         -- we can't fail here, as it may prevent delivery of subsequent messages that reference the body of the failed message.
-        _ -> (s, mkReq $ Left $ CONN SIMPLEX $ "sendMessagesB_ " <> show (connType cType))
+        _ -> (s, mkReq $ Left $ CONN POPOPX $ "sendMessagesB_ " <> show (connType cType))
       Left e -> (s, mkReq $ Left e)
       where
         prepareMsg :: ConnData -> NonEmpty SndQueue -> (Set ConnId, Either AgentErrorType (Either AgentErrorType (ConnData, NonEmpty SndQueue), Maybe PQEncryption, MsgFlags, ValueOrRef AMessage))
@@ -2778,7 +2778,7 @@ ackMessage' c cmdId_ connId msgId rcptInfo_ = withConnLockNotify c connId "ackMe
       t_ <- ack
       del
       pure t_
-    SndConnection {} -> throwE $ CONN SIMPLEX "ackMessage"
+    SndConnection {} -> throwE $ CONN POPOPX "ackMessage"
     ContactConnection {} -> throwE $ CMD PROHIBITED "ackMessage: ContactConnection"
     NewConnection _ -> throwE $ CMD PROHIBITED "ackMessage: NewConnection"
   where
@@ -2811,7 +2811,7 @@ getConnectionQueueInfo' c nm connId = do
     DuplexConnection _ (rq :| _) _ -> getQueueInfo c nm rq
     RcvConnection _ rq -> getQueueInfo c nm rq
     ContactConnection _ rq -> getQueueInfo c nm rq
-    SndConnection {} -> throwE $ CONN SIMPLEX "getConnectionQueueInfo"
+    SndConnection {} -> throwE $ CONN POPOPX "getConnectionQueueInfo"
     NewConnection _ -> throwE $ CMD PROHIBITED "getConnectionQueueInfo: NewConnection"
 
 switchConnection' :: AgentClient -> NetworkRequestMode -> ConnId -> AM ConnectionStats
@@ -2918,7 +2918,7 @@ suspendConnection' c nm connId = withConnLock c connId "suspendConnection" $ do
     DuplexConnection _ rqs _ -> mapM_ (suspendQueue c nm) rqs
     RcvConnection _ rq -> suspendQueue c nm rq
     ContactConnection _ rq -> suspendQueue c nm rq
-    SndConnection _ _ -> throwE $ CONN SIMPLEX "suspendConnection"
+    SndConnection _ _ -> throwE $ CONN POPOPX "suspendConnection"
     NewConnection _ -> throwE $ CMD PROHIBITED "suspendConnection"
 
 -- | Delete SMP agent connection (DEL command) in Reader monad
@@ -3279,7 +3279,7 @@ toggleConnectionNtfs' c connId enable = do
     DuplexConnection cData _ _ -> toggle cData
     RcvConnection cData _ -> toggle cData
     ContactConnection cData _ -> toggle cData
-    _ -> throwE $ CONN SIMPLEX "toggleConnectionNtfs"
+    _ -> throwE $ CONN POPOPX "toggleConnectionNtfs"
   where
     toggle :: ConnData -> AM ()
     toggle ConnData {enableNtfs}

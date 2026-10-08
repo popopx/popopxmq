@@ -35,7 +35,7 @@
 --
 -- Types, parsers, serializers and functions to send and receive SMP agent protocol commands and responses.
 --
--- See https://github.com/simplex-chat/popopxmq/blob/master/protocol/agent-protocol.md
+-- See https://github.com/popopx/popopxmq/blob/master/protocol/agent-protocol.md
 module Popopx.Messaging.Agent.Protocol
   ( -- * Protocol parameters
     VersionSMPA,
@@ -150,8 +150,8 @@ module Popopx.Messaging.Agent.Protocol
     sameShortLinkInv,
     popopxChat,
     connReqUriP',
-    simplexConnReqUri,
-    simplexShortLink,
+    popopxConnReqUri,
+    popopxShortLink,
     fullDomainName,
     shortNameInfoStr,
     AgentErrorType (..),
@@ -1094,7 +1094,7 @@ instance Encoding AMsgType where
 
 -- | Messages sent between SMP agents once SMP queue is secured.
 --
--- https://github.com/simplex-chat/popopxmq/blob/master/protocol/agent-protocol.md#messages-between-smp-agents
+-- https://github.com/popopx/popopxmq/blob/master/protocol/agent-protocol.md#messages-between-smp-agents
 data AMessage
   = -- | the first message in the queue to validate it is secured
     HELLO
@@ -1121,7 +1121,7 @@ data AMessage
 aMessageType :: AMessage -> AgentMessageType
 aMessageType = \case
   -- HELLO is used both in v1 and in v2, but differently.
-  -- - in v1 (and, possibly, in v2 for simplex connections) can be sent multiple times,
+  -- - in v1 (and, possibly, in v2 for popopx connections) can be sent multiple times,
   --   until the queue is secured - the OK response from the server instead of initial AUTH errors confirms it.
   -- - in v2 duplexHandshake it is sent only once, when it is known that the queue was secured.
   HELLO -> AM_HELLO_
@@ -1461,7 +1461,7 @@ instance VersionRangeI SMPClientVersion SMPQueueUri where
 
 -- | SMP queue information sent out-of-band.
 --
--- https://github.com/simplex-chat/popopxmq/blob/master/protocol/simplex-messaging.md#out-of-band-messages
+-- https://github.com/popopx/popopxmq/blob/master/protocol/simplex-messaging.md#out-of-band-messages
 data SMPQueueUri = SMPQueueUri {clientVRange :: VersionRangeSMPC, queueAddress :: SMPQueueAddress}
   deriving (Eq, Show)
 
@@ -1570,8 +1570,8 @@ data ConnectionRequestUri (m :: ConnectionMode) where
   -- optional contact address DR keys for double ratchet e2e from message 1
   CRContactUri :: ConnReqUriData -> Maybe AddressRatchetKeys -> ConnectionRequestUri CMContact
 
-simplexConnReqUri :: ConnectionRequestUri m -> ConnectionRequestUri m
-simplexConnReqUri = \case
+popopxConnReqUri :: ConnectionRequestUri m -> ConnectionRequestUri m
+popopxConnReqUri = \case
   CRInvitationUri crData e2eParams -> CRInvitationUri crData {crScheme = SSPopopx} e2eParams
   CRContactUri crData rk -> CRContactUri crData {crScheme = SSPopopx} rk
 
@@ -1612,8 +1612,8 @@ deriving instance Eq (ConnShortLink m)
 
 deriving instance Show (ConnShortLink m)
 
-simplexShortLink :: ConnShortLink m -> ConnShortLink m
-simplexShortLink = \case
+popopxShortLink :: ConnShortLink m -> ConnShortLink m
+popopxShortLink = \case
   CSLInvitation _ srv lnkId k -> CSLInvitation SLSPopopx srv lnkId k
   CSLContact _ ct srv k -> CSLContact SLSPopopx ct srv k
 
@@ -2211,8 +2211,8 @@ data ConnectionErrorType
     NOT_FOUND
   | -- | connection already exists
     DUPLICATE
-  | -- | connection is simplex, but operation requires another queue
-    SIMPLEX
+  | -- | connection is unidirectional, but operation requires another queue
+    POPOPX
   | -- | connection not accepted on join HELLO after timeout
     NOT_ACCEPTED
   | -- | connection not available on reply confirmation/HELLO after timeout

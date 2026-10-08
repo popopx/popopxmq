@@ -109,7 +109,7 @@ testRslvBackendNotFound :: IO ()
 testRslvBackendNotFound =
   withResolverServer (status404, "{}") $
     testSMPClient @TLS $ \h -> do
-      (corrId, _entId, resp) <- sendRslv h "rs01" (domain "ghost.simplex")
+      (corrId, _entId, resp) <- sendRslv h "rs01" (domain "ghost.popopx")
       corrId `shouldBe` CorrId "rs01"
       resp `shouldBe` Right (ERR (NAME (RESOLVER "HTTP 404")))
 
@@ -117,14 +117,14 @@ testRslvBackendHttpErr :: IO ()
 testRslvBackendHttpErr =
   withResolverServer (status502, "{}") $
     testSMPClient @TLS $ \h -> do
-      (_, _, resp) <- sendRslv h "rs05" (domain "alice.simplex")
+      (_, _, resp) <- sendRslv h "rs05" (domain "alice.popopx")
       resp `shouldBe` Right (ERR (NAME (RESOLVER "HTTP 502")))
 
 testRslvDisabled :: IO ()
 testRslvDisabled =
   withSmpServerConfigOn (transport @TLS) memCfg testPort $ const $
     testSMPClient @TLS $ \h -> do
-      (_, _, resp) <- sendRslv h "rs06" (domain "alice.simplex")
+      (_, _, resp) <- sendRslv h "rs06" (domain "alice.popopx")
       resp `shouldBe` Right (ERR (NAME NO_RESOLVER))
 
 testRslvVersion :: IO ()
@@ -136,7 +136,7 @@ testRslvVersion =
         oldCfg = defaultSMPClientConfig {serverVRange = mkVersionRange minServerSMPRelayVersion rcvServiceSMPVersion}
     pcE <- getProtocolClient g NRMInteractive (1, srv, Nothing) oldCfg [] Nothing ts (\_ -> pure ())
     pc <- either (fail . show) pure pcE
-    r <- runExceptT (directResolveName pc NRMInteractive (domain "alice.simplex"))
+    r <- runExceptT (directResolveName pc NRMInteractive (domain "alice.popopx"))
     case r of
       Left (PCETransportError TEVersion) -> pure ()
       _ -> expectationFailure $ "expected Left (PCETransportError TEVersion), got: " <> show r
@@ -151,7 +151,7 @@ forwardedResolveAlice = do
   pcE <- getProtocolClient g NRMInteractive (1, proxyServ, Nothing) cfg' [] Nothing ts (\_ -> pure ())
   pc <- either (fail . show) pure pcE
   sess <- runExceptT' (connectSMPProxiedRelay pc NRMInteractive relayServ Nothing)
-  runExceptT (proxyResolveName pc NRMInteractive sess (domain "alice.simplex"))
+  runExceptT (proxyResolveName pc NRMInteractive sess (domain "alice.popopx"))
 
 testRslvForwarded :: IO ()
 testRslvForwarded =
@@ -171,7 +171,7 @@ testRslvSuccess :: IO ()
 testRslvSuccess =
   withResolverServer (status200, registeredBody testNameRecord) $
     testSMPClient @TLS $ \h -> do
-      (corrId, _entId, resp) <- sendRslv h "rs07" (domain "alice.simplex")
+      (corrId, _entId, resp) <- sendRslv h "rs07" (domain "alice.popopx")
       corrId `shouldBe` CorrId "rs07"
       case resp of
         Right (RNAME NameResponse {registration = NRRegistered {nameRecord}}) -> nameRecord `shouldBe` testNameRecord
@@ -181,7 +181,7 @@ testRslvAvailable :: IO ()
 testRslvAvailable =
   withResolverServer (status200, availableBody) $
     testSMPClient @TLS $ \h -> do
-      (corrId, _entId, resp) <- sendRslv h "na01" (domain "ghost.simplex")
+      (corrId, _entId, resp) <- sendRslv h "na01" (domain "ghost.popopx")
       corrId `shouldBe` CorrId "na01"
       resp `shouldBe` Right (RNAME (resolved (NRAvailable testPricing)))
 
@@ -189,7 +189,7 @@ testRslvReserved :: IO ()
 testRslvReserved =
   withResolverServer (status200, reservedBody) $
     testSMPClient @TLS $ \h -> do
-      (_, _, resp) <- sendRslv h "na03" (domain "acme.simplex")
+      (_, _, resp) <- sendRslv h "na03" (domain "acme.popopx")
       resp `shouldBe` Right (RNAME (resolved (NRReserved NRRTrademark)))
 
 -- | A client that predates v22 must see exactly what it saw before: the record
@@ -209,14 +209,14 @@ testRslvOldClientRecord :: IO ()
 testRslvOldClientRecord =
   withResolverServer (status200, registeredBody testNameRecord) $ do
     pc <- oldClient
-    r <- runExceptT' (directResolveName pc NRMInteractive (domain "alice.simplex"))
+    r <- runExceptT' (directResolveName pc NRMInteractive (domain "alice.popopx"))
     r `shouldBe` NameResponse Nothing (NRRegistered Nothing Nothing Nothing testNameRecord)
 
 testRslvOldClientNotFound :: IO ()
 testRslvOldClientNotFound =
   withResolverServer (status200, availableBody) $ do
     pc <- oldClient
-    r <- runExceptT (directResolveName pc NRMInteractive (domain "alice.simplex"))
+    r <- runExceptT (directResolveName pc NRMInteractive (domain "alice.popopx"))
     case r of
       Left (PCEProtocolError (SMP.NAME SMP.NOT_FOUND)) -> pure ()
       _ -> expectationFailure $ "expected Left (PCEProtocolError (NAME NOT_FOUND)), got: " <> show r
@@ -250,27 +250,27 @@ testRslvSendsTheHash :: IO ()
 testRslvSendsTheHash =
   withResolverServerReqs (status200, registeredBody testNameRecord) $ \reqs -> do
     pc <- currentClient
-    r <- runExceptT' (directResolveName pc NRMInteractive (domain "alice.simplex"))
-    resolvePaths reqs `shouldReturn` [["v2", "resolve", aliceHash <> ".simplex"]]
+    r <- runExceptT' (directResolveName pc NRMInteractive (domain "alice.popopx"))
+    resolvePaths reqs `shouldReturn` [["v2", "resolve", aliceHash <> ".popopx"]]
     -- the client never sent the name, and the record still names it
     case r of
-      NameResponse {registration = NRRegistered {nameRecord}} -> SMP.nrName nameRecord `shouldBe` "alice.simplex"
+      NameResponse {registration = NRRegistered {nameRecord}} -> SMP.nrName nameRecord `shouldBe` "alice.popopx"
       _ -> expectationFailure $ "expected NRRegistered, got: " <> show r
 
 testSubnameKeepsItsLabels :: IO ()
 testSubnameKeepsItsLabels =
   withResolverServerReqs (status200, availableBody) $ \reqs -> do
     pc <- currentClient
-    _ <- runExceptT' (directResolveName pc NRMInteractive (domain "x.alice.simplex"))
-    resolvePaths reqs `shouldReturn` [["v2", "resolve", "x.alice.simplex"]]
+    _ <- runExceptT' (directResolveName pc NRMInteractive (domain "x.alice.popopx"))
+    resolvePaths reqs `shouldReturn` [["v2", "resolve", "x.alice.popopx"]]
 
 -- a hashed query does not tell the router the name, so the record's own name is
 -- checked against the one that was asked for
 testRslvWrongName :: IO ()
 testRslvWrongName =
-  withResolverServer (status200, registeredBody testNameRecord {SMP.nrName = "mallory.simplex"}) $ do
+  withResolverServer (status200, registeredBody testNameRecord {SMP.nrName = "mallory.popopx"}) $ do
     pc <- currentClient
-    r <- runExceptT (directResolveName pc NRMInteractive (domain "alice.simplex"))
+    r <- runExceptT (directResolveName pc NRMInteractive (domain "alice.popopx"))
     case r of
       Left (PCEUnexpectedResponse _) -> pure ()
       _ -> expectationFailure $ "expected Left (PCEUnexpectedResponse ..), got: " <> show r

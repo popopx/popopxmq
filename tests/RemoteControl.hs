@@ -100,7 +100,7 @@ testInvitationBracketedNonIPv6HostRejected :: IO ()
 testInvitationBracketedNonIPv6HostRejected = do
   invitation <- testIPv6Invitation
   let bracketedUri =
-        B.pack . replaceFirst "@2001:db8::1:" "@[simplex.chat]:" . B.unpack $
+        B.pack . replaceFirst "@2001:db8::1:" "@[popopx.chat]:" . B.unpack $
           strEncode invitation
   case strDecode bracketedUri :: Either String RCInvitation of
     Left _ -> pure ()

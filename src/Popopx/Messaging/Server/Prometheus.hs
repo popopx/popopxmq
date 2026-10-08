@@ -139,450 +139,450 @@ prometheusMetrics sm rtm ts =
       "# Queues\n\
       \# ------\n\
       \\n\
-      \# HELP simplex_smp_queues_created Created queues\n\
-      \# TYPE simplex_smp_queues_created counter\n\
-      \simplex_smp_queues_created " <> mshow _qCreated <> "\n# qCreated\n\
+      \# HELP popopx_smp_queues_created Created queues\n\
+      \# TYPE popopx_smp_queues_created counter\n\
+      \popopx_smp_queues_created " <> mshow _qCreated <> "\n# qCreated\n\
       \\n\
-      \# HELP simplex_smp_queues_secured Secured queues\n\
-      \# TYPE simplex_smp_queues_secured counter\n\
-      \simplex_smp_queues_secured " <> mshow _qSecured <> "\n# qSecured\n\
+      \# HELP popopx_smp_queues_secured Secured queues\n\
+      \# TYPE popopx_smp_queues_secured counter\n\
+      \popopx_smp_queues_secured " <> mshow _qSecured <> "\n# qSecured\n\
       \\n\
-      \# HELP simplex_smp_queues_deleted Deleted queues\n\
-      \# TYPE simplex_smp_queues_deleted counter\n\
-      \simplex_smp_queues_deleted{type=\"all\"} " <> mshow _qDeletedAll <> "\n# qDeleted\n\
-      \simplex_smp_queues_deleted{type=\"new\"} " <> mshow _qDeletedNew <> "\n# qDeletedNew\n\
-      \simplex_smp_queues_deleted{type=\"secured\"} " <> mshow _qDeletedSecured <> "\n# qDeletedSecured\n\
+      \# HELP popopx_smp_queues_deleted Deleted queues\n\
+      \# TYPE popopx_smp_queues_deleted counter\n\
+      \popopx_smp_queues_deleted{type=\"all\"} " <> mshow _qDeletedAll <> "\n# qDeleted\n\
+      \popopx_smp_queues_deleted{type=\"new\"} " <> mshow _qDeletedNew <> "\n# qDeletedNew\n\
+      \popopx_smp_queues_deleted{type=\"secured\"} " <> mshow _qDeletedSecured <> "\n# qDeletedSecured\n\
       \\n\
-      \# HELP simplex_smp_queues_blocked Deleted queues\n\
-      \# TYPE simplex_smp_queues_blocked counter\n\
-      \simplex_smp_queues_blocked " <> mshow _qBlocked <> "\n# qBlocked\n\
+      \# HELP popopx_smp_queues_blocked Deleted queues\n\
+      \# TYPE popopx_smp_queues_blocked counter\n\
+      \popopx_smp_queues_blocked " <> mshow _qBlocked <> "\n# qBlocked\n\
       \\n\
-      \# HELP simplex_smp_queues_deleted_batch Batched requests to delete queues\n\
-      \# TYPE simplex_smp_queues_deleted_batch counter\n\
-      \simplex_smp_queues_deleted_batch " <> mshow _qDeletedAllB <> "\n# qDeletedAllB\n\
+      \# HELP popopx_smp_queues_deleted_batch Batched requests to delete queues\n\
+      \# TYPE popopx_smp_queues_deleted_batch counter\n\
+      \popopx_smp_queues_deleted_batch " <> mshow _qDeletedAllB <> "\n# qDeletedAllB\n\
       \\n\
-      \# HELP simplex_smp_queues_total1 Total number of stored queues (first type of count).\n\
-      \# TYPE simplex_smp_queues_total1 gauge\n\
-      \simplex_smp_queues_total1 " <> mshow _qCount <> "\n# qCount\n\
+      \# HELP popopx_smp_queues_total1 Total number of stored queues (first type of count).\n\
+      \# TYPE popopx_smp_queues_total1 gauge\n\
+      \popopx_smp_queues_total1 " <> mshow _qCount <> "\n# qCount\n\
       \\n\
-      \# HELP simplex_smp_queues_total2 Total number of stored queues (second type of count).\n\
-      \# TYPE simplex_smp_queues_total2 gauge\n\
-      \simplex_smp_queues_total2 " <> mshow (queueCount entityCounts) <> "\n# qCount2\n\
+      \# HELP popopx_smp_queues_total2 Total number of stored queues (second type of count).\n\
+      \# TYPE popopx_smp_queues_total2 gauge\n\
+      \popopx_smp_queues_total2 " <> mshow (queueCount entityCounts) <> "\n# qCount2\n\
       \\n\
-      \# HELP simplex_smp_queues_daily Daily active queues.\n\
-      \# TYPE simplex_smp_queues_daily gauge\n\
-      \simplex_smp_queues_daily " <> mstr (dayCount ps) <> "\n# dayMsgQueues\n\
+      \# HELP popopx_smp_queues_daily Daily active queues.\n\
+      \# TYPE popopx_smp_queues_daily gauge\n\
+      \popopx_smp_queues_daily " <> mstr (dayCount ps) <> "\n# dayMsgQueues\n\
       \\n\
-      \# HELP simplex_smp_queues_weekly Weekly active queues.\n\
-      \# TYPE simplex_smp_queues_weekly gauge\n\
-      \simplex_smp_queues_weekly " <> mstr (weekCount ps) <> "\n# weekMsgQueues\n\
+      \# HELP popopx_smp_queues_weekly Weekly active queues.\n\
+      \# TYPE popopx_smp_queues_weekly gauge\n\
+      \popopx_smp_queues_weekly " <> mstr (weekCount ps) <> "\n# weekMsgQueues\n\
       \\n\
-      \# HELP simplex_smp_queues_monthly Monthly active queues.\n\
-      \# TYPE simplex_smp_queues_monthly gauge\n\
-      \simplex_smp_queues_monthly " <> mstr (monthCount ps) <> "\n# monthMsgQueues\n\
+      \# HELP popopx_smp_queues_monthly Monthly active queues.\n\
+      \# TYPE popopx_smp_queues_monthly gauge\n\
+      \popopx_smp_queues_monthly " <> mstr (monthCount ps) <> "\n# monthMsgQueues\n\
       \\n\
-      \# HELP simplex_smp_queues_notify_daily Daily active queues with notifications.\n\
-      \# TYPE simplex_smp_queues_notify_daily gauge\n\
-      \simplex_smp_queues_notify_daily " <> mstr (dayCount psNtf) <> "\n# dayCountNtf\n\
+      \# HELP popopx_smp_queues_notify_daily Daily active queues with notifications.\n\
+      \# TYPE popopx_smp_queues_notify_daily gauge\n\
+      \popopx_smp_queues_notify_daily " <> mstr (dayCount psNtf) <> "\n# dayCountNtf\n\
       \\n\
-      \# HELP simplex_smp_queues_notify_weekly Weekly active queues with notifications.\n\
-      \# TYPE simplex_smp_queues_notify_weekly gauge\n\
-      \simplex_smp_queues_notify_weekly " <> mstr (weekCount psNtf) <> "\n# weekCountNtf\n\
+      \# HELP popopx_smp_queues_notify_weekly Weekly active queues with notifications.\n\
+      \# TYPE popopx_smp_queues_notify_weekly gauge\n\
+      \popopx_smp_queues_notify_weekly " <> mstr (weekCount psNtf) <> "\n# weekCountNtf\n\
       \\n\
-      \# HELP simplex_smp_queues_notify_monthly Monthly active queues with notifications.\n\
-      \# TYPE simplex_smp_queues_notify_monthly gauge\n\
-      \simplex_smp_queues_notify_monthly " <> mstr (monthCount psNtf) <> "\n# monthCountNtf\n\
+      \# HELP popopx_smp_queues_notify_monthly Monthly active queues with notifications.\n\
+      \# TYPE popopx_smp_queues_notify_monthly gauge\n\
+      \popopx_smp_queues_notify_monthly " <> mstr (monthCount psNtf) <> "\n# monthCountNtf\n\
       \\n"
     subscriptions =
       "# Subscriptions\n\
       \# -------------\n\
       \\n\
-      \# HELP simplex_smp_subscribtion_successes Successful subscriptions.\n\
-      \# TYPE simplex_smp_subscribtion_successes counter\n\
-      \simplex_smp_subscribtion_successes " <> mshow _qSub <> "\n# qSub\n\
+      \# HELP popopx_smp_subscribtion_successes Successful subscriptions.\n\
+      \# TYPE popopx_smp_subscribtion_successes counter\n\
+      \popopx_smp_subscribtion_successes " <> mshow _qSub <> "\n# qSub\n\
       \\n\
-      \# HELP simplex_smp_subscribtion_successes_batch Batched successful subscriptions.\n\
-      \# TYPE simplex_smp_subscribtion_successes_batch counter\n\
-      \simplex_smp_subscribtion_successes_batch " <> mshow _qSubAllB <> "\n# qSubAllB\n\
+      \# HELP popopx_smp_subscribtion_successes_batch Batched successful subscriptions.\n\
+      \# TYPE popopx_smp_subscribtion_successes_batch counter\n\
+      \popopx_smp_subscribtion_successes_batch " <> mshow _qSubAllB <> "\n# qSubAllB\n\
       \\n\
-      \# HELP simplex_smp_subscribtion_end Ended subscriptions.\n\
-      \# TYPE simplex_smp_subscribtion_end counter\n\
-      \simplex_smp_subscribtion_end " <> mshow _qSubEnd <> "\n# qSubEnd\n\
+      \# HELP popopx_smp_subscribtion_end Ended subscriptions.\n\
+      \# TYPE popopx_smp_subscribtion_end counter\n\
+      \popopx_smp_subscribtion_end " <> mshow _qSubEnd <> "\n# qSubEnd\n\
       \\n\
-      \# HELP simplex_smp_subscribtion_end_batch Batched ended subscriptions.\n\
-      \# TYPE simplex_smp_subscribtion_end_batch counter\n\
-      \simplex_smp_subscribtion_end_batch " <> mshow _qSubEndB <> "\n# qSubEndB\n\
+      \# HELP popopx_smp_subscribtion_end_batch Batched ended subscriptions.\n\
+      \# TYPE popopx_smp_subscribtion_end_batch counter\n\
+      \popopx_smp_subscribtion_end_batch " <> mshow _qSubEndB <> "\n# qSubEndB\n\
       \\n\
-      \# HELP simplex_smp_subscribtion_errors Subscription errors.\n\
-      \# TYPE simplex_smp_subscribtion_errors counter\n\
-      \simplex_smp_subscribtion_errors{type=\"auth\"} " <> mshow _qSubAuth <> "\n# qSubAuth\n\
-      \simplex_smp_subscribtion_errors{type=\"duplicate\"} " <> mshow _qSubDuplicate <> "\n# qSubDuplicate\n\
-      \simplex_smp_subscribtion_errors{type=\"prohibited\"} " <> mshow _qSubProhibited <> "\n# qSubProhibited\n\
+      \# HELP popopx_smp_subscribtion_errors Subscription errors.\n\
+      \# TYPE popopx_smp_subscribtion_errors counter\n\
+      \popopx_smp_subscribtion_errors{type=\"auth\"} " <> mshow _qSubAuth <> "\n# qSubAuth\n\
+      \popopx_smp_subscribtion_errors{type=\"duplicate\"} " <> mshow _qSubDuplicate <> "\n# qSubDuplicate\n\
+      \popopx_smp_subscribtion_errors{type=\"prohibited\"} " <> mshow _qSubProhibited <> "\n# qSubProhibited\n\
       \\n"
     messages =
       "# Messages\n\
       \# --------\n\
       \\n\
-      \# HELP simplex_smp_messages_sent Sent messages.\n\
-      \# TYPE simplex_smp_messages_sent counter\n\
-      \simplex_smp_messages_sent " <> mshow _msgSent <> "\n# msgSent\n\
+      \# HELP popopx_smp_messages_sent Sent messages.\n\
+      \# TYPE popopx_smp_messages_sent counter\n\
+      \popopx_smp_messages_sent " <> mshow _msgSent <> "\n# msgSent\n\
       \\n\
-      \# HELP simplex_smp_messages_sent_errors Total number of messages errors by type.\n\
-      \# TYPE simplex_smp_messages_sent_errors counter\n\
-      \simplex_smp_messages_sent_errors{type=\"auth\"} " <> mshow _msgSentAuth <> "\n# msgSentAuth\n\
-      \simplex_smp_messages_sent_errors{type=\"quota\"} " <> mshow _msgSentQuota <> "\n# msgSentQuota\n\
-      \simplex_smp_messages_sent_errors{type=\"large\"} " <> mshow _msgSentLarge <> "\n# msgSentLarge\n\
-      \simplex_smp_messages_sent_errors{type=\"block\"} " <> mshow _msgSentBlock <> "\n# msgSentBlock\n\
+      \# HELP popopx_smp_messages_sent_errors Total number of messages errors by type.\n\
+      \# TYPE popopx_smp_messages_sent_errors counter\n\
+      \popopx_smp_messages_sent_errors{type=\"auth\"} " <> mshow _msgSentAuth <> "\n# msgSentAuth\n\
+      \popopx_smp_messages_sent_errors{type=\"quota\"} " <> mshow _msgSentQuota <> "\n# msgSentQuota\n\
+      \popopx_smp_messages_sent_errors{type=\"large\"} " <> mshow _msgSentLarge <> "\n# msgSentLarge\n\
+      \popopx_smp_messages_sent_errors{type=\"block\"} " <> mshow _msgSentBlock <> "\n# msgSentBlock\n\
       \\n\
-      \# HELP simplex_smp_messages_received Received messages.\n\
-      \# TYPE simplex_smp_messages_received counter\n\
-      \simplex_smp_messages_received " <> mshow _msgRecv <> "\n# msgRecv\n\
+      \# HELP popopx_smp_messages_received Received messages.\n\
+      \# TYPE popopx_smp_messages_received counter\n\
+      \popopx_smp_messages_received " <> mshow _msgRecv <> "\n# msgRecv\n\
       \\n\
-      \# HELP simplex_smp_messages_expired Expired messages.\n\
-      \# TYPE simplex_smp_messages_expired counter\n\
-      \simplex_smp_messages_expired " <> mshow _msgExpired <> "\n# msgExpired\n\
+      \# HELP popopx_smp_messages_expired Expired messages.\n\
+      \# TYPE popopx_smp_messages_expired counter\n\
+      \popopx_smp_messages_expired " <> mshow _msgExpired <> "\n# msgExpired\n\
       \\n\
-      \# HELP simplex_smp_messages_total Total number of messages stored.\n\
-      \# TYPE simplex_smp_messages_total gauge\n\
-      \simplex_smp_messages_total " <> mshow _msgCount <> "\n# msgCount\n\
+      \# HELP popopx_smp_messages_total Total number of messages stored.\n\
+      \# TYPE popopx_smp_messages_total gauge\n\
+      \popopx_smp_messages_total " <> mshow _msgCount <> "\n# msgCount\n\
       \\n"
     ntfMessages =
       "# Notification messages (client)\n\
       \# ------------------------------\n\
       \\n\
-      \# HELP simplex_smp_messages_notify_sent Sent messages with notification flag (cleint).\n\
-      \# TYPE simplex_smp_messages_notify_sent counter\n\
-      \simplex_smp_messages_notify_sent " <> mshow _msgSentNtf <> "\n# msgSentNtf\n\
+      \# HELP popopx_smp_messages_notify_sent Sent messages with notification flag (cleint).\n\
+      \# TYPE popopx_smp_messages_notify_sent counter\n\
+      \popopx_smp_messages_notify_sent " <> mshow _msgSentNtf <> "\n# msgSentNtf\n\
       \\n\
-      \# HELP simplex_smp_messages_notify_received Received messages with notification flag (client).\n\
-      \# TYPE simplex_smp_messages_notify_received counter\n\
-      \simplex_smp_messages_notify_received " <> mshow _msgRecvNtf <> "\n# msgRecvNtf\n\
+      \# HELP popopx_smp_messages_notify_received Received messages with notification flag (client).\n\
+      \# TYPE popopx_smp_messages_notify_received counter\n\
+      \popopx_smp_messages_notify_received " <> mshow _msgRecvNtf <> "\n# msgRecvNtf\n\
       \\n\
-      \# HELP simplex_smp_messages_notify_get_sent Requests to get messages with notification flag (client).\n\
-      \# TYPE simplex_smp_messages_notify_get_sent counter\n\
-      \simplex_smp_messages_notify_get_sent " <> mshow _msgGet <> "\n# msgGet\n\
+      \# HELP popopx_smp_messages_notify_get_sent Requests to get messages with notification flag (client).\n\
+      \# TYPE popopx_smp_messages_notify_get_sent counter\n\
+      \popopx_smp_messages_notify_get_sent " <> mshow _msgGet <> "\n# msgGet\n\
       \\n\
-      \# HELP simplex_smp_messages_notify_get_received Succesfully received get requests messages with notification flag (client).\n\
-      \# TYPE simplex_smp_messages_notify_get_received counter\n\
-      \simplex_smp_messages_notify_get_received " <> mshow _msgRecvGet <> "\n# msgRecvGet\n\
+      \# HELP popopx_smp_messages_notify_get_received Succesfully received get requests messages with notification flag (client).\n\
+      \# TYPE popopx_smp_messages_notify_get_received counter\n\
+      \popopx_smp_messages_notify_get_received " <> mshow _msgRecvGet <> "\n# msgRecvGet\n\
       \\n\
-      \# HELP simplex_smp_messages_notify_get_errors Error events with messages with notification flag (client). \n\
-      \# TYPE simplex_smp_messages_notify_get_errors counter\n\
-      \simplex_smp_messages_notify_get_errors{type=\"nomsg\"} " <> mshow _msgGetNoMsg <> "\n# msgGetNoMsg\n\
-      \simplex_smp_messages_notify_get_errors{type=\"auth\"} " <> mshow _msgGetAuth <> "\n# msgGetAuth\n\
-      \simplex_smp_messages_notify_get_errors{type=\"duplicate\"} " <> mshow _msgGetDuplicate <> "\n# msgGetDuplicate\n\
-      \simplex_smp_messages_notify_get_errors{type=\"prohibited\"} " <> mshow _msgGetProhibited <> "\n# msgGetProhibited\n\
+      \# HELP popopx_smp_messages_notify_get_errors Error events with messages with notification flag (client). \n\
+      \# TYPE popopx_smp_messages_notify_get_errors counter\n\
+      \popopx_smp_messages_notify_get_errors{type=\"nomsg\"} " <> mshow _msgGetNoMsg <> "\n# msgGetNoMsg\n\
+      \popopx_smp_messages_notify_get_errors{type=\"auth\"} " <> mshow _msgGetAuth <> "\n# msgGetAuth\n\
+      \popopx_smp_messages_notify_get_errors{type=\"duplicate\"} " <> mshow _msgGetDuplicate <> "\n# msgGetDuplicate\n\
+      \popopx_smp_messages_notify_get_errors{type=\"prohibited\"} " <> mshow _msgGetProhibited <> "\n# msgGetProhibited\n\
       \\n\
-      \# HELP simplex_smp_queues_notify_created Created queue notification credentials.\n\
-      \# TYPE simplex_smp_queues_notify_created counter\n\
-      \simplex_smp_queues_notify_created " <> mshow _ntfCreated <> "\n# ntfCreated\n\
+      \# HELP popopx_smp_queues_notify_created Created queue notification credentials.\n\
+      \# TYPE popopx_smp_queues_notify_created counter\n\
+      \popopx_smp_queues_notify_created " <> mshow _ntfCreated <> "\n# ntfCreated\n\
       \\n\
-      \# HELP simplex_smp_queues_notify_new_created Created new queues with notification credentials.\n\
-      \# TYPE simplex_smp_queues_notify_new_created counter\n\
-      \simplex_smp_queues_notify_new_created " <> mshow _ntfNewCreated <> "\n# ntfNewCreated\n\
+      \# HELP popopx_smp_queues_notify_new_created Created new queues with notification credentials.\n\
+      \# TYPE popopx_smp_queues_notify_new_created counter\n\
+      \popopx_smp_queues_notify_new_created " <> mshow _ntfNewCreated <> "\n# ntfNewCreated\n\
       \\n\
-      \# HELP simplex_smp_queues_notify_deleted Deleted queue notification credentials.\n\
-      \# TYPE simplex_smp_queues_notify_deleted counter\n\
-      \simplex_smp_queues_notify_deleted " <> mshow _ntfDeleted <> "\n# ntfDeleted\n\
+      \# HELP popopx_smp_queues_notify_deleted Deleted queue notification credentials.\n\
+      \# TYPE popopx_smp_queues_notify_deleted counter\n\
+      \popopx_smp_queues_notify_deleted " <> mshow _ntfDeleted <> "\n# ntfDeleted\n\
       \\n\
-      \# HELP simplex_smp_queues_notify_deleted_batch Deleted batched queue notification credentials.\n\
-      \# TYPE simplex_smp_queues_notify_deleted_batch counter\n\
-      \simplex_smp_queues_notify_deleted_batch " <> mshow _ntfDeletedB <> "\n# ntfDeletedB\n\
+      \# HELP popopx_smp_queues_notify_deleted_batch Deleted batched queue notification credentials.\n\
+      \# TYPE popopx_smp_queues_notify_deleted_batch counter\n\
+      \popopx_smp_queues_notify_deleted_batch " <> mshow _ntfDeletedB <> "\n# ntfDeletedB\n\
       \\n\
-      \# HELP simplex_smp_queues_notify_total1 Total number of stored queues with notification flag (first type of count).\n\
-      \# TYPE simplex_smp_queues_notify_total1 gauge\n\
-      \simplex_smp_queues_notify_total1 " <> mshow _ntfCount <> "\n# ntfCount1\n\
+      \# HELP popopx_smp_queues_notify_total1 Total number of stored queues with notification flag (first type of count).\n\
+      \# TYPE popopx_smp_queues_notify_total1 gauge\n\
+      \popopx_smp_queues_notify_total1 " <> mshow _ntfCount <> "\n# ntfCount1\n\
       \\n\
-      \# HELP simplex_smp_queues_notify_total2 Total number of stored queues with notification flag (second type of count).\n\
-      \# TYPE simplex_smp_queues_notify_total2 gauge\n\
-      \simplex_smp_queues_notify_total2 " <> mshow (notifierCount entityCounts) <> "\n# ntfCount2\n\
+      \# HELP popopx_smp_queues_notify_total2 Total number of stored queues with notification flag (second type of count).\n\
+      \# TYPE popopx_smp_queues_notify_total2 gauge\n\
+      \popopx_smp_queues_notify_total2 " <> mshow (notifierCount entityCounts) <> "\n# ntfCount2\n\
       \\n"
     ntfs =
       "# Notifications (server)\n\
       \# ----------------------\n\
       \\n\
-      \# HELP simplex_smp_messages_ntf_successes Successful events with notification messages (to ntf server). \n\
-      \# TYPE simplex_smp_messages_ntf_successes counter\n\
-      \simplex_smp_messages_ntf_successes " <> mshow _msgNtfs <> "\n# msgNtfs\n\
+      \# HELP popopx_smp_messages_ntf_successes Successful events with notification messages (to ntf server). \n\
+      \# TYPE popopx_smp_messages_ntf_successes counter\n\
+      \popopx_smp_messages_ntf_successes " <> mshow _msgNtfs <> "\n# msgNtfs\n\
       \\n\
-      \# HELP simplex_smp_messages_ntf_successes_batch Successful batched events with notification messages (to ntf server). \n\
-      \# TYPE simplex_smp_messages_ntf_successes_batch counter\n\
-      \simplex_smp_messages_ntf_successes_batch " <> mshow _msgNtfsB <> "\n# msgNtfsB\n\
+      \# HELP popopx_smp_messages_ntf_successes_batch Successful batched events with notification messages (to ntf server). \n\
+      \# TYPE popopx_smp_messages_ntf_successes_batch counter\n\
+      \popopx_smp_messages_ntf_successes_batch " <> mshow _msgNtfsB <> "\n# msgNtfsB\n\
       \\n\
-      \# HELP simplex_smp_messages_ntf_errors Error events with notification messages (to ntf server). \n\
-      \# TYPE simplex_smp_messages_ntf_errors counter\n\
-      \simplex_smp_messages_ntf_errors{type=\"nosub\"} " <> mshow _msgNtfNoSub <> "\n# msgNtfNoSub\n\
-      \simplex_smp_messages_ntf_errors{type=\"lost\"} " <> mshow _msgNtfLost <> "\n# msgNtfLost\n\
-      \simplex_smp_messages_ntf_errors{type=\"expired\"} " <> mshow _msgNtfExpired <> "\n# msgNtfExpired\n\
+      \# HELP popopx_smp_messages_ntf_errors Error events with notification messages (to ntf server). \n\
+      \# TYPE popopx_smp_messages_ntf_errors counter\n\
+      \popopx_smp_messages_ntf_errors{type=\"nosub\"} " <> mshow _msgNtfNoSub <> "\n# msgNtfNoSub\n\
+      \popopx_smp_messages_ntf_errors{type=\"lost\"} " <> mshow _msgNtfLost <> "\n# msgNtfLost\n\
+      \popopx_smp_messages_ntf_errors{type=\"expired\"} " <> mshow _msgNtfExpired <> "\n# msgNtfExpired\n\
       \\n\
-      \# HELP simplex_smp_subscription_ntf_requests Subscription requests with notification flag (from ntf server). \n\
-      \# TYPE simplex_smp_subscription_ntf_requests counter\n\
-      \simplex_smp_subscription_ntf_requests " <> mshow _ntfSub <> "\n# ntfSub\n\
+      \# HELP popopx_smp_subscription_ntf_requests Subscription requests with notification flag (from ntf server). \n\
+      \# TYPE popopx_smp_subscription_ntf_requests counter\n\
+      \popopx_smp_subscription_ntf_requests " <> mshow _ntfSub <> "\n# ntfSub\n\
       \\n\
-      \# HELP simplex_smp_subscription_ntf_requests_batch Batched subscription requests with notification flag (from ntf server). \n\
-      \# TYPE simplex_smp_subscription_ntf_requests_batch counter\n\
-      \simplex_smp_subscription_ntf_requests_batch " <> mshow _ntfSubB <> "\n# ntfSubB\n\
+      \# HELP popopx_smp_subscription_ntf_requests_batch Batched subscription requests with notification flag (from ntf server). \n\
+      \# TYPE popopx_smp_subscription_ntf_requests_batch counter\n\
+      \popopx_smp_subscription_ntf_requests_batch " <> mshow _ntfSubB <> "\n# ntfSubB\n\
       \\n\
-      \# HELP simplex_smp_subscribtion_ntf_errors Subscription errors with notification flag (from ntf server). \n\
-      \# TYPE simplex_smp_subscribtion_ntf_errors counter\n\
-      \simplex_smp_subscribtion_ntf_errors{type=\"auth\"} " <> mshow _ntfSubAuth <> "\n# ntfSubAuth\n\
-      \simplex_smp_subscribtion_ntf_errors{type=\"duplicate\"} " <> mshow _ntfSubDuplicate <> "\n# ntfSubDuplicate\n\
+      \# HELP popopx_smp_subscribtion_ntf_errors Subscription errors with notification flag (from ntf server). \n\
+      \# TYPE popopx_smp_subscribtion_ntf_errors counter\n\
+      \popopx_smp_subscribtion_ntf_errors{type=\"auth\"} " <> mshow _ntfSubAuth <> "\n# ntfSubAuth\n\
+      \popopx_smp_subscribtion_ntf_errors{type=\"duplicate\"} " <> mshow _ntfSubDuplicate <> "\n# ntfSubDuplicate\n\
       \\n"
     relays =
       "# Relays\n\
       \# ------\n\
       \\n\
-      \# HELP simplex_smp_relay_sessions_requests Session requests through relay.\n\
-      \# TYPE simplex_smp_relay_sessions_requests counter\n\
-      \simplex_smp_relay_sessions_requests{source=\"all\"} " <> mshow (_pRequests _pRelays) <> "\n# pRelays_pRequests\n\
-      \simplex_smp_relay_sessions_requests{source=\"own\"} " <> mshow (_pRequests _pRelaysOwn) <> "\n# pRelaysOwn_pRequests\n\
+      \# HELP popopx_smp_relay_sessions_requests Session requests through relay.\n\
+      \# TYPE popopx_smp_relay_sessions_requests counter\n\
+      \popopx_smp_relay_sessions_requests{source=\"all\"} " <> mshow (_pRequests _pRelays) <> "\n# pRelays_pRequests\n\
+      \popopx_smp_relay_sessions_requests{source=\"own\"} " <> mshow (_pRequests _pRelaysOwn) <> "\n# pRelaysOwn_pRequests\n\
       \\n\
-      \# HELP simplex_smp_relay_sessions_successes Successful session events through relay.\n\
-      \# TYPE simplex_smp_relay_sessions_successes counter\n\
-      \simplex_smp_relay_sessions_successes{source=\"all\"} " <> mshow (_pSuccesses _pRelays) <> "\n# pRelays_pSuccesses\n\
-      \simplex_smp_relay_sessions_successes{source=\"own\"} " <> mshow (_pSuccesses _pRelaysOwn) <> "\n# pRelaysOwn_pSuccesses\n\
+      \# HELP popopx_smp_relay_sessions_successes Successful session events through relay.\n\
+      \# TYPE popopx_smp_relay_sessions_successes counter\n\
+      \popopx_smp_relay_sessions_successes{source=\"all\"} " <> mshow (_pSuccesses _pRelays) <> "\n# pRelays_pSuccesses\n\
+      \popopx_smp_relay_sessions_successes{source=\"own\"} " <> mshow (_pSuccesses _pRelaysOwn) <> "\n# pRelaysOwn_pSuccesses\n\
       \\n\
-      \# HELP simplex_smp_relay_sessions_errors Error session events through relay.\n\
-      \# TYPE simplex_smp_relay_sessions_errors counter\n\
-      \simplex_smp_relay_sessions_errors{source=\"all\",type=\"connect\"} " <> mshow (_pErrorsConnect _pRelays) <> "\n# pRelays_pErrorsConnect\n\
-      \simplex_smp_relay_sessions_errors{source=\"all\",type=\"compat\"} " <> mshow (_pErrorsCompat _pRelays) <> "\n# pRelays_pErrorsCompat\n\
-      \simplex_smp_relay_sessions_errors{source=\"all\",type=\"other\"} " <> mshow (_pErrorsOther _pRelays) <> "\n# pRelays_pErrorsOther\n\
-      \simplex_smp_relay_sessions_errors{source=\"own\",type=\"connect\"} " <> mshow (_pErrorsConnect _pRelaysOwn) <> "\n# pRelaysOwn_pErrorsConnect\n\
-      \simplex_smp_relay_sessions_errors{source=\"own\",type=\"compat\"} " <> mshow (_pErrorsCompat _pRelaysOwn) <> "\n# pRelaysOwn_pErrorsCompat\n\
-      \simplex_smp_relay_sessions_errors{source=\"own\",type=\"other\"} " <> mshow (_pErrorsOther _pRelaysOwn) <> "\n# pRelaysOwn_pErrorsOther\n\
+      \# HELP popopx_smp_relay_sessions_errors Error session events through relay.\n\
+      \# TYPE popopx_smp_relay_sessions_errors counter\n\
+      \popopx_smp_relay_sessions_errors{source=\"all\",type=\"connect\"} " <> mshow (_pErrorsConnect _pRelays) <> "\n# pRelays_pErrorsConnect\n\
+      \popopx_smp_relay_sessions_errors{source=\"all\",type=\"compat\"} " <> mshow (_pErrorsCompat _pRelays) <> "\n# pRelays_pErrorsCompat\n\
+      \popopx_smp_relay_sessions_errors{source=\"all\",type=\"other\"} " <> mshow (_pErrorsOther _pRelays) <> "\n# pRelays_pErrorsOther\n\
+      \popopx_smp_relay_sessions_errors{source=\"own\",type=\"connect\"} " <> mshow (_pErrorsConnect _pRelaysOwn) <> "\n# pRelaysOwn_pErrorsConnect\n\
+      \popopx_smp_relay_sessions_errors{source=\"own\",type=\"compat\"} " <> mshow (_pErrorsCompat _pRelaysOwn) <> "\n# pRelaysOwn_pErrorsCompat\n\
+      \popopx_smp_relay_sessions_errors{source=\"own\",type=\"other\"} " <> mshow (_pErrorsOther _pRelaysOwn) <> "\n# pRelaysOwn_pErrorsOther\n\
       \\n\
-      \# HELP simplex_smp_relay_messages_requests Message requests sent through relay.\n\
-      \# TYPE simplex_smp_relay_messages_requests counter\n\
-      \simplex_smp_relay_messages_requests{source=\"all\"} " <> mshow (_pRequests _pMsgFwds) <> "\n# pMsgFwds_pRequests\n\
-      \simplex_smp_relay_messages_requests{source=\"own\"} " <> mshow (_pRequests _pMsgFwdsOwn) <> "\n# pMsgFwdsOwn_pRequests\n\
+      \# HELP popopx_smp_relay_messages_requests Message requests sent through relay.\n\
+      \# TYPE popopx_smp_relay_messages_requests counter\n\
+      \popopx_smp_relay_messages_requests{source=\"all\"} " <> mshow (_pRequests _pMsgFwds) <> "\n# pMsgFwds_pRequests\n\
+      \popopx_smp_relay_messages_requests{source=\"own\"} " <> mshow (_pRequests _pMsgFwdsOwn) <> "\n# pMsgFwdsOwn_pRequests\n\
       \\n\
-      \# HELP simplex_smp_relay_messages_successes Successful messages sent through relay.\n\
-      \# TYPE simplex_smp_relay_messages_successes counter\n\
-      \simplex_smp_relay_messages_successes{source=\"all\"} " <> mshow (_pSuccesses _pMsgFwds) <> "\n# pMsgFwds_pSuccesses\n\
-      \simplex_smp_relay_messages_successes{source=\"own\"} " <> mshow (_pSuccesses _pMsgFwdsOwn) <> "\n# pMsgFwdsOwn_pSuccesses\n\
+      \# HELP popopx_smp_relay_messages_successes Successful messages sent through relay.\n\
+      \# TYPE popopx_smp_relay_messages_successes counter\n\
+      \popopx_smp_relay_messages_successes{source=\"all\"} " <> mshow (_pSuccesses _pMsgFwds) <> "\n# pMsgFwds_pSuccesses\n\
+      \popopx_smp_relay_messages_successes{source=\"own\"} " <> mshow (_pSuccesses _pMsgFwdsOwn) <> "\n# pMsgFwdsOwn_pSuccesses\n\
       \\n\
-      \# HELP simplex_smp_relay_messages_errors Error events with messages sent through relay.\n\
-      \# TYPE simplex_smp_relay_messages_errors counter\n\
-      \simplex_smp_relay_messages_errors{source=\"all\",type=\"connect\"} " <> mshow (_pErrorsConnect _pMsgFwds) <> "\n# pMsgFwds_pErrorsConnect\n\
-      \simplex_smp_relay_messages_errors{source=\"all\",type=\"compat\"} " <> mshow (_pErrorsCompat _pMsgFwds) <> "\n# pMsgFwds_pErrorsCompat\n\
-      \simplex_smp_relay_messages_errors{source=\"all\",type=\"other\"} " <> mshow (_pErrorsOther _pMsgFwds) <> "\n# pMsgFwds_pErrorsOther\n\
-      \simplex_smp_relay_messages_errors{source=\"own\",type=\"connect\"} " <> mshow (_pErrorsConnect _pMsgFwdsOwn) <> "\n# pMsgFwdsOwn_pErrorsConnect\n\
-      \simplex_smp_relay_messages_errors{source=\"own\",type=\"compat\"} " <> mshow (_pErrorsCompat _pMsgFwdsOwn) <> "\n# pMsgFwdsOwn_pErrorsCompat\n\
-      \simplex_smp_relay_messages_errors{source=\"own\",type=\"other\"} " <> mshow (_pErrorsOther _pMsgFwdsOwn) <> "\n# pMsgFwdsOwn_pErrorsOther\n\
+      \# HELP popopx_smp_relay_messages_errors Error events with messages sent through relay.\n\
+      \# TYPE popopx_smp_relay_messages_errors counter\n\
+      \popopx_smp_relay_messages_errors{source=\"all\",type=\"connect\"} " <> mshow (_pErrorsConnect _pMsgFwds) <> "\n# pMsgFwds_pErrorsConnect\n\
+      \popopx_smp_relay_messages_errors{source=\"all\",type=\"compat\"} " <> mshow (_pErrorsCompat _pMsgFwds) <> "\n# pMsgFwds_pErrorsCompat\n\
+      \popopx_smp_relay_messages_errors{source=\"all\",type=\"other\"} " <> mshow (_pErrorsOther _pMsgFwds) <> "\n# pMsgFwds_pErrorsOther\n\
+      \popopx_smp_relay_messages_errors{source=\"own\",type=\"connect\"} " <> mshow (_pErrorsConnect _pMsgFwdsOwn) <> "\n# pMsgFwdsOwn_pErrorsConnect\n\
+      \popopx_smp_relay_messages_errors{source=\"own\",type=\"compat\"} " <> mshow (_pErrorsCompat _pMsgFwdsOwn) <> "\n# pMsgFwdsOwn_pErrorsCompat\n\
+      \popopx_smp_relay_messages_errors{source=\"own\",type=\"other\"} " <> mshow (_pErrorsOther _pMsgFwdsOwn) <> "\n# pMsgFwdsOwn_pErrorsOther\n\
       \\n\
-      \# HELP simplex_smp_relay_messages_received Relay messages statistics.\n\
-      \# TYPE simplex_smp_relay_messages_received counter\n\
-      \simplex_smp_relay_messages_received " <> mshow _pMsgFwdsRecv <> "\n# pMsgFwdsRecv\n\
+      \# HELP popopx_smp_relay_messages_received Relay messages statistics.\n\
+      \# TYPE popopx_smp_relay_messages_received counter\n\
+      \popopx_smp_relay_messages_received " <> mshow _pMsgFwdsRecv <> "\n# pMsgFwdsRecv\n\
       \\n"
     services =
       "# Services\n\
       \# --------\n\
-      \# HELP simplex_smp_rcv_services_count The count of receiving services.\n\
-      \# TYPE simplex_smp_rcv_services_count gauge\n\
-      \simplex_smp_rcv_services_count " <> mshow (rcvServiceCount entityCounts) <> "\n# rcvServiceCount\n\
+      \# HELP popopx_smp_rcv_services_count The count of receiving services.\n\
+      \# TYPE popopx_smp_rcv_services_count gauge\n\
+      \popopx_smp_rcv_services_count " <> mshow (rcvServiceCount entityCounts) <> "\n# rcvServiceCount\n\
       \\n\
-      \# HELP simplex_smp_rcv_services_queues_count The count of queues associated with receiving services.\n\
-      \# TYPE simplex_smp_rcv_services_queues_count gauge\n\
-      \simplex_smp_rcv_services_queues_count " <> mshow (rcvServiceQueuesCount entityCounts) <> "\n# rcv.rcvServiceQueuesCount\n\
+      \# HELP popopx_smp_rcv_services_queues_count The count of queues associated with receiving services.\n\
+      \# TYPE popopx_smp_rcv_services_queues_count gauge\n\
+      \popopx_smp_rcv_services_queues_count " <> mshow (rcvServiceQueuesCount entityCounts) <> "\n# rcv.rcvServiceQueuesCount\n\
       \\n\
-      \# HELP simplex_smp_ntf_services_count The count of notification services.\n\
-      \# TYPE simplex_smp_ntf_services_count gauge\n\
-      \simplex_smp_ntf_services_count " <> mshow (ntfServiceCount entityCounts) <> "\n# ntfServiceCount\n\
+      \# HELP popopx_smp_ntf_services_count The count of notification services.\n\
+      \# TYPE popopx_smp_ntf_services_count gauge\n\
+      \popopx_smp_ntf_services_count " <> mshow (ntfServiceCount entityCounts) <> "\n# ntfServiceCount\n\
       \\n\
-      \# HELP simplex_smp_ntf_services_queues_count The count of queues associated with notification services.\n\
-      \# TYPE simplex_smp_ntf_services_queues_count gauge\n\
-      \simplex_smp_ntf_services_queues_count " <> mshow (ntfServiceQueuesCount entityCounts) <> "\n# ntfServiceQueuesCount\n\
+      \# HELP popopx_smp_ntf_services_queues_count The count of queues associated with notification services.\n\
+      \# TYPE popopx_smp_ntf_services_queues_count gauge\n\
+      \popopx_smp_ntf_services_queues_count " <> mshow (ntfServiceQueuesCount entityCounts) <> "\n# ntfServiceQueuesCount\n\
       \\n\
-      \# HELP simplex_smp_rcv_services_sub_msg_count The count of subscribed service queues with messages.\n\
-      \# TYPE simplex_smp_rcv_services_sub_msg_count counter\n\
-      \simplex_smp_rcv_services_sub_msg_count " <> mshow _rcvServicesSubMsg <> "\n# rcvServicesSubMsg\n\
+      \# HELP popopx_smp_rcv_services_sub_msg_count The count of subscribed service queues with messages.\n\
+      \# TYPE popopx_smp_rcv_services_sub_msg_count counter\n\
+      \popopx_smp_rcv_services_sub_msg_count " <> mshow _rcvServicesSubMsg <> "\n# rcvServicesSubMsg\n\
       \\n\
-      \# HELP simplex_smp_rcv_services_sub_duplicate_count The count of duplicate subscribed service queues.\n\
-      \# TYPE simplex_smp_rcv_services_sub_duplicate_count counter\n\
-      \simplex_smp_rcv_services_sub_duplicate_count " <> mshow _rcvServicesSubDuplicate <> "\n# rcvServicesSubDuplicate\n\
+      \# HELP popopx_smp_rcv_services_sub_duplicate_count The count of duplicate subscribed service queues.\n\
+      \# TYPE popopx_smp_rcv_services_sub_duplicate_count counter\n\
+      \popopx_smp_rcv_services_sub_duplicate_count " <> mshow _rcvServicesSubDuplicate <> "\n# rcvServicesSubDuplicate\n\
       \\n"
         <> showServices _rcvServices "rcv" "receiving"
         <> showServices _ntfServices "ntf" "notification"
     showServices ss pfx name =
-      "# HELP simplex_smp_" <> pfx <> "_services_assoc_new New queue associations with " <> name <> " services.\n\
-      \# TYPE simplex_smp_" <> pfx <> "_services_assoc_new counter\n\
-      \simplex_smp_" <> pfx <> "_services_assoc_new " <> mshow (_srvAssocNew ss) <> "\n# " <> pfx <> ".srvAssocNew\n\
+      "# HELP popopx_smp_" <> pfx <> "_services_assoc_new New queue associations with " <> name <> " services.\n\
+      \# TYPE popopx_smp_" <> pfx <> "_services_assoc_new counter\n\
+      \popopx_smp_" <> pfx <> "_services_assoc_new " <> mshow (_srvAssocNew ss) <> "\n# " <> pfx <> ".srvAssocNew\n\
       \\n\
-      \# HELP simplex_smp_" <> pfx <> "_services_assoc_duplicate Duplicate queue associations with " <> name <> " services.\n\
-      \# TYPE simplex_smp_" <> pfx <> "_services_assoc_duplicate counter\n\
-      \simplex_smp_" <> pfx <> "_services_assoc_duplicate " <> mshow (_srvAssocDuplicate ss) <> "\n# " <> pfx <> ".srvAssocDuplicate\n\
+      \# HELP popopx_smp_" <> pfx <> "_services_assoc_duplicate Duplicate queue associations with " <> name <> " services.\n\
+      \# TYPE popopx_smp_" <> pfx <> "_services_assoc_duplicate counter\n\
+      \popopx_smp_" <> pfx <> "_services_assoc_duplicate " <> mshow (_srvAssocDuplicate ss) <> "\n# " <> pfx <> ".srvAssocDuplicate\n\
       \\n\
-      \# HELP simplex_smp_" <> pfx <> "_services_assoc_updated Updated queue associations with " <> name <> " services.\n\
-      \# TYPE simplex_smp_" <> pfx <> "_services_assoc_updated counter\n\
-      \simplex_smp_" <> pfx <> "_services_assoc_updated " <> mshow (_srvAssocUpdated ss) <> "\n# " <> pfx <> ".srvAssocUpdated\n\
+      \# HELP popopx_smp_" <> pfx <> "_services_assoc_updated Updated queue associations with " <> name <> " services.\n\
+      \# TYPE popopx_smp_" <> pfx <> "_services_assoc_updated counter\n\
+      \popopx_smp_" <> pfx <> "_services_assoc_updated " <> mshow (_srvAssocUpdated ss) <> "\n# " <> pfx <> ".srvAssocUpdated\n\
       \\n\
-      \# HELP simplex_smp_" <> pfx <> "_services_assoc_removed Removed queue associations with " <> name <> " services.\n\
-      \# TYPE simplex_smp_" <> pfx <> "_services_assoc_removed counter\n\
-      \simplex_smp_" <> pfx <> "_services_assoc_removed " <> mshow (_srvAssocRemoved ss) <> "\n# " <> pfx <> ".srvAssocRemoved\n\
+      \# HELP popopx_smp_" <> pfx <> "_services_assoc_removed Removed queue associations with " <> name <> " services.\n\
+      \# TYPE popopx_smp_" <> pfx <> "_services_assoc_removed counter\n\
+      \popopx_smp_" <> pfx <> "_services_assoc_removed " <> mshow (_srvAssocRemoved ss) <> "\n# " <> pfx <> ".srvAssocRemoved\n\
       \\n\
-      \# HELP simplex_smp_" <> pfx <> "_services_sub_count Service subscriptions by " <> name <> " services.\n\
-      \# TYPE simplex_smp_" <> pfx <> "_services_sub_count counter\n\
-      \simplex_smp_" <> pfx <> "_services_sub_count " <> mshow (_srvSubCount ss) <> "\n# " <> pfx <> ".srvSubCount\n\
+      \# HELP popopx_smp_" <> pfx <> "_services_sub_count Service subscriptions by " <> name <> " services.\n\
+      \# TYPE popopx_smp_" <> pfx <> "_services_sub_count counter\n\
+      \popopx_smp_" <> pfx <> "_services_sub_count " <> mshow (_srvSubCount ss) <> "\n# " <> pfx <> ".srvSubCount\n\
       \\n\
-      \# HELP simplex_smp_" <> pfx <> "_services_sub_duplicate Duplicate service subscriptions by " <> name <> " services.\n\
-      \# TYPE simplex_smp_" <> pfx <> "_services_sub_duplicate counter\n\
-      \simplex_smp_" <> pfx <> "_services_sub_duplicate " <> mshow (_srvSubDuplicate ss) <> "\n# " <> pfx <> ".srvSubDuplicate\n\
+      \# HELP popopx_smp_" <> pfx <> "_services_sub_duplicate Duplicate service subscriptions by " <> name <> " services.\n\
+      \# TYPE popopx_smp_" <> pfx <> "_services_sub_duplicate counter\n\
+      \popopx_smp_" <> pfx <> "_services_sub_duplicate " <> mshow (_srvSubDuplicate ss) <> "\n# " <> pfx <> ".srvSubDuplicate\n\
       \\n\
-      \# HELP simplex_smp_" <> pfx <> "_services_sub_queues Queues subscribed by " <> name <> " services.\n\
-      \# TYPE simplex_smp_" <> pfx <> "_services_sub_queues gauge\n\
-      \simplex_smp_" <> pfx <> "_services_sub_queues " <> mshow (_srvSubQueues ss) <> "\n# " <> pfx <> ".srvSubQueues\n\
+      \# HELP popopx_smp_" <> pfx <> "_services_sub_queues Queues subscribed by " <> name <> " services.\n\
+      \# TYPE popopx_smp_" <> pfx <> "_services_sub_queues gauge\n\
+      \popopx_smp_" <> pfx <> "_services_sub_queues " <> mshow (_srvSubQueues ss) <> "\n# " <> pfx <> ".srvSubQueues\n\
       \\n\
-      \# HELP simplex_smp_" <> pfx <> "_services_sub_end Ended subscriptions with " <> name <> " services.\n\
-      \# TYPE simplex_smp_" <> pfx <> "_services_sub_end gauge\n\
-      \simplex_smp_" <> pfx <> "_services_sub_end " <> mshow (_srvSubEnd ss) <> "\n# " <> pfx <> ".srvSubEnd\n\
+      \# HELP popopx_smp_" <> pfx <> "_services_sub_end Ended subscriptions with " <> name <> " services.\n\
+      \# TYPE popopx_smp_" <> pfx <> "_services_sub_end gauge\n\
+      \popopx_smp_" <> pfx <> "_services_sub_end " <> mshow (_srvSubEnd ss) <> "\n# " <> pfx <> ".srvSubEnd\n\
       \\n\
-      \# HELP simplex_smp_" <> pfx <> "_services_sub_ok Service subscriptions for " <> name <> " services.\n\
-      \# TYPE simplex_smp_" <> pfx <> "_services_sub_ok gauge\n\
-      \simplex_smp_" <> pfx <> "_services_sub_ok " <> mshow (_srvSubOk ss) <> "\n# " <> pfx <> ".srvSubOk\n\
+      \# HELP popopx_smp_" <> pfx <> "_services_sub_ok Service subscriptions for " <> name <> " services.\n\
+      \# TYPE popopx_smp_" <> pfx <> "_services_sub_ok gauge\n\
+      \popopx_smp_" <> pfx <> "_services_sub_ok " <> mshow (_srvSubOk ss) <> "\n# " <> pfx <> ".srvSubOk\n\
       \\n\
-      \# HELP simplex_smp_" <> pfx <> "_services_sub_more Service subscriptions for " <> name <> " services with more queues than in the client.\n\
-      \# TYPE simplex_smp_" <> pfx <> "_services_sub_more gauge\n\
-      \simplex_smp_" <> pfx <> "_services_sub_more " <> mshow (_srvSubMore ss) <> "\n# " <> pfx <> ".srvSubMore\n\
+      \# HELP popopx_smp_" <> pfx <> "_services_sub_more Service subscriptions for " <> name <> " services with more queues than in the client.\n\
+      \# TYPE popopx_smp_" <> pfx <> "_services_sub_more gauge\n\
+      \popopx_smp_" <> pfx <> "_services_sub_more " <> mshow (_srvSubMore ss) <> "\n# " <> pfx <> ".srvSubMore\n\
       \\n\
-      \# HELP simplex_smp_" <> pfx <> "_services_sub_fewer Service subscriptions for " <> name <> " services with fewer queues than in the client.\n\
-      \# TYPE simplex_smp_" <> pfx <> "_services_sub_fewer gauge\n\
-      \simplex_smp_" <> pfx <> "_services_sub_fewer " <> mshow (_srvSubFewer ss) <> "\n# " <> pfx <> ".srvSubFewer\n\
+      \# HELP popopx_smp_" <> pfx <> "_services_sub_fewer Service subscriptions for " <> name <> " services with fewer queues than in the client.\n\
+      \# TYPE popopx_smp_" <> pfx <> "_services_sub_fewer gauge\n\
+      \popopx_smp_" <> pfx <> "_services_sub_fewer " <> mshow (_srvSubFewer ss) <> "\n# " <> pfx <> ".srvSubFewer\n\
       \\n\
-      \# HELP simplex_smp_" <> pfx <> "_services_sub_diff Service subscriptions for " <> name <> " services with different hash than in the client.\n\
-      \# TYPE simplex_smp_" <> pfx <> "_services_sub_diff gauge\n\
-      \simplex_smp_" <> pfx <> "_services_sub_diff " <> mshow (_srvSubDiff ss) <> "\n# " <> pfx <> ".srvSubDiff\n\
+      \# HELP popopx_smp_" <> pfx <> "_services_sub_diff Service subscriptions for " <> name <> " services with different hash than in the client.\n\
+      \# TYPE popopx_smp_" <> pfx <> "_services_sub_diff gauge\n\
+      \popopx_smp_" <> pfx <> "_services_sub_diff " <> mshow (_srvSubDiff ss) <> "\n# " <> pfx <> ".srvSubDiff\n\
       \\n\
-      \# HELP simplex_smp_" <> pfx <> "_services_sub_more_total Service subscriptions for " <> name <> " services with more queues than in the client total.\n\
-      \# TYPE simplex_smp_" <> pfx <> "_services_sub_more_total gauge\n\
-      \simplex_smp_" <> pfx <> "_services_sub_more_total " <> mshow (_srvSubMoreTotal ss) <> "\n# " <> pfx <> ".srvSubMoreTotal\n\
+      \# HELP popopx_smp_" <> pfx <> "_services_sub_more_total Service subscriptions for " <> name <> " services with more queues than in the client total.\n\
+      \# TYPE popopx_smp_" <> pfx <> "_services_sub_more_total gauge\n\
+      \popopx_smp_" <> pfx <> "_services_sub_more_total " <> mshow (_srvSubMoreTotal ss) <> "\n# " <> pfx <> ".srvSubMoreTotal\n\
       \\n\
-      \# HELP simplex_smp_" <> pfx <> "_services_sub_fewer_total Service subscriptions for " <> name <> " services with fewer queues than in the client total.\n\
-      \# TYPE simplex_smp_" <> pfx <> "_services_sub_fewer_total gauge\n\
-      \simplex_smp_" <> pfx <> "_services_sub_fewer_total " <> mshow (_srvSubFewerTotal ss) <> "\n# " <> pfx <> ".srvSubFewerTotal\n\
+      \# HELP popopx_smp_" <> pfx <> "_services_sub_fewer_total Service subscriptions for " <> name <> " services with fewer queues than in the client total.\n\
+      \# TYPE popopx_smp_" <> pfx <> "_services_sub_fewer_total gauge\n\
+      \popopx_smp_" <> pfx <> "_services_sub_fewer_total " <> mshow (_srvSubFewerTotal ss) <> "\n# " <> pfx <> ".srvSubFewerTotal\n\
       \\n"
     names =
       let NameResolverStatsData {_rslvReqs, _rslvSucc, _rslvNotFound, _rslvResolverErrs, _rslvDisabled} = _rslvStats
        in "# Names\n\
           \# -----\n\
           \\n\
-          \# HELP simplex_smp_names_reqs Total RSLV requests forwarded to this server.\n\
-          \# TYPE simplex_smp_names_reqs counter\n\
-          \simplex_smp_names_reqs " <> mshow _rslvReqs <> "\n# rslvReqs\n\
+          \# HELP popopx_smp_names_reqs Total RSLV requests forwarded to this server.\n\
+          \# TYPE popopx_smp_names_reqs counter\n\
+          \popopx_smp_names_reqs " <> mshow _rslvReqs <> "\n# rslvReqs\n\
           \\n\
-          \# HELP simplex_smp_names_success NameRecord resolved, or availability answered.\n\
-          \# TYPE simplex_smp_names_success counter\n\
-          \simplex_smp_names_success " <> mshow _rslvSucc <> "\n# rslvSucc\n\
+          \# HELP popopx_smp_names_success NameRecord resolved, or availability answered.\n\
+          \# TYPE popopx_smp_names_success counter\n\
+          \popopx_smp_names_success " <> mshow _rslvSucc <> "\n# rslvSucc\n\
           \\n\
-          \# HELP simplex_smp_names_not_found Answers a client below v22 reads as NOT_FOUND.\n\
-          \# TYPE simplex_smp_names_not_found counter\n\
-          \simplex_smp_names_not_found " <> mshow _rslvNotFound <> "\n# rslvNotFound\n\
+          \# HELP popopx_smp_names_not_found Answers a client below v22 reads as NOT_FOUND.\n\
+          \# TYPE popopx_smp_names_not_found counter\n\
+          \popopx_smp_names_not_found " <> mshow _rslvNotFound <> "\n# rslvNotFound\n\
           \\n\
-          \# HELP simplex_smp_names_resolver_errs Resolver backend errors (HTTP 5xx, transport, decode, or timeout).\n\
-          \# TYPE simplex_smp_names_resolver_errs counter\n\
-          \simplex_smp_names_resolver_errs " <> mshow _rslvResolverErrs <> "\n# rslvResolverErrs\n\
+          \# HELP popopx_smp_names_resolver_errs Resolver backend errors (HTTP 5xx, transport, decode, or timeout).\n\
+          \# TYPE popopx_smp_names_resolver_errs counter\n\
+          \popopx_smp_names_resolver_errs " <> mshow _rslvResolverErrs <> "\n# rslvResolverErrs\n\
           \\n\
-          \# HELP simplex_smp_names_disabled RSLV requests rejected because no resolver is configured (names role off).\n\
-          \# TYPE simplex_smp_names_disabled counter\n\
-          \simplex_smp_names_disabled " <> mshow _rslvDisabled <> "\n# rslvDisabled\n\
+          \# HELP popopx_smp_names_disabled RSLV requests rejected because no resolver is configured (names role off).\n\
+          \# TYPE popopx_smp_names_disabled counter\n\
+          \popopx_smp_names_disabled " <> mshow _rslvDisabled <> "\n# rslvDisabled\n\
           \\n"
     info =
       "# Info\n\
       \# ----\n\
       \\n\
-      \# HELP simplex_smp_info Server information. RTS options have to be passed via " <> rtsOptionsEnv <> " env var\n\
-      \# TYPE simplex_smp_info gauge\n\
-      \simplex_smp_info{version=\"" <> T.pack popopxMQVersion <> "\",rts_options=\"" <> rtsOptions <> "\"} 1\n\
+      \# HELP popopx_smp_info Server information. RTS options have to be passed via " <> rtsOptionsEnv <> " env var\n\
+      \# TYPE popopx_smp_info gauge\n\
+      \popopx_smp_info{version=\"" <> T.pack popopxMQVersion <> "\",rts_options=\"" <> rtsOptions <> "\"} 1\n\
       \\n"
-      <> socketsMetric socketsAccepted "simplex_smp_sockets_accepted" "Accepted sockets"
-      <> socketsMetric socketsClosed "simplex_smp_sockets_closed" "Closed sockets"
-      <> socketsMetric socketsActive "simplex_smp_sockets_active" "Active sockets"
-      <> socketsMetric socketsLeaked "simplex_smp_sockets_leaked" "Leaked sockets"
-      <> "# HELP simplex_smp_threads_total Threads\n\
-      \# TYPE simplex_smp_threads_total gauge\n\
-      \simplex_smp_threads_total " <> mshow threadsCount <> "\n\
+      <> socketsMetric socketsAccepted "popopx_smp_sockets_accepted" "Accepted sockets"
+      <> socketsMetric socketsClosed "popopx_smp_sockets_closed" "Closed sockets"
+      <> socketsMetric socketsActive "popopx_smp_sockets_active" "Active sockets"
+      <> socketsMetric socketsLeaked "popopx_smp_sockets_leaked" "Leaked sockets"
+      <> "# HELP popopx_smp_threads_total Threads\n\
+      \# TYPE popopx_smp_threads_total gauge\n\
+      \popopx_smp_threads_total " <> mshow threadsCount <> "\n\
       \\n\
-      \# HELP simplex_smp_clients_total Clients\n\
-      \# TYPE simplex_smp_clients_total gauge\n\
-      \simplex_smp_clients_total " <> mshow clientsCount <> "\n\
+      \# HELP popopx_smp_clients_total Clients\n\
+      \# TYPE popopx_smp_clients_total gauge\n\
+      \popopx_smp_clients_total " <> mshow clientsCount <> "\n\
       \\n\
-      \# HELP simplex_smp_delivered_total Total SMP subscriptions with delivered messages\n\
-      \# TYPE simplex_smp_delivered_total gauge\n\
-      \simplex_smp_delivered_total " <> mshow (subsCount deliveredSubs) <> "\n# delivered.subsCount\n\
+      \# HELP popopx_smp_delivered_total Total SMP subscriptions with delivered messages\n\
+      \# TYPE popopx_smp_delivered_total gauge\n\
+      \popopx_smp_delivered_total " <> mshow (subsCount deliveredSubs) <> "\n# delivered.subsCount\n\
       \\n\
-      \# HELP simplex_smp_delivered_clients_total Subscribed clients\n\
-      \# TYPE simplex_smp_delivered_clients_total gauge\n\
-      \simplex_smp_delivered_clients_total " <> mshow (subClientsCount deliveredSubs) <> "\n# delivered.subClientsCount\n\
+      \# HELP popopx_smp_delivered_clients_total Subscribed clients\n\
+      \# TYPE popopx_smp_delivered_clients_total gauge\n\
+      \popopx_smp_delivered_clients_total " <> mshow (subClientsCount deliveredSubs) <> "\n# delivered.subClientsCount\n\
       \\n\
-      \# HELP simplex_smp_delivery_ack_confirmed_time Times to confirm message delivery, only confirmed deliveries\n\
-      \# TYPE simplex_smp_delivery_ack_confirmed_time histogram\n\
-      \simplex_smp_delivery_ack_confirmed_time_sum " <> mshow (sumTime _msgRecvAckTimes) <> "\n\
-      \simplex_smp_delivery_ack_confirmed_time_count " <> mshow (_msgRecv + _msgRecvGet) <> "\n"
-      <> showTimeBuckets "simplex_smp_delivery_ack_confirmed_time" (timeBuckets _msgRecvAckTimes)
-      <> showTimeBucket "simplex_smp_delivery_ack_confirmed_time" "+Inf" (_msgRecv + _msgRecvGet)
+      \# HELP popopx_smp_delivery_ack_confirmed_time Times to confirm message delivery, only confirmed deliveries\n\
+      \# TYPE popopx_smp_delivery_ack_confirmed_time histogram\n\
+      \popopx_smp_delivery_ack_confirmed_time_sum " <> mshow (sumTime _msgRecvAckTimes) <> "\n\
+      \popopx_smp_delivery_ack_confirmed_time_count " <> mshow (_msgRecv + _msgRecvGet) <> "\n"
+      <> showTimeBuckets "popopx_smp_delivery_ack_confirmed_time" (timeBuckets _msgRecvAckTimes)
+      <> showTimeBucket "popopx_smp_delivery_ack_confirmed_time" "+Inf" (_msgRecv + _msgRecvGet)
       <> "\n\
-      \# HELP simplex_smp_delivery_ack_confirmed_count Counts for confirmed deliveries\n\
-      \# TYPE simplex_smp_delivery_ack_confirmed_count counter\n"
-      <> showBucketSums "simplex_smp_delivery_ack_confirmed_count" (timeBuckets _msgRecvAckTimes)
+      \# HELP popopx_smp_delivery_ack_confirmed_count Counts for confirmed deliveries\n\
+      \# TYPE popopx_smp_delivery_ack_confirmed_count counter\n"
+      <> showBucketSums "popopx_smp_delivery_ack_confirmed_count" (timeBuckets _msgRecvAckTimes)
       <> "\n\
-      \# HELP simplex_smp_delivery_ack_pending_count Counts for pending delivery\n\
-      \# TYPE simplex_smp_delivery_ack_pending_count gauge\n"
-      <> showBucketSums "simplex_smp_delivery_ack_pending_count" (timeBuckets deliveredTimes)
+      \# HELP popopx_smp_delivery_ack_pending_count Counts for pending delivery\n\
+      \# TYPE popopx_smp_delivery_ack_pending_count gauge\n"
+      <> showBucketSums "popopx_smp_delivery_ack_pending_count" (timeBuckets deliveredTimes)
       <> "\n\
-      \# HELP simplex_smp_delivery_ack_time_max Max time to confirm message delivery\n\
-      \# TYPE simplex_smp_delivery_ack_time_max gauge\n\
-      \simplex_smp_delivery_ack_time_max " <> mshow (maxTime deliveredTimes) <> "\n# delivered.maxTime\n\
+      \# HELP popopx_smp_delivery_ack_time_max Max time to confirm message delivery\n\
+      \# TYPE popopx_smp_delivery_ack_time_max gauge\n\
+      \popopx_smp_delivery_ack_time_max " <> mshow (maxTime deliveredTimes) <> "\n# delivered.maxTime\n\
       \\n\
-      \# HELP simplex_smp_subscribtion_total Total SMP subscriptions\n\
-      \# TYPE simplex_smp_subscribtion_total gauge\n\
-      \simplex_smp_subscribtion_total " <> mshow (subsCount smpSubs) <> "\n# smp.subsCount\n\
+      \# HELP popopx_smp_subscribtion_total Total SMP subscriptions\n\
+      \# TYPE popopx_smp_subscribtion_total gauge\n\
+      \popopx_smp_subscribtion_total " <> mshow (subsCount smpSubs) <> "\n# smp.subsCount\n\
       \\n\
-      \# HELP simplex_smp_subscribtion_clients_total Subscribed clients\n\
-      \# TYPE simplex_smp_subscribtion_clients_total gauge\n\
-      \simplex_smp_subscribtion_clients_total " <> mshow (subClientsCount smpSubs) <> "\n# smp.subClientsCount\n\
+      \# HELP popopx_smp_subscribtion_clients_total Subscribed clients\n\
+      \# TYPE popopx_smp_subscribtion_clients_total gauge\n\
+      \popopx_smp_subscribtion_clients_total " <> mshow (subClientsCount smpSubs) <> "\n# smp.subClientsCount\n\
       \\n\
-      \# HELP simplex_smp_subscribtion_services_total Subscribed services, first counting method\n\
-      \# TYPE simplex_smp_subscribtion_services_total gauge\n\
-      \simplex_smp_subscribtion_services_total " <> mshow (subServicesCount smpSubs) <> "\n# smp.subServicesCount\n\
+      \# HELP popopx_smp_subscribtion_services_total Subscribed services, first counting method\n\
+      \# TYPE popopx_smp_subscribtion_services_total gauge\n\
+      \popopx_smp_subscribtion_services_total " <> mshow (subServicesCount smpSubs) <> "\n# smp.subServicesCount\n\
       \\n\
-      \# HELP simplex_smp_subscribtion_service_subs_total Total queues subscribed via services\n\
-      \# TYPE simplex_smp_subscribtion_service_subs_total gauge\n\
-      \simplex_smp_subscribtion_service_subs_total " <> mshow (subServiceSubsCount smpSubs) <> "\n# smp.subServiceSubsCount\n\
+      \# HELP popopx_smp_subscribtion_service_subs_total Total queues subscribed via services\n\
+      \# TYPE popopx_smp_subscribtion_service_subs_total gauge\n\
+      \popopx_smp_subscribtion_service_subs_total " <> mshow (subServiceSubsCount smpSubs) <> "\n# smp.subServiceSubsCount\n\
       \\n\
-      \# HELP simplex_smp_subscription_ntf_total Total notification subscripbtions (from ntf server)\n\
-      \# TYPE simplex_smp_subscription_ntf_total gauge\n\
-      \simplex_smp_subscription_ntf_total " <> mshow (subsCount ntfSubs) <> "\n# ntf.subsCount\n\
+      \# HELP popopx_smp_subscription_ntf_total Total notification subscripbtions (from ntf server)\n\
+      \# TYPE popopx_smp_subscription_ntf_total gauge\n\
+      \popopx_smp_subscription_ntf_total " <> mshow (subsCount ntfSubs) <> "\n# ntf.subsCount\n\
       \\n\
-      \# HELP simplex_smp_subscription_ntf_clients_total Total subscribed NTF servers\n\
-      \# TYPE simplex_smp_subscription_ntf_clients_total gauge\n\
-      \simplex_smp_subscription_ntf_clients_total " <> mshow (subClientsCount ntfSubs) <> "\n# ntf.subClientsCount\n\
+      \# HELP popopx_smp_subscription_ntf_clients_total Total subscribed NTF servers\n\
+      \# TYPE popopx_smp_subscription_ntf_clients_total gauge\n\
+      \popopx_smp_subscription_ntf_clients_total " <> mshow (subClientsCount ntfSubs) <> "\n# ntf.subClientsCount\n\
       \\n\
-      \# HELP simplex_smp_subscribtion_nts_services_total Subscribed NTF services, first counting method\n\
-      \# TYPE simplex_smp_subscribtion_nts_services_total gauge\n\
-      \simplex_smp_subscribtion_nts_services_total " <> mshow (subServicesCount ntfSubs) <> "\n# ntf.subServicesCount\n\
+      \# HELP popopx_smp_subscribtion_nts_services_total Subscribed NTF services, first counting method\n\
+      \# TYPE popopx_smp_subscribtion_nts_services_total gauge\n\
+      \popopx_smp_subscribtion_nts_services_total " <> mshow (subServicesCount ntfSubs) <> "\n# ntf.subServicesCount\n\
       \\n\
-      \# HELP simplex_smp_subscription_ntf_service_subs_total Total queues subscribed via NTF services\n\
-      \# TYPE simplex_smp_subscription_ntf_service_subs_total gauge\n\
-      \simplex_smp_subscription_ntf_service_subs_total " <> mshow (subServiceSubsCount ntfSubs) <> "\n# ntf.subServiceSubsCount\n\
+      \# HELP popopx_smp_subscription_ntf_service_subs_total Total queues subscribed via NTF services\n\
+      \# TYPE popopx_smp_subscription_ntf_service_subs_total gauge\n\
+      \popopx_smp_subscription_ntf_service_subs_total " <> mshow (subServiceSubsCount ntfSubs) <> "\n# ntf.subServiceSubsCount\n\
       \\n\
-      \# HELP simplex_smp_loaded_queues_queue_count Total loaded queues count (all queues for memory/journal storage)\n\
-      \# TYPE simplex_smp_loaded_queues_queue_count gauge\n\
-      \simplex_smp_loaded_queues_queue_count " <> mshow (loadedQueueCount loadedCounts) <> "\n# loadedCounts.loadedQueueCount\n\
+      \# HELP popopx_smp_loaded_queues_queue_count Total loaded queues count (all queues for memory/journal storage)\n\
+      \# TYPE popopx_smp_loaded_queues_queue_count gauge\n\
+      \popopx_smp_loaded_queues_queue_count " <> mshow (loadedQueueCount loadedCounts) <> "\n# loadedCounts.loadedQueueCount\n\
       \\n\
-      \# HELP simplex_smp_loaded_queues_ntf_count Total loaded ntf credential references (all ntf credentials for memory/journal storage)\n\
-      \# TYPE simplex_smp_loaded_queues_ntf_count gauge\n\
-      \simplex_smp_loaded_queues_ntf_count " <> mshow (loadedNotifierCount loadedCounts) <> "\n# loadedCounts.loadedNotifierCount\n\
+      \# HELP popopx_smp_loaded_queues_ntf_count Total loaded ntf credential references (all ntf credentials for memory/journal storage)\n\
+      \# TYPE popopx_smp_loaded_queues_ntf_count gauge\n\
+      \popopx_smp_loaded_queues_ntf_count " <> mshow (loadedNotifierCount loadedCounts) <> "\n# loadedCounts.loadedNotifierCount\n\
       \\n\
-      \# HELP simplex_smp_loaded_queues_open_journal_count Total opened queue journals (0 for memory storage)\n\
-      \# TYPE simplex_smp_loaded_queues_open_journal_count gauge\n\
-      \simplex_smp_loaded_queues_open_journal_count " <> mshow (openJournalCount loadedCounts) <> "\n# loadedCounts.openJournalCount\n\
+      \# HELP popopx_smp_loaded_queues_open_journal_count Total opened queue journals (0 for memory storage)\n\
+      \# TYPE popopx_smp_loaded_queues_open_journal_count gauge\n\
+      \popopx_smp_loaded_queues_open_journal_count " <> mshow (openJournalCount loadedCounts) <> "\n# loadedCounts.openJournalCount\n\
       \\n\
-      \# HELP simplex_smp_loaded_queues_queue_lock_count Total queue locks (0 for memory storage)\n\
-      \# TYPE simplex_smp_loaded_queues_queue_lock_count gauge\n\
-      \simplex_smp_loaded_queues_queue_lock_count " <> mshow (queueLockCount loadedCounts) <> "\n# loadedCounts.queueLockCount\n\
+      \# HELP popopx_smp_loaded_queues_queue_lock_count Total queue locks (0 for memory storage)\n\
+      \# TYPE popopx_smp_loaded_queues_queue_lock_count gauge\n\
+      \popopx_smp_loaded_queues_queue_lock_count " <> mshow (queueLockCount loadedCounts) <> "\n# loadedCounts.queueLockCount\n\
       \\n\
-      \# HELP simplex_smp_loaded_queues_ntf_lock_count Total notifier locks (0 for memory/journal storage)\n\
-      \# TYPE simplex_smp_loaded_queues_ntf_lock_count gauge\n\
-      \simplex_smp_loaded_queues_ntf_lock_count " <> mshow (notifierLockCount loadedCounts) <> "\n# loadedCounts.notifierLockCount\n"
+      \# HELP popopx_smp_loaded_queues_ntf_lock_count Total notifier locks (0 for memory/journal storage)\n\
+      \# TYPE popopx_smp_loaded_queues_ntf_lock_count gauge\n\
+      \popopx_smp_loaded_queues_ntf_lock_count " <> mshow (notifierLockCount loadedCounts) <> "\n# loadedCounts.notifierLockCount\n"
 
     showTimeBuckets :: Text -> IM.IntMap Int -> Text
     showTimeBuckets metric = T.concat . snd . mapAccumL accumBucket (0, 0) . IM.assocs

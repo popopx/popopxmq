@@ -30,7 +30,7 @@
 --
 -- This module defines basic TCP server and client and SMP protocol encrypted transport over TCP.
 --
--- See https://github.com/simplex-chat/popopxmq/blob/master/protocol/simplex-messaging.md#appendix-a
+-- See https://github.com/popopx/popopxmq/blob/master/protocol/simplex-messaging.md#appendix-a
 module Popopx.Messaging.Transport
   ( -- * SMP transport parameters
     SMPVersion,
@@ -736,7 +736,7 @@ tGetBlock THandle {connection = c, params = THandleParams {blockSize, encryptBlo
 
 -- | Server SMP transport handshake.
 --
--- See https://github.com/simplex-chat/popopxmq/blob/master/protocol/simplex-messaging.md#appendix-a
+-- See https://github.com/popopx/popopxmq/blob/master/protocol/simplex-messaging.md#appendix-a
 smpServerHandshake ::
   forall c. Transport c =>
   X.CertificateChain ->
@@ -780,7 +780,7 @@ smpServerHandshake srvCert srvSignKey c (k, pk) kh smpVersionRange serverInfoByt
 
 -- | Client SMP transport handshake.
 --
--- See https://github.com/simplex-chat/popopxmq/blob/master/protocol/simplex-messaging.md#appendix-a
+-- See https://github.com/popopx/popopxmq/blob/master/protocol/simplex-messaging.md#appendix-a
 smpClientHandshake :: forall c. Transport c => c 'TClient -> Maybe C.KeyPairX25519 -> C.KeyHash -> VersionRangeSMP -> Bool -> Maybe (ServiceCredentials, C.KeyPairEd25519) -> ExceptT TransportError IO (THandleSMP c 'TClient)
 smpClientHandshake c ks_ keyHash@(C.KeyHash kh) smpVRange proxyServer serviceKeys_ = do
   SMPServerHandshake {sessionId = sessId, smpVersionRange, authPubKey = certKey@(CertChainPubKey chain exact), serverInfoBytes} <- getHandshake th

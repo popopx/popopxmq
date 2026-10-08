@@ -466,7 +466,7 @@ testAllowNewQueues =
 
 testDuplex :: SpecWith (ASrvTransport, AStoreType)
 testDuplex =
-  it "should create 2 simplex connections and exchange messages" $ \(ATransport t, msType) ->
+  it "should create 2 popopx connections and exchange messages" $ \(ATransport t, msType) ->
     smpTest2 t msType $ \alice bob -> do
       g <- C.newRandom
       (arPub, arKey) <- atomically $ C.generateAuthKeyPair C.SEd448 g
@@ -521,7 +521,7 @@ testDuplex =
 
 testSwitchSub :: SpecWith (ASrvTransport, AStoreType)
 testSwitchSub =
-  it "should create simplex connections and switch subscription to another TCP connection" $ \(ATransport t, msType) ->
+  it "should create popopx connections and switch subscription to another TCP connection" $ \(ATransport t, msType) ->
     smpTest3 t msType $ \rh1 rh2 sh -> do
       g <- C.newRandom
       (rPub, rKey) <- atomically $ C.generateAuthKeyPair C.SEd448 g
@@ -539,7 +539,7 @@ testSwitchSub =
       (dec mId2 msg2, Right "test2, no ACK") #== "test message 2 delivered, no ACK"
 
       (Resp "bcda" _ (SOK Nothing), Resp "" _ (Msg mId2' msg2')) <- signSendRecv2 rh2 rKey ("bcda", rId, SUB)
-      (dec mId2' msg2', Right "test2, no ACK") #== "same simplex queue via another TCP connection, tes2 delivered again (no ACK in 1st queue)"
+      (dec mId2' msg2', Right "test2, no ACK") #== "same popopx queue via another TCP connection, tes2 delivered again (no ACK in 1st queue)"
       Resp "cdab" _ OK <- signSendRecv rh2 rKey ("cdab", rId, ACK mId2')
 
       Resp "" _ end <- tGet1 rh1
@@ -938,7 +938,7 @@ testServiceSubsTotalCount =
 
 readServiceSubsMetric :: String -> Maybe Int
 readServiceSubsMetric content =
-  case filter ("simplex_smp_subscribtion_service_subs_total " `isPrefixOf`) (lines content) of
+  case filter ("popopx_smp_subscribtion_service_subs_total " `isPrefixOf`) (lines content) of
     (line : _) -> case words line of
       [_, val, _] -> readMaybe val
       [_, val] -> readMaybe val
@@ -960,7 +960,7 @@ receiveInAnyOrder h = fmap reverse . go []
 
 testWithStoreLog :: SpecWith (ASrvTransport, AStoreType)
 testWithStoreLog =
-  it "should store simplex queues to log and restore them after server restart" $ \(at@(ATransport t), msType) -> do
+  it "should store popopx queues to log and restore them after server restart" $ \(at@(ATransport t), msType) -> do
     g <- C.newRandom
     (sPub1, sKey1) <- atomically $ C.generateAuthKeyPair C.SEd25519 g
     (sPub2, sKey2) <- atomically $ C.generateAuthKeyPair C.SEd25519 g
@@ -1349,7 +1349,7 @@ testTiming =
 
 testMessageNotifications :: SpecWith (ASrvTransport, AStoreType)
 testMessageNotifications =
-  it "should create simplex connection, subscribe notifier and deliver notifications" $ \(ATransport t, msType) -> do
+  it "should create popopx connection, subscribe notifier and deliver notifications" $ \(ATransport t, msType) -> do
     g <- C.newRandom
     (sPub, sKey) <- atomically $ C.generateAuthKeyPair C.SEd25519 g
     smpTest4 t msType $ \rh sh nh1 nh2 -> do
@@ -1403,7 +1403,7 @@ testMessageNotifications =
 
 testMessageServiceNotifications :: SpecWith (ASrvTransport, AStoreType)
 testMessageServiceNotifications =
-  it "should create simplex connection, subscribe notifier as service and deliver notifications" $ \(ATransport t, msType) -> do
+  it "should create popopx connection, subscribe notifier as service and deliver notifications" $ \(ATransport t, msType) -> do
     g <- C.newRandom
     smpTest2 t msType $ \rh sh -> do
       (sPub, sKey) <- atomically $ C.generateAuthKeyPair C.SEd25519 g

@@ -40,7 +40,7 @@
 --
 -- Types, parsers, serializers and functions to send and receive SMP protocol commands and responses.
 --
--- See https://github.com/simplex-chat/popopxmq/blob/master/protocol/simplex-messaging.md
+-- See https://github.com/popopx/popopxmq/blob/master/protocol/simplex-messaging.md
 module Popopx.Messaging.Protocol
   ( -- * SMP protocol parameters
     supportedSMPClientVRange,

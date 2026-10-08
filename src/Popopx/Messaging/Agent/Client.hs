@@ -637,7 +637,7 @@ getServiceCredentials c userId srv =
           getClientServiceCredentials db userId srv >>= \case
             Just service -> pure service
             Nothing -> do
-              cred <- genCredentials g Nothing (25, 24 * 999999) "simplex"
+              cred <- genCredentials g Nothing (25, 24 * 999999) "popopx"
               createClientService db userId srv $ tlsCredentials [cred]
       serviceSignKey <- liftEitherWith INTERNAL $ C.x509ToPrivate' $ snd serviceCreds
       let creds = ServiceCredentials {serviceRole = SRMessaging, serviceCreds, serviceCertHash = XV.Fingerprint kh, serviceSignKey}
@@ -2480,8 +2480,8 @@ storeError = \case
   SEUserNotFound -> NO_USER
   SERatchetNotFound -> CONN NOT_FOUND ""
   SEConnDuplicate -> CONN DUPLICATE ""
-  SEBadConnType cxt CRcv -> CONN SIMPLEX cxt
-  SEBadConnType cxt CSnd -> CONN SIMPLEX cxt
+  SEBadConnType cxt CRcv -> CONN POPOPX cxt
+  SEBadConnType cxt CSnd -> CONN POPOPX cxt
   SEInvitationNotFound cxt invId -> CMD PROHIBITED $ "SEInvitationNotFound " <> cxt <> ", invitationId = " <> show invId
   -- this error is never reported as store error,
   -- it is used to wrap agent operations when "transaction-like" store access is needed

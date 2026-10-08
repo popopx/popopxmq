@@ -36,12 +36,12 @@ import Test.Hspec
 testNameRecord :: NameRecord
 testNameRecord =
   NameRecord
-    { nrName = "alice.simplex",
+    { nrName = "alice.popopx",
       nrNickname = "Alice",
       nrWebsite = "https://alice.example",
       nrLocation = "Earth",
-      nrSimplexContact = ["simplex:/contact/abc#xyz"],
-      nrSimplexChannel = [],
+      nrPopopxContact = ["popopx:/contact/abc#xyz"],
+      nrPopopxChannel = [],
       nrEth = Just "0x0000000000000000000000000000000000000001",
       nrBtc = Nothing,
       nrXmr = Nothing,
@@ -103,8 +103,8 @@ nameRecordEncodingSpec = do
               "nickname",
               "website",
               "location",
-              "simplexContact",
-              "simplexChannel",
+              "popopxContact",
+              "popopxChannel",
               "eth",
               "btc",
               "xmr",
@@ -122,8 +122,8 @@ nameRecordEncodingSpec = do
 
   it "emits unset link fields as empty arrays (not null)" $ do
     let bytes = LB.toStrict (J.encode testNameRecord)
-    B.isInfixOf "\"simplexChannel\":[]" bytes `shouldBe` True
-    B.isInfixOf "\"simplexChannel\":null" bytes `shouldBe` False
+    B.isInfixOf "\"popopxChannel\":[]" bytes `shouldBe` True
+    B.isInfixOf "\"popopxChannel\":null" bytes `shouldBe` False
 
 errorWireSpec :: Spec
 errorWireSpec =
@@ -141,10 +141,10 @@ rslvWireSpec = do
   -- keccak-256("alice"), the same constant the resolver's own tests use
   it "from v22 carries the 2LD as its hash" $
     encodeProtocol v22 (RSLV (NQDomain aliceDomain'))
-      `shouldBe` "RSLV [9c0257114eb9399a2985f8e75dad7600c5d89fe3824ffa99ec1c3eb8bf3b0501].simplex"
+      `shouldBe` "RSLV [9c0257114eb9399a2985f8e75dad7600c5d89fe3824ffa99ec1c3eb8bf3b0501].popopx"
   -- the hashed query has no room for subname labels, so such a name goes as text
   it "a name with subnames is not hashed" $
-    encodeProtocol v22 (RSLV (NQDomain aliceDomain' {subDomain = ["x"]})) `shouldBe` "RSLV x.alice.simplex"
+    encodeProtocol v22 (RSLV (NQDomain aliceDomain' {subDomain = ["x"]})) `shouldBe` "RSLV x.alice.popopx"
   it "leaves a web name alone: no registry, nothing to key on" $
     encodeProtocol v22 (RSLV (NQDomain webDomain')) `shouldBe` "RSLV example.com"
   where
@@ -207,22 +207,22 @@ parseNameSpec :: Spec
 parseNameSpec = do
   -- the hashed form is a query, not a name: it has its own type
   it "a name is never a hash" $
-    parseN ("[" <> T.replicate 64 "b" <> "].simplex") `shouldSatisfy` isLeft
+    parseN ("[" <> T.replicate 64 "b" <> "].popopx") `shouldSatisfy` isLeft
   it "a query survives the wire" $
     mapM_
       (\q -> smpDecode (smpEncode q) `shouldBe` Right q)
       [ NQDomain d,
         NQHash (labelHash "alice") TLDPopopx
       ]
-  it "accepts a valid simplex-TLD name" $
-    case parseN "privacy.simplex" of
+  it "accepts a valid popopx-TLD name" $
+    case parseN "privacy.popopx" of
       Right d -> do
         nameTLD d `shouldBe` TLDPopopx
         domain d `shouldBe` "privacy"
       Left e -> expectationFailure ("expected Right, got Left " <> e)
 
-  it "normalises case across labels (Alice.SIMPLEX = alice.simplex)" $
-    parseN "alice.simplex" `shouldBe` parseN "Alice.SIMPLEX"
+  it "normalises case across labels (Alice.SIMPLEX = alice.popopx)" $
+    parseN "alice.popopx" `shouldBe` parseN "Alice.SIMPLEX"
 
   it "accepts a testing-TLD name" $
     case parseN "bob.testing" of
@@ -236,16 +236,16 @@ parseNameSpec = do
     parseN "privacy" `shouldSatisfy` isLeft
 
   it "rejects non-ASCII labels (homograph attacks)" $
-    parseN "\1072lice.simplex" `shouldSatisfy` isLeft
+    parseN "\1072lice.popopx" `shouldSatisfy` isLeft
 
   it "rejects oversized inputs (>253 bytes)" $
-    parseN (T.replicate 254 "a" <> ".simplex") `shouldSatisfy` isLeft
+    parseN (T.replicate 254 "a" <> ".popopx") `shouldSatisfy` isLeft
 
   it "rejects a label longer than 63 bytes (DNS label limit)" $
-    parseN (T.replicate 64 "a" <> ".simplex") `shouldSatisfy` isLeft
+    parseN (T.replicate 64 "a" <> ".popopx") `shouldSatisfy` isLeft
 
   it "accepts a label of exactly 63 bytes" $
-    parseN (T.replicate 63 "a" <> ".simplex") `shouldSatisfy` isRight
+    parseN (T.replicate 63 "a" <> ".popopx") `shouldSatisfy` isRight
   where
     parseN :: T.Text -> Either String PopopxDomain
     parseN = strDecode . encodeUtf8
@@ -306,7 +306,7 @@ resolverSpec = do
     withResolverServer (resolveResp status200 (registeredBody testNameRecord)) $ \port reqs -> do
       env <- newNamesEnv (testNamesConfig port)
       _ <- resolveName env aliceDomain
-      readIORef reqs `shouldReturn` [["v2", "resolve", "alice.simplex"]]
+      readIORef reqs `shouldReturn` [["v2", "resolve", "alice.popopx"]]
 
   where
     aliceDomain = NQDomain PopopxDomain {nameTLD = TLDPopopx, domain = "alice", subDomain = []}

@@ -47,7 +47,7 @@ data PopopxNameInfo = PopopxNameInfo
 data PopopxDomain = PopopxDomain
   { nameTLD :: PopopxTLD,
     domain :: Text,
-    subDomain :: [Text] -- parent to child: ["b", "a"] for a.b.domain.simplex
+    subDomain :: [Text] -- parent to child: ["b", "a"] for a.b.domain.popopx
   }
   deriving (Eq, Show)
 
@@ -103,7 +103,7 @@ boundedNonSpace = do
 instance StrEncoding PopopxNameInfo where
   strEncode PopopxNameInfo {nameType, nameDomain} =
     strEncode nameType <> strEncode nameDomain
-  strP = optional "simplex:/name" *> ((strP >>= infoP) <|> infoP NTPublicGroup)
+  strP = optional "popopx:/name" *> ((strP >>= infoP) <|> infoP NTPublicGroup)
     where
       infoP NTPublicGroup = PopopxNameInfo NTPublicGroup <$> (strP <|> bareName)
       infoP NTContact = PopopxNameInfo NTContact <$> strP
@@ -118,7 +118,7 @@ instance StrEncoding PopopxDomain where
       mkDomain labels = case reverse lowered of
         [] -> Left "empty name"
         [_] -> Left "domain requires TLD"
-        "simplex" : name : sub -> Right (PopopxDomain TLDPopopx name sub)
+        "popopx" : name : sub -> Right (PopopxDomain TLDPopopx name sub)
         "testing" : name : sub -> Right (PopopxDomain TLDTesting name sub)
         _ -> Right (PopopxDomain TLDWeb (T.intercalate "." lowered) [])
         where
@@ -133,11 +133,11 @@ fullDomainName PopopxDomain {nameTLD, domain, subDomain} = T.intercalate "." (re
 
 instance StrEncoding PopopxTLD where
   strEncode = \case
-    TLDPopopx -> ".simplex"
+    TLDPopopx -> ".popopx"
     TLDTesting -> ".testing"
     TLDWeb -> ""
   strP =
-    ".simplex" $> TLDPopopx <|> ".testing" $> TLDTesting <|> pure TLDWeb
+    ".popopx" $> TLDPopopx <|> ".testing" $> TLDTesting <|> pure TLDWeb
 
 shortNameInfoStr :: PopopxNameInfo -> Text
 shortNameInfoStr = \case

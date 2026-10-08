@@ -265,9 +265,9 @@ defaultAgentConfig =
       subsBatchSize = 1350,
       -- CA certificate private key is not needed for initialization
       -- ! we do not generate these
-      caCertificateFile = "/etc/opt/simplex-agent/ca.crt",
-      privateKeyFile = "/etc/opt/simplex-agent/agent.key",
-      certificateFile = "/etc/opt/simplex-agent/agent.crt",
+      caCertificateFile = "/etc/opt/popopx-agent/ca.crt",
+      privateKeyFile = "/etc/opt/popopx-agent/agent.key",
+      certificateFile = "/etc/opt/popopx-agent/agent.crt",
       rcvExpireCount = 8,
       rcvExpireInterval = nominalDay,
       e2eEncryptVRange = supportedE2EEncryptVRange,
