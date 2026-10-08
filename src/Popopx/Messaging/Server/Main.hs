@@ -59,7 +59,7 @@ import qualified Data.Text as T
 import Data.Text.Encoding (decodeLatin1, encodeUtf8)
 import qualified Data.Text.IO as T
 import Options.Applicative
-import Popopx.Messaging.Agent.Protocol (ConnectionLink (..), connReqUriP')
+import Popopx.Messaging.Agent.Protocol (ConnectionLink (..), ConnectionMode (..), connReqUriP')
 import Popopx.Messaging.Agent.Store.Postgres.Options (DBOpts (..))
 import Popopx.Messaging.Agent.Store.Shared (MigrationConfirmation (..))
 import Popopx.Messaging.Client (HostMode (..), NetworkConfig (..), ProtocolClientConfig (..), SMPWebPortServers (..), SocksMode (..), defaultNetworkConfig, textToHostMode)
@@ -85,7 +85,7 @@ import Popopx.Messaging.Transport (supportedProxyClientSMPRelayVRange, alpnSuppo
 import Popopx.Messaging.Transport.Client (TransportHost (..), defaultSocksProxy)
 import Popopx.Messaging.Transport.HTTP2 (httpALPN)
 import Popopx.Messaging.Transport.Server (ServerCredentials (..), mkTransportServerConfig)
-import Popopx.Messaging.Util (eitherToMaybe, ifM)
+import Popopx.Messaging.Util (eitherToMaybe, ifM, safeDecodeUtf8)
 import System.Directory (createDirectoryIfMissing, doesDirectoryExist, doesFileExist)
 import System.Exit (exitFailure)
 import System.FilePath (combine)
@@ -355,7 +355,7 @@ smpServerCLI_ generateSite serveStaticFiles attachStaticFiles cfgPath logPath =
             (putStrLn ("Store log file " <> storeLogFile <> " not found") >> exitFailure)
         Nothing -> putStrLn "Store log disabled, see `[STORE_LOG] enable`" >> exitFailure
     iniFile = combine cfgPath "smp-server.ini"
-    serverVersion = "POPOPX SMP server v" <> popopxmqVersionCommit
+    serverVersion = "SMP server v" <> popopxmqVersionCommit
     executableName = "smp-server"
     storeLogFilePath = combine logPath "smp-server-store.log"
     storeMsgsFilePath = combine logPath "smp-server-messages.log"
@@ -387,7 +387,7 @@ smpServerCLI_ generateSite serveStaticFiles attachStaticFiles cfgPath logPath =
           let InitOptions {ip, fqdn, sourceCode = src', webStaticPath = sp', disableWeb = noWeb'} = opts
           putStrLn "Use `smp-server init -h` for available options."
           checkInitOptions opts
-          void $ withPrompt "POPOPX SMP server will be initialized (press Enter)" getLine
+          void $ withPrompt "SMP server will be initialized (press Enter)" getLine
           enableStoreLog <- onOffPrompt "Enable store log to restore queues and messages on server restart" True
           logStats <- onOffPrompt "Enable logging daily statistics" False
           putStrLn "Require a password to create new messaging queues?"
@@ -762,7 +762,7 @@ getServerSourceCode =
     _ -> putStrLn "Invalid source code. URI should start from http:// or https://" >> getServerSourceCode
 
 popopxmqSource :: String
-popopxmqSource = "https://popopx.xyz"
+popopxmqSource = "https://github.com/popopx/popopxmq"
 
 serverPublicInfo :: Ini -> Maybe ServerPublicInfo
 serverPublicInfo ini = serverInfo <$!> infoValue "source_code"
@@ -787,12 +787,13 @@ serverPublicInfo ini = serverInfo <$!> infoValue "source_code"
         <$!> infoValue nameField
     countryValue field = (either error id . validCountryValue (T.unpack field) . T.unpack) <$!> infoValue field
     iniContacts popopxField emailField pgpKeyUriField pgpKeyFingerprintField =
-      let popopx = either error id . parseAll linkP . encodeUtf8 <$!> eitherToMaybe (lookupValue "INFORMATION" popopxField ini)
+      let addr :: Maybe (ConnectionLink 'CMContact) = either error id . parseAll linkP . encodeUtf8 <$!> eitherToMaybe (lookupValue "INFORMATION" popopxField ini)
+          popopx = safeDecodeUtf8 . strEncode <$> addr
           linkP = CLFull <$> connReqUriP' Nothing <|> CLShort <$> strP
           email = infoValue emailField
           pkURI_ = infoValue pgpKeyUriField
           pkFingerprint_ = infoValue pgpKeyFingerprintField
-       in case (popopx, email, pkURI_, pkFingerprint_) of
+       in case (addr, email, pkURI_, pkFingerprint_) of
             (Nothing, Nothing, Nothing, _) -> Nothing
             (Nothing, Nothing, _, Nothing) -> Nothing
             (_, _, pkURI, pkFingerprint) -> Just ServerContactAddress {popopx, email, pgp = PGPKey <$> pkURI <*> pkFingerprint}

@@ -1,9 +1,3 @@
--- Original Work Copyright (C) 2020-2022 simplex.chat
---
--- --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
--- This file was modified by POPOPX Team in 2026.
--- Changes: Updated protocol documentation URL and rebranded server web references from SimpleX to POPOPX.
-
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
@@ -25,7 +19,6 @@
 -- |
 -- Module      : Popopx.Messaging.Server
 -- Copyright   : (c) simplex.chat
---               (c) popopx.xyz
 -- License     : AGPL-3
 --
 -- Maintainer  : chat@popopx.xyz
@@ -35,7 +28,7 @@
 -- This module defines SMP protocol server with in-memory persistence
 -- and optional append only log of SMP queue records.
 --
--- See https://github.com/popopx/popopxmq/blob/master/protocol/popopx-messaging.md
+-- See https://github.com/popopx/popopxmq/blob/master/protocol/simplex-messaging.md
 module Popopx.Messaging.Server
   ( runSMPServer,
     runSMPServerBlocking,
@@ -63,6 +56,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.STM (retry)
 import Crypto.Random (ChaChaDRG)
 import Data.Bifunctor (first, second)
+import qualified Data.Aeson as J
 import Data.ByteString.Base64 (encode)
 import qualified Data.ByteString.Builder as BLD
 import Data.ByteString.Char8 (ByteString)
@@ -110,7 +104,6 @@ import qualified Popopx.Messaging.Crypto as C
 import Popopx.Messaging.Encoding
 import Popopx.Messaging.Encoding.String
 import Popopx.Messaging.Protocol
-import Popopx.Messaging.PoName (PopopxDomain)
 import Popopx.Messaging.Server.Control
 import Popopx.Messaging.Server.Env.STM as Env
 import Popopx.Messaging.Server.Expiration
@@ -463,13 +456,13 @@ smpServer started cfg@ServerConfig {transports, transportConfig = tCfg, startOpt
     receiveFromProxyAgent ProxyAgent {smpAgent = SMPClientAgent {agentQ}} =
       forever $
         atomically (readTBQueue agentQ) >>= \case
-          CAConnected srv _service_ -> logInfo $ "POPOPX SMP server connected " <> showServer' srv
-          CADisconnected srv qIds -> logError $ "POPOPX SMP server disconnected " <> showServer' srv <> " / subscriptions: " <> tshow (length qIds)
+          CAConnected srv _service_ -> logInfo $ "SMP server connected " <> showServer' srv
+          CADisconnected srv qIds -> logError $ "SMP server disconnected " <> showServer' srv <> " / subscriptions: " <> tshow (length qIds)
           -- the errors below should never happen - messaging proxy does not make any subscriptions
-          CASubscribed srv serviceId qIds -> logError $ "POPOPX SMP server subscribed queues " <> asService <> showServer' srv <> " / subscriptions: " <> tshow (length qIds)
+          CASubscribed srv serviceId qIds -> logError $ "SMP server subscribed queues " <> asService <> showServer' srv <> " / subscriptions: " <> tshow (length qIds)
             where
               asService = if isJust serviceId then "as service " else ""
-          CASubError srv errs -> logError $ "POPOPX SMP server subscription errors " <> showServer' srv <> " / errors: " <> tshow (length errs)
+          CASubError srv errs -> logError $ "SMP server subscription errors " <> showServer' srv <> " / errors: " <> tshow (length errs)
           CAServiceDisconnected {} -> logError "CAServiceDisconnected"
           CAServiceSubscribed {} -> logError "CAServiceSubscribed"
           CAServiceSubError {} -> logError "CAServiceSubError"
@@ -746,9 +739,10 @@ smpServer started cfg@ServerConfig {transports, transportConfig = tCfg, startOpt
       idSize <- asks $ queueIdBytes . config
       kh <- asks serverIdentity
       ks <- atomically . C.generateKeyPair =<< asks random
-      ServerConfig {smpServerVRange, smpHandshakeTimeout} <- asks config
+      ServerConfig {smpServerVRange, smpHandshakeTimeout, information} <- asks config
+      let serverInfo = LB.toStrict . J.encode <$> information
       labelMyThread $ "smp handshake for " <> transportName tp
-      liftIO (timeout smpHandshakeTimeout . runExceptT $ smpServerHandshake srvCert srvSignKey h ks kh smpServerVRange $ getClientService ms g idSize) >>= \case
+      liftIO (timeout smpHandshakeTimeout . runExceptT $ smpServerHandshake srvCert srvSignKey h ks kh smpServerVRange serverInfo $ getClientService ms g idSize) >>= \case
         Just (Right th) -> runClientTransport th
         _ -> pure ()
 
@@ -779,7 +773,7 @@ smpServer started cfg@ServerConfig {transports, transportConfig = tCfg, startOpt
           h <- socketToHandle sock ReadWriteMode
           hSetBuffering h LineBuffering
           hSetNewlineMode h universalNewlineMode
-          hPutStrLn h "POPOPX SMP server control port\n'help' for supported commands"
+          hPutStrLn h "SMP server control port\n'help' for supported commands"
           role <- newTVarIO CPRNone
           cpLoop h role
           where
@@ -1098,6 +1092,7 @@ controlPortAuth h user admin role auth = do
   readTVarIO role >>= \case
     CPRNone -> do
       atomically $ writeTVar role $! newRole
+      when (newRole == CPRNone) $ logWarn "ControlPort: failed auth"
       hPutStrLn h $ currentRole newRole
     r -> hPutStrLn h $ currentRole r <> if r == newRole then "" else ", start new session to change."
   where
@@ -1324,11 +1319,6 @@ isContactQueue QueueRec {queueMode, senderKey} = case queueMode of
   Just QMContact -> True
   Nothing -> isNothing senderKey -- for backward compatibility with pre-SKEY contact addresses
 
-isSecuredMsgQueue :: QueueRec -> Bool
-isSecuredMsgQueue QueueRec {queueMode, senderKey} = case queueMode of
-  Just QMContact -> False
-  _ -> isJust senderKey
-
 -- Random correlation ID is used as a nonce in case crypto_box authenticator is used to authorize transmission
 verifyCmdAuthorization :: Maybe (THandleAuth 'TServer) -> Maybe TAuthorizations -> ByteString -> CorrId -> C.APublicAuthKey -> Bool
 verifyCmdAuthorization thAuth tAuth authorized corrId key = maybe False (verify key) tAuth
@@ -1384,11 +1374,10 @@ client
   ms
   clnt@Client {clientId, rcvQ, sndQ, msgQ, clientTHParams = thParams'@THandleParams {sessionId}, procThreads} = do
     labelMyThread . B.unpack $ "client $" <> encode sessionId <> " commands"
-    let THandleParams {thVersion} = thParams'
-        clntServiceId = (\THClientService {serviceId} -> serviceId) <$> (peerClientService =<< thAuth thParams')
+    let clntServiceId = (\THClientService {serviceId} -> serviceId) <$> (peerClientService =<< thAuth thParams')
         process batchSubs t acc@(rs, msgs) =
           (maybe acc (\(!r, !msg_) -> (r : rs, maybe msgs (: msgs) msg_)))
-            <$> processCommand clntServiceId thVersion batchSubs t
+            <$> processCommand clntServiceId batchSubs t
     forever $ do
       batch <- atomically (readTBQueue rcvQ)
       batchSubs <- prepareBatchSubs clntServiceId batch
@@ -1451,11 +1440,11 @@ client
                 pure . ERR $ smpProxyError e
             where
               proxyResp smp =
-                let THandleParams {sessionId = srvSessId, thVersion, thServerVRange, thAuth} = thParams smp
+                let THandleParams {sessionId = srvSessId, thServerVRange, thAuth} = thParams smp
                   in case compatibleVRange thServerVRange proxiedSMPRelayVRange of
                       -- Cap the destination relay version range to prevent client version fingerprinting.
                       -- See comment for proxiedSMPRelayVersion.
-                      Just (Compatible vr) | thVersion >= sendingProxySMPVersion -> case thAuth of
+                      Just (Compatible vr) -> case thAuth of
                         Just THAuthClient {peerServerCertKey} -> PKEY srvSessId vr peerServerCertKey
                         Nothing -> ERR $ transportErr TENoServerAuth
                       _ -> ERR $ transportErr TEVersion
@@ -1466,16 +1455,12 @@ client
         liftIO (lookupSMPServerClient a sessId) >>= \case
           Just (own, smp) -> do
             inc own pRequests
-            if v >= sendingProxySMPVersion
-              then forkProxiedCmd $ do
-                liftIO (runExceptT (forwardSMPTransmission smp corrId fwdV pubKey encBlock) `E.catches` clientHandlers)  >>= \case
-                  Right r -> PRES r <$ inc own pSuccesses
-                  Left e -> ERR (smpProxyError e) <$ case e of
-                    PCEProtocolError {} -> inc own pSuccesses
-                    _ -> inc own pErrorsOther
-              else Just (ERR $ transportErr TEVersion) <$ inc own pErrorsCompat
-            where
-              THandleParams {thVersion = v} = thParams smp
+            forkProxiedCmd $ do
+              liftIO (runExceptT (forwardSMPTransmission smp corrId fwdV pubKey encBlock) `E.catches` clientHandlers)  >>= \case
+                Right (nonce_, r) -> PRES nonce_ r <$ inc own pSuccesses
+                Left e -> ERR (smpProxyError e) <$ case e of
+                  PCEProtocolError {} -> inc own pSuccesses
+                  _ -> inc own pErrorsOther
           Nothing -> inc False pRequests >> inc False pErrorsConnect $> Just (ERR $ PROXY NO_SESSION)
       where
         forkProxiedCmd :: M s BrokerMsg -> M s (Maybe BrokerMsg)
@@ -1504,23 +1489,27 @@ client
         Just nenv -> pure (Just nenv)
     -- Runs on a forked thread so RSLV does not block other commands;
     -- concurrency is limited by serverResolverConcurrency in forkCmd.
-    resolveNameMsg :: NamesEnv -> PopopxDomain -> M s BrokerMsg
-    resolveNameMsg nenv d = do
+    resolveNameMsg :: VersionSMP -> NamesEnv -> NameQuery -> M s BrokerMsg
+    resolveNameMsg v nenv q = do
       st <- asks (rslvStats . serverStats)
       (selector, msg) <-
-        liftIO (resolveName nenv d) <&> \case
-          Right rec -> (rslvSucc, RNAME rec)
-          Left e@NOT_FOUND -> (rslvNotFound, ERR $ NAME e)
+        liftIO (resolveName nenv q) <&> \case
+          Right res -> (if answered (registration res) then rslvSucc else rslvNotFound, RNAME res)
           Left e -> (rslvResolverErrs, ERR $ NAME e)
       incStat (selector st) $> msg
+      where
+        -- below v22 the encoder answers anything but a record as NAME NOT_FOUND
+        answered = \case
+          NRRegistered {} -> True
+          _ -> v >= nameAvailSMPVersion
     transportErr :: TransportError -> ErrorType
     transportErr = PROXY . BROKER . TRANSPORT
     mkIncProxyStats :: MonadIO m => ProxyStats -> ProxyStats -> OwnServer -> (ProxyStats -> IORef Int) -> m ()
     mkIncProxyStats ps psOwn own sel = do
       incStat $ sel ps
       when own $ incStat $ sel psOwn
-    processCommand :: Maybe ServiceId -> VersionSMP -> Either ErrorType (Map RecipientId Message, Map RecipientId (Either ErrorType ()), Map RecipientId (Either ErrorType ())) -> VerifiedTransmission s -> M s (Maybe ResponseAndMessage)
-    processCommand clntServiceId clntVersion batchSubs (q_, (corrId, entId, cmd)) = case cmd of
+    processCommand :: Maybe ServiceId -> Either ErrorType (Map RecipientId Message, Map RecipientId (Either ErrorType ()), Map RecipientId (Either ErrorType ())) -> VerifiedTransmission s -> M s (Maybe ResponseAndMessage)
+    processCommand clntServiceId batchSubs (q_, (corrId, entId, cmd)) = case cmd of
       Cmd SProxiedClient command -> processProxiedCmd (corrId, entId, command)
       Cmd SSender command -> case command of
         SKEY k -> withQueue $ \q qr -> checkMode QMMessaging qr $ secureQueue_ q k
@@ -1529,7 +1518,7 @@ client
       Cmd SProxyService (RFWD encBlock) -> (response . (corrId, NoEntity,) =<<) <$> processForwardedCommand encBlock
       Cmd SResolver (RSLV d) -> rslvNamesEnv >>= \case
         Nothing -> pure $ response (corrId, NoEntity, ERR (NAME NO_RESOLVER))
-        Just nenv -> forkCmd serverResolverConcurrency corrId NoEntity (resolveNameMsg nenv d)
+        Just nenv -> forkCmd serverResolverConcurrency corrId NoEntity (resolveNameMsg (thVersion thParams') nenv d)
       Cmd SSenderLink command -> case command of
         LKEY k -> withQueue $ \q qr -> checkMode QMMessaging qr $ secureQueue_ q k $>> getQueueLink_ q qr
         LGET -> withQueue $ \q qr -> checkContact qr $ getQueueLink_ q qr
@@ -1987,7 +1976,7 @@ client
 
         sendMessage :: MsgFlags -> MsgBody -> StoreQueue s -> QueueRec -> M s (Transmission BrokerMsg)
         sendMessage msgFlags msgBody q qr
-          | B.length msgBody > maxMessageLength clntVersion = do
+          | B.length msgBody > maxMessageLength = do
               stats <- asks serverStats
               incStat $ msgSentLarge stats
               pure $ err LARGE_MSG
@@ -2134,24 +2123,29 @@ client
           let proxyNonce = C.cbNonce $ bs corrId
           s' <- liftEitherWith (const CRYPTO) $ C.cbDecryptNoPad sessSecret proxyNonce s
           FwdTransmission {fwdCorrId, fwdVersion, fwdKey, fwdTransmission = EncTransmission et} <- liftEitherWith (const $ CMD SYNTAX) $ smpDecode s'
+          unless (fwdVersion `isCompatible` thServerVRange thParams') $ throwE $ transportErr TEVersion
           let clientSecret = C.dh' fwdKey serverPrivKey
               clientNonce = C.cbNonce $ bs fwdCorrId
-          b <- liftEitherWith (const CRYPTO) $ C.cbDecrypt clientSecret clientNonce et
+          b <- liftEitherWith (const CRYPTO) $ C.cbDecrypt clientSecret (encTransmissionNonce fwdVersion clientNonce) et
           let clntTHParams = smpTHParamsSetVersion fwdVersion thParams'
           -- only allowing single forwarded transactions
           t' <- case tParse clntTHParams b of
             t :| [] -> pure $ tDecodeServer clntTHParams t
             _ -> throwE BLOCK
-          let clntThAuth = Just $ THAuthServer {serverPrivKey, peerClientService = Nothing, sessSecret' = Just clientSecret}
+          let clntThAuth = Just $ THAuthServer {serverPrivKey, peerClientService = Nothing, peerEntitlement = Nothing, sessSecret' = Just clientSecret}
               encodeResp r = do
                 r' <- case batchTransmissions clntTHParams [Right (Nothing, encodeTransmission clntTHParams r)] of
                   [] -> throwE INTERNAL -- at least 1 item is guaranteed from NonEmpty/Right
                   TBError _ _ : _ -> throwE BLOCK
                   TBTransmission b' _ : _ -> pure b'
                   TBTransmissions b' _ _ : _ -> pure b'
-                r2 <- liftEitherWith (const BLOCK) $ EncResponse <$> C.cbEncrypt clientSecret (C.reverseNonce clientNonce) r' paddedProxiedTLength
+                nonce_ <-
+                  if fwdVersion >= fwdNoncesSMPVersion
+                    then Just <$> (atomically . C.randomCbNonce =<< asks random)
+                    else pure Nothing
+                r2 <- liftEitherWith (const BLOCK) $ EncResponse <$> C.cbEncrypt clientSecret (fromMaybe (C.reverseNonce clientNonce) nonce_) r' paddedProxiedTLength
                 let fr = FwdResponse {fwdCorrId, fwdResponse = r2}
-                pure $ RRES $ EncFwdResponse $ C.cbEncryptNoPad sessSecret (C.reverseNonce proxyNonce) (smpEncode fr)
+                pure $ RRES nonce_ $ EncFwdResponse $ C.cbEncryptNoPad sessSecret (C.reverseNonce proxyNonce) (smpEncode fr)
           -- the inner response, or Nothing if forked (RSLV).
           r_ <- lift (rejectOrVerify clntThAuth t') >>= \case
             -- rejectOrVerify filters allowed commands, no need to repeat it here.
@@ -2160,11 +2154,11 @@ client
               Cmd SResolver (RSLV d) -> lift $ rslvNamesEnv >>= \case
                 Nothing -> pure $ Just (corrId', entId', ERR (NAME NO_RESOLVER))
                 Just nenv -> forkCmd serverResolverConcurrency corrId NoEntity $ do
-                  msg <- resolveNameMsg nenv d
+                  msg <- resolveNameMsg (thVersion clntTHParams) nenv d
                   either ERR id <$> runExceptT (encodeResp (corrId', entId', msg))
               -- INTERNAL because processCommand never returns Nothing for sender commands;
               -- `fst` drops the empty message only returned for SUB.
-              _ -> Just . maybe (corrId', entId', ERR INTERNAL) fst <$> lift (processCommand Nothing fwdVersion (Right (M.empty, M.empty, M.empty)) t'')
+              _ -> Just . maybe (corrId', entId', ERR INTERNAL) fst <$> lift (processCommand Nothing (Right (M.empty, M.empty, M.empty)) t'')
           stats <- asks serverStats
           incStat $ pMsgFwdsRecv stats
           traverse encodeResp r_

@@ -17,11 +17,16 @@ module Popopx.FileTransfer.Agent
     toFSFilePath,
     -- Receiving files
     xftpReceiveFile',
+    xftpPrepareReceiveFile',
+    xftpStartReceiveFile',
     xftpDeleteRcvFile',
     xftpDeleteRcvFiles',
     -- Sending files
     xftpSendFile',
     xftpSendDescription',
+    xftpPrepareSendFile',
+    xftpPrepareSendDescription',
+    xftpStartSendFile',
     deleteSndFileInternal,
     deleteSndFilesInternal,
     deleteSndFileRemote,
@@ -50,11 +55,12 @@ import qualified Data.Set as S
 import Data.Text (Text, pack)
 import Data.Time.Clock (getCurrentTime)
 import Data.Time.Format (defaultTimeLocale, formatTime)
+import Data.Word (Word32)
 import Popopx.FileTransfer.Chunks (toKB)
 import Popopx.FileTransfer.Client (XFTPChunkSpec (..), getChunkDigest, prepareChunkSizes, prepareChunkSpecs, singleChunkSize)
 import Popopx.FileTransfer.Crypto
 import Popopx.FileTransfer.Description
-import Popopx.FileTransfer.Protocol (FileParty (..), SFileParty (..))
+import Popopx.FileTransfer.Protocol (FileParty (..), GrantedStorageTime, SFileParty (..))
 import Popopx.FileTransfer.Transport (XFTPRcvChunkSpec (..))
 import qualified Popopx.FileTransfer.Transport as XFTP
 import Popopx.FileTransfer.Types
@@ -126,7 +132,12 @@ closeXFTPAgent a = do
     stopWorkers workers = atomically (swapTVar workers M.empty) >>= mapM_ (liftIO . cancelWorker)
 
 xftpReceiveFile' :: AgentClient -> UserId -> ValidFileDescription 'FRecipient -> Maybe CryptoFileArgs -> Bool -> AM RcvFileId
-xftpReceiveFile' c userId (ValidFileDescription fd@FileDescription {chunks, redirect}) cfArgs approvedRelays = do
+xftpReceiveFile' c userId vfd cfArgs approvedRelays = do
+  fId <- xftpPrepareReceiveFile' c userId vfd cfArgs approvedRelays
+  fId <$ xftpStartReceiveFile' c fId
+
+xftpPrepareReceiveFile' :: AgentClient -> UserId -> ValidFileDescription 'FRecipient -> Maybe CryptoFileArgs -> Bool -> AM RcvFileId
+xftpPrepareReceiveFile' c userId (ValidFileDescription fd@FileDescription {redirect}) cfArgs approvedRelays = do
   g <- asks random
   prefixPath <- lift $ getPrefixPath "rcv.xftp"
   createDirectory prefixPath
@@ -136,7 +147,7 @@ xftpReceiveFile' c userId (ValidFileDescription fd@FileDescription {chunks, redi
   lift $ createDirectory =<< toFSFilePath relTmpPath
   lift $ createEmptyFile =<< toFSFilePath relSavePath
   let saveFile = CryptoFile relSavePath cfArgs
-  fId <- case redirect of
+  case redirect of
     Nothing -> withStore c $ \db -> createRcvFile db g userId fd relPrefixPath relTmpPath saveFile approvedRelays
     Just _ -> do
       -- prepare description paths
@@ -148,8 +159,11 @@ xftpReceiveFile' c userId (ValidFileDescription fd@FileDescription {chunks, redi
       let saveFileRedirect = CryptoFile relSavePathRedirect $ Just cfArgsRedirect
       -- create download tasks
       withStore c $ \db -> createRcvFileRedirect db g userId fd relPrefixPath relTmpPathRedirect saveFileRedirect relTmpPath saveFile approvedRelays
-  forM_ chunks (downloadChunk c)
-  pure fId
+
+xftpStartReceiveFile' :: AgentClient -> RcvFileId -> AM ()
+xftpStartReceiveFile' c rcvFileEntityId = do
+  srvs <- withStore c (`startPreparedRcvFile` rcvFileEntityId)
+  lift $ forM_ srvs $ void . getXFTPRcvWorker True c . Just
 
 downloadChunk :: AgentClient -> FileChunk -> AM ()
 downloadChunk c FileChunk {replicas = (FileChunkReplica {server} : _)} = do
@@ -350,8 +364,13 @@ xftpDeleteRcvFiles' c rcvFileEntityIds = do
 notify :: forall m e. (MonadIO m, AEntityI e) => AgentClient -> AEntityId -> AEvent e -> m ()
 notify c entId cmd = atomically $ writeTBQueue (subQ c) ("", entId, AEvt (sAEntity @e) cmd)
 
-xftpSendFile' :: AgentClient -> UserId -> CryptoFile -> Int -> AM SndFileId
-xftpSendFile' c userId file numRecipients = do
+xftpSendFile' :: AgentClient -> UserId -> CryptoFile -> Int -> Maybe Word32 -> AM SndFileId
+xftpSendFile' c userId file numRecipients storageHours = do
+  fId <- xftpPrepareSendFile' c userId file numRecipients storageHours
+  fId <$ xftpStartSendFile' c fId
+
+xftpPrepareSendFile' :: AgentClient -> UserId -> CryptoFile -> Int -> Maybe Word32 -> AM SndFileId
+xftpPrepareSendFile' c userId file numRecipients storageHours = do
   g <- asks random
   prefixPath <- lift $ getPrefixPath "snd.xftp"
   createDirectory prefixPath
@@ -359,12 +378,15 @@ xftpSendFile' c userId file numRecipients = do
   key <- atomically $ C.randomSbKey g
   nonce <- atomically $ C.randomCbNonce g
   -- saving absolute filePath will not allow to restore file encryption after app update, but it's a short window
-  fId <- withStore c $ \db -> createSndFile db g userId file numRecipients relPrefixPath key nonce Nothing
-  lift . void $ getXFTPSndWorker True c Nothing
-  pure fId
+  withStore c $ \db -> createSndFile db g userId file numRecipients relPrefixPath key nonce Nothing storageHours
 
 xftpSendDescription' :: AgentClient -> UserId -> ValidFileDescription 'FRecipient -> Int -> AM SndFileId
-xftpSendDescription' c userId (ValidFileDescription fdDirect@FileDescription {size, digest}) numRecipients = do
+xftpSendDescription' c userId vfd numRecipients = do
+  fId <- xftpPrepareSendDescription' c userId vfd numRecipients
+  fId <$ xftpStartSendFile' c fId
+
+xftpPrepareSendDescription' :: AgentClient -> UserId -> ValidFileDescription 'FRecipient -> Int -> AM SndFileId
+xftpPrepareSendDescription' c userId (ValidFileDescription fdDirect@FileDescription {size, digest}) numRecipients = do
   g <- asks random
   prefixPath <- lift $ getPrefixPath "snd.xftp"
   createDirectory prefixPath
@@ -375,9 +397,12 @@ xftpSendDescription' c userId (ValidFileDescription fdDirect@FileDescription {si
   liftError (FILE . FILE_IO . show) $ CF.writeFile file (LB.fromStrict $ strEncode fdDirect)
   key <- atomically $ C.randomSbKey g
   nonce <- atomically $ C.randomCbNonce g
-  fId <- withStore c $ \db -> createSndFile db g userId file numRecipients relPrefixPath key nonce $ Just RedirectFileInfo {size, digest}
+  withStore c $ \db -> createSndFile db g userId file numRecipients relPrefixPath key nonce (Just RedirectFileInfo {size, digest}) Nothing
+
+xftpStartSendFile' :: AgentClient -> SndFileId -> AM ()
+xftpStartSendFile' c sndFileEntityId = do
+  withStore c (`startPreparedSndFile` sndFileEntityId)
   lift . void $ getXFTPSndWorker True c Nothing
-  pure fId
 
 resumeXFTPSndWork :: AgentClient -> Maybe XFTPServer -> AM' ()
 resumeXFTPSndWork = void .: getXFTPSndWorker False
@@ -405,7 +430,7 @@ runXFTPSndPrepareWorker c Worker {doWork} = do
     prepareFile _ SndFile {prefixPath = Nothing} =
       throwE $ INTERNAL "no prefix path"
     prepareFile cfg sndFile@SndFile {sndFileId, sndFileEntityId, userId, prefixPath = Just ppath, status} = do
-      SndFile {numRecipients, chunks} <-
+      SndFile {numRecipients, chunks, storageHours} <-
         if status /= SFSEncrypted -- status is SFSNew or SFSEncrypting
           then do
             fsEncPath <- lift . toFSFilePath $ sndFileEncPath ppath
@@ -424,7 +449,7 @@ runXFTPSndPrepareWorker c Worker {doWork} = do
       let (pendingChunks, preparedSrvs) = partitionEithers $ map srvOrPendingChunk chunks
       -- concurrently?
       -- separate worker to create chunks? record retries and delay on snd_file_chunks?
-      srvs <- forM pendingChunks $ createChunk numRecipients'
+      srvs <- forM pendingChunks $ createChunk numRecipients' storageHours
       let allSrvs = S.fromList $ preparedSrvs <> srvs
       lift $ forM_ allSrvs $ \srv -> getXFTPSndWorker True c (Just srv)
       withStore' c $ \db -> updateSndFileStatus db sndFileId SFSUploading
@@ -454,8 +479,8 @@ runXFTPSndPrepareWorker c Worker {doWork} = do
         srvOrPendingChunk ch@SndFileChunk {replicas} = case replicas of
           [] -> Left ch
           SndFileChunkReplica {server} : _ -> Right server
-        createChunk :: Int -> SndFileChunk -> AM (ProtocolServer 'PXFTP)
-        createChunk numRecipients' ch = do
+        createChunk :: Int -> Maybe Word32 -> SndFileChunk -> AM (ProtocolServer 'PXFTP)
+        createChunk numRecipients' storageHours ch = do
           liftIO $ assertAgentForeground c
           (replica, ProtoServerWithAuth srv _) <- tryCreate
           withStore' c $ \db -> createSndFileReplica db ch replica
@@ -482,7 +507,7 @@ runXFTPSndPrepareWorker c Worker {doWork} = do
               deleted <- withStore' c $ \db -> getSndFileDeleted db sndFileId
               when deleted $ throwE $ FILE NO_FILE
               withNextSrv c userId storageSrvs triedHosts [] $ \srvAuth -> do
-                replica <- agentXFTPNewChunk c ch numRecipients' srvAuth
+                replica <- agentXFTPNewChunk c ch numRecipients' srvAuth storageHours
                 pure (replica, srvAuth)
 
 sndWorkerInternalError :: AgentClient -> DBSndFileId -> SndFileId -> Maybe FilePath -> AgentErrorType -> AM ()
@@ -543,9 +568,10 @@ runXFTPSndWorker c srv Worker {doWork} = do
       notify c sndFileEntityId $ SFPROG uploaded total
       when complete $ do
         (sndDescr, rcvDescrs) <- sndFileToDescrs sf
-        notify c sndFileEntityId $ SFDONE sndDescr rcvDescrs
-        lift . forM_ prefixPath $ removePath <=< toFSFilePath
-        withStore' c $ \db -> updateSndFileComplete db sndFileId
+        flip catchAllErrors (\e -> logError $ "XFTP snd worker error: " <> tshow e) $ do
+          lift . forM_ prefixPath $ removePath <=< toFSFilePath
+          withStore' c $ \db -> updateSndFileComplete db sndFileId
+        notify c sndFileEntityId $ SFDONE sndDescr rcvDescrs (sndFileExpiresAt chunks)
       where
         addRecipients :: SndFileChunk -> SndFileChunkReplica -> AM SndFileChunkReplica
         addRecipients ch@SndFileChunk {numRecipients} cr@SndFileChunkReplica {sndChunkReplicaId, rcvIdsKeys}
@@ -577,6 +603,10 @@ runXFTPSndWorker c srv Worker {doWork} = do
           let chunkSize = FileSize $ sndChunkSize ch
               replicas = [FileChunkReplica {server, replicaId, replicaKey}]
           pure FileChunk {chunkNo, digest = chDigest, chunkSize, replicas}
+        sndFileExpiresAt :: [SndFileChunk] -> Maybe GrantedStorageTime
+        sndFileExpiresAt chunks' = fmap minimum $ L.nonEmpty =<< mapM chunkExpiresAt chunks'
+          where
+            chunkExpiresAt SndFileChunk {replicas} = maximum <$> L.nonEmpty (mapMaybe (\SndFileChunkReplica {expiresAt} -> expiresAt) replicas)
         createRcvFileDescriptions :: FileDescription 'FRecipient -> [SndFileChunk] -> [FileDescription 'FRecipient]
         createRcvFileDescriptions fd sndChunks = map (\chunks -> (fd :: (FileDescription 'FRecipient)) {chunks}) rcvChunks
           where

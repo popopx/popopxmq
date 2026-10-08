@@ -6,6 +6,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Popopx.FileTransfer.Server.Main
@@ -13,14 +14,16 @@ module Popopx.FileTransfer.Server.Main
     xftpServerCLI_,
   ) where
 
-import Control.Monad (unless, when)
+import Control.Monad (forM_, unless, when)
 import Data.Either (fromRight)
 import Data.Functor (($>))
-import Data.Ini (lookupValue, readIniFile)
+import Data.Ini (Ini, lookupValue, readIniFile)
 import Data.Int (Int64)
 import Data.List (find)
 import qualified Data.List.NonEmpty as L
-import Data.Maybe (fromMaybe, isJust)
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as M
+import Data.Maybe (fromMaybe, isJust, mapMaybe)
 import Data.Text.Encoding (encodeUtf8)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -32,6 +35,7 @@ import Popopx.FileTransfer.Server (runXFTPServer)
 import Popopx.FileTransfer.Server.Env (XFTPServerConfig (..), XFTPStoreConfig, AFStoreType (..), defFileExpirationHours, defaultFileExpiration, defaultInactiveClientExpiration, readFileStoreType, runWithStoreConfig, checkFileStoreMode, importToDatabase, exportFromDatabase)
 import Popopx.FileTransfer.Transport (alpnSupportedXFTPhandshakes, supportedFileServerVRange)
 import qualified Popopx.Messaging.Crypto as C
+import Popopx.Messaging.Crypto.Entitlement (entitlementIssuerKeys)
 import Popopx.Messaging.Encoding.String
 import Popopx.Messaging.Protocol (ProtoServerWithAuth (..), pattern XFTPServer)
 import Popopx.Messaging.Agent.Store.Shared (MigrationConfirmation (..))
@@ -40,6 +44,7 @@ import Popopx.Messaging.Server.Expiration
 import Popopx.Messaging.Server.Information (ServerPublicInfo (..))
 import Popopx.Messaging.Server.Main (serverPublicInfo, printSourceCode)
 import Popopx.Messaging.Server.Web (EmbeddedWebParams (..), WebHttpsParams (..))
+import Popopx.Messaging.Transport (EntitlementConfig (..))
 import Popopx.Messaging.Transport.Client (TransportHost (..))
 import Popopx.Messaging.Transport.HTTP2 (httpALPN)
 import Popopx.Messaging.Transport.Server (ServerCredentials (..), TransportServerConfig (..), mkTransportServerConfig)
@@ -85,7 +90,7 @@ xftpServerCLI_ generateSite serveStaticFiles cfgPath logPath = do
       putStrLn "Deleted configuration and log files"
   where
     iniFile = combine cfgPath "file-server.ini"
-    serverVersion = "POPOPX XFTP server v" <> popopxmqVersionCommit
+    serverVersion = "SimpleX XFTP server v" <> popopxmqVersionCommit
     defaultServerPort = "443"
     executableName = "file-server"
     storeLogFilePath = combine logPath "file-server-store.log"
@@ -123,9 +128,9 @@ xftpServerCLI_ generateSite serveStaticFiles cfgPath logPath = do
           "[INFORMATION]\n\
           \# AGPLv3 license requires that you make any source code modifications\n\
           \# available to the end users of the server.\n\
-          \# LICENSE: https://popopx.xyz/license\n\
+          \# LICENSE: https://github.com/popopx/popopxmq/blob/stable/LICENSE\n\
           \# Include correct source code URI in case the server source code is modified in any way.\n\
-          \# source_code = https://popopx.xyz\n\
+          \# source_code = https://github.com/popopx/popopxmq\n\
           \\n\
           \# Declaring all below information is optional, any of these fields can be omitted.\n\
           \# server_country = ISO-3166 2-letter code\n\
@@ -155,8 +160,14 @@ xftpServerCLI_ generateSite serveStaticFiles cfgPath logPath = do
                \# db_pool_size = 10\n\n\
                \# Write database changes to store log file\n\
                \# db_store_log = off\n\n"
-            <> "# Expire files after the specified number of hours.\n"
+            <> "# Expire files after the specified number of hours.\n\
+               \# The change only affects new files.\n"
             <> ("expire_files_hours = " <> tshow defFileExpirationHours <> "\n\n")
+            <> "# Expire files after the specified number of hours for the senders that present\n\
+               \# a proof of the entitlement. Must not be below expire_files_hours.\n\
+               \# The change only affects new files.\n\
+               \# expire_files_hours_for_supporter = 168\n\
+               \# expire_files_hours_for_legend = 504\n\n"
             <> "log_stats = off\n\
                \\n\
                \# Log interval for real-time Prometheus metrics\n\
@@ -235,13 +246,13 @@ xftpServerCLI_ generateSite serveStaticFiles cfgPath logPath = do
         enableStoreLog = settingIsOn "STORE_LOG" "enable" ini
         logStats = settingIsOn "STORE_LOG" "log_stats" ini
         c = combine cfgPath . ($ defaultX509Config)
-        printXFTPConfig XFTPServerConfig {allowNewFiles, newFileBasicAuth, xftpPort, storeLogFile, fileExpiration, inactiveClientExpiration} = do
+        printXFTPConfig XFTPServerConfig {allowNewFiles, newFileBasicAuth, xftpPort, storeLogFile, fileExpiration, fileStorageEntitlements, inactiveClientExpiration} = do
           putStrLn $ case storeLogFile of
             Just f -> "Store log: " <> f
             _ -> "Store log disabled."
-          putStrLn $ case fileExpiration of
-            Just ExpirationConfig {ttl} -> "expiring files after " <> showTTL ttl
-            _ -> "not expiring files"
+          putStrLn $ "expiring files after " <> showTTL (ttl fileExpiration)
+          forM_ (M.assocs fileStorageEntitlements) $ \(name, EntitlementConfig {storageTime}) ->
+            putStrLn $ "expiring files of " <> T.unpack name <> " after " <> showTTL storageTime
           putStrLn $ case inactiveClientExpiration of
             Just ExpirationConfig {ttl, checkInterval} -> "expiring clients inactive for " <> show ttl <> " seconds every " <> show checkInterval <> " seconds"
             _ -> "not expiring inactive clients"
@@ -287,10 +298,11 @@ xftpServerCLI_ generateSite serveStaticFiles cfgPath logPath = do
               controlPortAdminAuth = either error id <$> strDecodeIni "AUTH" "control_port_admin_password" ini,
               controlPortUserAuth = either error id <$> strDecodeIni "AUTH" "control_port_user_password" ini,
               fileExpiration =
-                Just
-                  defaultFileExpiration
-                    { ttl = 3600 * readIniDefault defFileExpirationHours "STORE_LOG" "expire_files_hours" ini
-                    },
+                defaultFileExpiration
+                  { ttl = 3600 * readIniDefault defFileExpirationHours "STORE_LOG" "expire_files_hours" ini
+                  },
+              fileStorageEntitlements = iniEntitlements ini,
+              entitlementKeys = entitlementIssuerKeys,
               fileTimeout = 5 * 60 * 1000000, -- 5 mins to send 4mb chunk
               inactiveClientExpiration =
                 settingIsOn "INACTIVE_CLIENTS" "disconnect" ini
@@ -306,6 +318,7 @@ xftpServerCLI_ generateSite serveStaticFiles cfgPath logPath = do
                   },
               httpCredentials = httpCredentials_,
               xftpServerVRange = supportedFileServerVRange,
+              information = serverPublicInfo ini,
               logStatsInterval = logStats $> 86400, -- seconds
               logStatsStartTime = 0, -- seconds from 00:00 UTC
               serverStatsLogFile = combine logPath "file-server-stats.daily.log",
@@ -437,3 +450,10 @@ cliCommandP cfgPath logPath iniFile =
         ( command "import" (info (pure SCImport) (progDesc "Import store log file into PostgreSQL database"))
             <> command "export" (info (pure SCExport) (progDesc "Export PostgreSQL database to store log file"))
         )
+
+iniEntitlements :: Ini -> Map T.Text EntitlementConfig
+iniEntitlements ini =
+  M.fromList $ mapMaybe readEntitlement [("supporter", "expire_files_hours_for_supporter"), ("legend", "expire_files_hours_for_legend")]
+  where
+    readEntitlement (name, key) = (name,) . EntitlementConfig . parseHours key <$> eitherToMaybe (lookupValue "STORE_LOG" key ini)
+    parseHours key t = maybe (error $ "Error: invalid " <> T.unpack key <> " value: " <> T.unpack t) (3600 *) (readMaybe (T.unpack (T.strip t)) :: Maybe Int64)

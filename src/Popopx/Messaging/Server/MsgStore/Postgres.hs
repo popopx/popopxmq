@@ -110,12 +110,13 @@ instance MsgStoreClass PostgresMsgStore where
   expireOldMessages :: Bool -> PostgresMsgStore -> Int64 -> Int64 -> IO MessageStats
   expireOldMessages _tty ms now ttl =
     maybeFirstRow' newMessageStats toMessageStats $ withConnection st $ \db ->
-      DB.query db "CALL expire_old_messages(?,?,?,0,0,0)" (oldQueue, oldMsg, batchSize)
+      DB.query db "CALL expire_old_messages(?,?,0,0,0)" (oldMsg, batchSize)
     where
       st = dbStore $ queueStore_ ms
-      oldQueue = 0 :: Int64 -- expire all queues
       oldMsg = now - ttl
-      batchSize = 10000 :: Int
+      -- expired messages read per page in expire_old_messages, and the page is one
+      -- transaction: queues in it stay row-locked against SEND and ACK until it commits.
+      batchSize = 100 :: Int
       toMessageStats (expiredMsgsCount, storedMsgsCount, storedQueues) =
         MessageStats {expiredMsgsCount, storedMsgsCount, storedQueues}
 
@@ -364,8 +365,8 @@ deleteAllMessages ms =
       db
       [sql|
         UPDATE msg_queues
-        SET msg_queue_size = 0, msg_can_write = TRUE, msg_queue_expire = FALSE
-        WHERE msg_queue_size != 0 OR msg_can_write = FALSE OR msg_queue_expire = TRUE
+        SET msg_queue_size = 0, msg_can_write = TRUE
+        WHERE msg_queue_size != 0 OR msg_can_write = FALSE
       |]
 
 updateQueueCounts :: PostgresMsgStore -> IO ()
@@ -385,16 +386,15 @@ updateQueueCounts ms =
       db
       [sql|
         UPDATE msg_queues
-        SET msg_queue_size = 0, msg_can_write = TRUE, msg_queue_expire = FALSE
-        WHERE msg_queue_size != 0 OR msg_can_write = FALSE OR msg_queue_expire = TRUE
+        SET msg_queue_size = 0, msg_can_write = TRUE
+        WHERE msg_queue_size != 0 OR msg_can_write = FALSE
       |]
     void $ DB.execute_
       db
       [sql|
         UPDATE msg_queues q
         SET msg_queue_size = s.size,
-            msg_can_write = s.quota_count = 0,
-            msg_queue_expire = s.size > s.quota_count
+            msg_can_write = s.quota_count = 0
         FROM queue_stats s
         WHERE q.recipient_id = s.recipient_id
       |]

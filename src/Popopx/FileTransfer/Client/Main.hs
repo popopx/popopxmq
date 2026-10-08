@@ -240,7 +240,7 @@ xftpClientCLI =
     FileDescrInfo opts -> runE $ cliFileDescrInfo opts
     RandomFile opts -> cliRandomFile opts
   where
-    clientVersion = "POPOPX XFTP client v" <> xftpClientVersion
+    clientVersion = "SimpleX XFTP client v" <> xftpClientVersion
     versionOption = infoOption clientVersion (long "version" <> short 'v' <> help "Show version")
 
 runLogE :: HasField "verbose" a Bool => a -> ExceptT CLIError IO () -> IO ()
@@ -328,7 +328,7 @@ cliSendFileOpts SendOptions {filePath, outputDir, numRecipients, xftpServers, re
           digest <- liftIO $ getChunkDigest chunkSpec
           let ch = FileInfo {sndKey, size = chunkSize, digest}
           c <- withRetry retryCount $ getXFTPServerClient a xftpServer
-          (sndId, rIds) <- withRetry retryCount $ createXFTPChunk c spKey ch (L.map fst rKeys) auth
+          (sndId, rIds, _) <- withRetry retryCount $ createXFTPChunk c spKey ch (L.map fst rKeys) auth Nothing
           withReconnect a xftpServer retryCount $ \c' -> uploadXFTPChunk c' spKey sndId chunkSpec
           logDebug $ "uploaded chunk " <> tshow chunkNo
           uploaded <- atomically . stateTVar uploadedChunks $ \cs ->
@@ -441,7 +441,6 @@ cliReceiveFile ReceiveOptions {fileDescription, filePath, retryCount, tempPath, 
           | depth > 0 -> do
               CryptoFile tmpFile _ <- withExceptT cliCryptoError $ decryptChunks encSize chunkPaths key nonce $ \_ ->
                 fmap CF.plain $ uniqueCombine encPath "redirect.yaml"
-              forM_ chunks $ acknowledgeFileChunk a
               yaml <- liftIO $ B.readFile tmpFile
               whenM (doesPathExist encPath) $ removeDirectoryRecursive encPath
               innerVfd <- either (throwE . CLIError . ("Redirect: invalid file description: " <>)) pure $ strDecode yaml
@@ -450,7 +449,6 @@ cliReceiveFile ReceiveOptions {fileDescription, filePath, retryCount, tempPath, 
         Nothing -> do
           liftIO $ printNoNewLine "Decrypting file..."
           CryptoFile path _ <- withExceptT cliCryptoError $ decryptChunks encSize chunkPaths key nonce $ fmap CF.plain . getFilePath
-          forM_ chunks $ acknowledgeFileChunk a
           whenM (doesPathExist encPath) $ removeDirectoryRecursive encPath
           liftIO $ do
             printNoNewLine $ "File downloaded: " <> path
@@ -479,12 +477,6 @@ cliReceiveFile ReceiveOptions {fileDescription, filePath, retryCount, tempPath, 
       _ -> (`uniqueCombine` name') . (</> "Downloads") =<< getHomeDirectory
       where
         name' = T.unpack name
-    acknowledgeFileChunk :: XFTPClientAgent -> FileChunk -> ExceptT CLIError IO ()
-    acknowledgeFileChunk a FileChunk {replicas = replica : _} = do
-      let FileChunkReplica {server, replicaId, replicaKey} = replica
-      c <- withRetry retryCount $ getXFTPServerClient a server
-      withRetry retryCount $ ackXFTPChunk c replicaKey (unChunkReplicaId replicaId)
-    acknowledgeFileChunk _ _ = throwE $ CLIError "chunk has no replicas"
 
 printProgress :: String -> Int64 -> Int64 -> IO ()
 printProgress s part total = printNoNewLine $ s <> " " <> show ((part * 100) `div` total) <> "%"

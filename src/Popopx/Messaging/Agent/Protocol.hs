@@ -1,12 +1,7 @@
--- Original Work Copyright (C) 2020-2022 simplex.chat
---
--- --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
--- This file was modified by POPOPX Team in 2026.
--- Changes: Updated protocol documentation URL and production server onion host references.
-
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -32,7 +27,6 @@
 -- |
 -- Module      : Popopx.Messaging.Agent.Protocol
 -- Copyright   : (c) simplex.chat
---               (c) popopx.xyz
 -- License     : AGPL-3
 --
 -- Maintainer  : chat@popopx.xyz
@@ -47,12 +41,8 @@ module Popopx.Messaging.Agent.Protocol
     VersionSMPA,
     VersionRangeSMPA,
     pattern VersionSMPA,
-    duplexHandshakeSMPAgentVersion,
-    ratchetSyncSMPAgentVersion,
-    deliveryRcptsSMPAgentVersion,
-    pqdrSMPAgentVersion,
-    sndAuthKeySMPAgentVersion,
     ratchetOnConfSMPAgentVersion,
+    rpcAddressSMPAgentVersion,
     currentSMPAgentVersion,
     supportedSMPAgentVRange,
     e2eEncConnInfoLength,
@@ -61,8 +51,10 @@ module Popopx.Messaging.Agent.Protocol
     -- * SMP agent protocol types
     ConnInfo,
     SndQueueSecured,
+    UseRatchetKeys,
     AEntityId,
     ACommand (..),
+    JoinRequest (..),
     AEvent (..),
     AEvt (..),
     ACommandTag (..),
@@ -87,6 +79,8 @@ module Popopx.Messaging.Agent.Protocol
     SMPConfirmation (..),
     AgentMsgEnvelope (..),
     AgentMessage (..),
+    RatchetInfo (..),
+    RequestSignature (..),
     AgentMessageType (..),
     APrivHeader (..),
     AMessage (..),
@@ -114,6 +108,9 @@ module Popopx.Messaging.Agent.Protocol
     ConnectionModeI (..),
     ConnectionRequestUri (..),
     AConnectionRequestUri (..),
+    BinaryConnectionRequestUri (..),
+    ABinaryConnectionRequestUri (..),
+    binaryConnReq,
     ShortLinkCreds (..),
     ConnReqUriData (..),
     CRClientData,
@@ -125,6 +122,10 @@ module Popopx.Messaging.Agent.Protocol
     UserConnLinkData (..),
     UserContactData (..),
     UserLinkData (..),
+    AddressRatchetKeys,
+    NewRatchetKeys,
+    DRInvitation (..),
+    RatchetKeyId (..),
     OwnerAuth (..),
     OwnerId,
     ConnectionLink (..),
@@ -158,6 +159,7 @@ module Popopx.Messaging.Agent.Protocol
     ConnectionErrorType (..),
     BrokerErrorType (..),
     SMPAgentError (..),
+    AgentServiceError (..),
     DroppedMsg (..),
     AgentCryptoError (..),
     cryptoErrToSyncState,
@@ -165,6 +167,8 @@ module Popopx.Messaging.Agent.Protocol
     ConnId,
     ConfirmationId,
     InvitationId,
+    ConnVerifyCodes (..),
+    ContactRequestBinding (..),
     MsgIntegrity (..),
     MsgErrorType (..),
     QueueStatus (..),
@@ -207,6 +211,7 @@ import qualified Data.Attoparsec.ByteString.Char8 as A
 import qualified Data.ByteString.Base64.URL as B64
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as B
+import qualified Data.ByteString.Lazy as LB
 import Data.Char (toLower, toUpper)
 import Data.Foldable (find)
 import Data.Functor (($>))
@@ -226,7 +231,7 @@ import Data.Type.Equality
 import Data.Typeable (Typeable)
 import Data.Word (Word16, Word32)
 import Popopx.FileTransfer.Description
-import Popopx.FileTransfer.Protocol (FileParty (..))
+import Popopx.FileTransfer.Protocol (FileParty (..), GrantedStorageTime)
 import Popopx.FileTransfer.Transport (XFTPErrorType)
 import Popopx.FileTransfer.Types (FileErrorType)
 import Popopx.Messaging.Agent.QueryString
@@ -237,9 +242,11 @@ import Popopx.Messaging.Crypto.Ratchet
   ( InitialKeys (..),
     PQEncryption (..),
     PQSupport,
+    RatchetX448,
     RcvE2ERatchetParams,
     RcvE2ERatchetParamsUri,
     SndE2ERatchetParams,
+    RcvE2EPrivRatchetParams,
     pattern PQSupportOff,
     pattern PQSupportOn,
   )
@@ -296,6 +303,7 @@ import UnliftIO.Exception (Exception)
 -- 5 - post-quantum double ratchet (3/14/2024)
 -- 6 - secure reply queues with provided keys (6/14/2024)
 -- 7 - initialize ratchet on processing confirmation (7/18/2024)
+-- 8 - agent RPC and double ratchet PQ encryption from first message to contact address (8/01/2026)
 
 data SMPAgentVersion
 
@@ -308,29 +316,20 @@ type VersionRangeSMPA = VersionRange SMPAgentVersion
 pattern VersionSMPA :: Word16 -> VersionSMPA
 pattern VersionSMPA v = Version v
 
-duplexHandshakeSMPAgentVersion :: VersionSMPA
-duplexHandshakeSMPAgentVersion = VersionSMPA 2
-
-ratchetSyncSMPAgentVersion :: VersionSMPA
-ratchetSyncSMPAgentVersion = VersionSMPA 3
-
-deliveryRcptsSMPAgentVersion :: VersionSMPA
-deliveryRcptsSMPAgentVersion = VersionSMPA 4
-
-pqdrSMPAgentVersion :: VersionSMPA
-pqdrSMPAgentVersion = VersionSMPA 5
-
-sndAuthKeySMPAgentVersion :: VersionSMPA
-sndAuthKeySMPAgentVersion = VersionSMPA 6
+_sndAuthKeySMPAgentVersion :: VersionSMPA
+_sndAuthKeySMPAgentVersion = VersionSMPA 6
 
 ratchetOnConfSMPAgentVersion :: VersionSMPA
 ratchetOnConfSMPAgentVersion = VersionSMPA 7
 
+rpcAddressSMPAgentVersion :: VersionSMPA
+rpcAddressSMPAgentVersion = VersionSMPA 8
+
 minSupportedSMPAgentVersion :: VersionSMPA
-minSupportedSMPAgentVersion = duplexHandshakeSMPAgentVersion
+minSupportedSMPAgentVersion = _sndAuthKeySMPAgentVersion
 
 currentSMPAgentVersion :: VersionSMPA
-currentSMPAgentVersion = VersionSMPA 7
+currentSMPAgentVersion = VersionSMPA 8
 
 supportedSMPAgentVRange :: VersionRangeSMPA
 supportedSMPAgentVRange = mkVersionRange minSupportedSMPAgentVersion currentSMPAgentVersion
@@ -338,17 +337,17 @@ supportedSMPAgentVRange = mkVersionRange minSupportedSMPAgentVersion currentSMPA
 -- it is shorter to allow all handshake headers,
 -- including E2E (double-ratchet) parameters and
 -- signing key of the sender for the server
-e2eEncConnInfoLength :: VersionSMPA -> PQSupport -> Int
-e2eEncConnInfoLength v = \case
+e2eEncConnInfoLength :: PQSupport -> Int
+e2eEncConnInfoLength = \case
   -- reduced by 3726 (roughly the increase of message ratchet header size + key and ciphertext in reply link)
-  PQSupportOn | v >= pqdrSMPAgentVersion -> 11106
-  _ -> 14832
+  PQSupportOn -> 11106
+  PQSupportOff -> 14832
 
-e2eEncAgentMsgLength :: VersionSMPA -> PQSupport -> Int
-e2eEncAgentMsgLength v = \case
+e2eEncAgentMsgLength :: PQSupport -> Int
+e2eEncAgentMsgLength = \case
   -- reduced by 2222 (the increase of message ratchet header size)
-  PQSupportOn | v >= pqdrSMPAgentVersion -> 13618
-  _ -> 15840
+  PQSupportOn -> 13618
+  PQSupportOff -> 15840
 
 -- | SMP agent event
 type ATransmission = (ACorrId, AEntityId, AEvt)
@@ -400,13 +399,18 @@ type ConnInfo = ByteString
 
 type SndQueueSecured = Bool
 
+type UseRatchetKeys = Bool
+
 -- | Parameterized type for SMP agent events
 data AEvent (e :: AEntity) where
   INV :: AConnectionRequestUri -> AEvent AEConn
   LINK :: ConnShortLink 'CMContact -> UserConnLinkData 'CMContact -> AEvent AEConn
-  LDATA :: FixedLinkData 'CMContact -> ConnLinkData 'CMContact -> AEvent AEConn
+  LDATA :: FixedLinkData 'CMContact -> ConnLinkData 'CMContact -> ConnectionRequestUri 'CMContact -> AEvent AEConn
   CONF :: ConfirmationId -> PQSupport -> [SMPServer] -> ConnInfo -> AEvent AEConn -- ConnInfo is from sender, [SMPServer] will be empty only in v1 handshake
-  REQ :: InvitationId -> PQSupport -> NonEmpty SMPServer -> ConnInfo -> AEvent AEConn -- ConnInfo is from sender
+  REQ :: InvitationId -> PQSupport -> NonEmpty SMPServer -> ConnInfo -> ContactRequestBinding -> Bool -> AEvent AEConn -- ConnInfo is from sender; Bool - rejection reason can be sent
+  SREQ :: InvitationId -> Maybe C.PublicKeyEd25519 -> MsgBody -> AEvent AEConn
+  SSENT :: AgentMsgId -> Maybe SMPServer -> AEvent AEConn
+  RJCT :: ConnInfo -> AEvent AEConn
   INFO :: PQSupport -> ConnInfo -> AEvent AEConn
   CON :: PQEncryption -> AEvent AEConn -- notification that connection is established
   END :: AEvent AEConn
@@ -443,7 +447,7 @@ data AEvent (e :: AEntity) where
   RFERR :: AgentErrorType -> AEvent AERcvFile
   RFWARN :: AgentErrorType -> AEvent AERcvFile
   SFPROG :: Int64 -> Int64 -> AEvent AESndFile
-  SFDONE :: ValidFileDescription 'FSender -> [ValidFileDescription 'FRecipient] -> AEvent AESndFile
+  SFDONE :: ValidFileDescription 'FSender -> [ValidFileDescription 'FRecipient] -> Maybe GrantedStorageTime -> AEvent AESndFile
   SFERR :: AgentErrorType -> AEvent AESndFile
   SFWARN :: AgentErrorType -> AEvent AESndFile
 
@@ -461,15 +465,15 @@ instance Eq AEvtTag where
 deriving instance Show AEvtTag
 
 data ACommand
-  = NEW Bool AConnectionMode InitialKeys SubscriptionMode -- response INV
+  = NEW Bool AConnectionMode InitialKeys SubscriptionMode UseRatchetKeys -- response INV
   | LSET (UserConnLinkData 'CMContact) (Maybe CRClientData) -- response LINK
   | LGET (ConnShortLink 'CMContact) -- response LDATA
-  | JOIN Bool AConnectionRequestUri PQSupport SubscriptionMode ConnInfo
+  | JOIN JoinRequest SubscriptionMode ConnInfo
   | LET ConfirmationId ConnInfo -- ConnInfo is from client
   | ACK AgentMsgId (Maybe MsgReceiptInfo)
   | SWCH
   | DEL
-  deriving (Eq, Show)
+  deriving (Show)
 
 data ACommandTag
   = NEW_
@@ -488,6 +492,9 @@ data AEventTag (e :: AEntity) where
   LDATA_ :: AEventTag AEConn
   CONF_ :: AEventTag AEConn
   REQ_ :: AEventTag AEConn
+  SREQ_ :: AEventTag AEConn
+  SSENT_ :: AEventTag AEConn
+  RJCT_ :: AEventTag AEConn
   INFO_ :: AEventTag AEConn
   CON_ :: AEventTag AEConn
   END_ :: AEventTag AEConn
@@ -551,6 +558,9 @@ aEventTag = \case
   LDATA {} -> LDATA_
   CONF {} -> CONF_
   REQ {} -> REQ_
+  SREQ {} -> SREQ_
+  SSENT {} -> SSENT_
+  RJCT {} -> RJCT_
   INFO {} -> INFO_
   CON _ -> CON_
   END -> END_
@@ -632,16 +642,22 @@ instance FromJSON RcvSwitchStatus where
 data SndSwitchStatus
   = SSSendingQKEY
   | SSSendingQTEST
+  | SSSecuringQueue
+  | SSSendingQEND
   deriving (Eq, Show)
 
 instance StrEncoding SndSwitchStatus where
   strEncode = \case
     SSSendingQKEY -> "sending_qkey"
     SSSendingQTEST -> "sending_qtest"
+    SSSecuringQueue -> "securing_queue"
+    SSSendingQEND -> "sending_qend"
   strP =
     A.takeTill (== ' ') >>= \case
       "sending_qkey" -> pure SSSendingQKEY
       "sending_qtest" -> pure SSSendingQTEST
+      "securing_queue" -> pure SSSecuringQueue
+      "sending_qend" -> pure SSSendingQEND
       _ -> fail "bad SndSwitchStatus"
 
 instance ToField SndSwitchStatus where toField = toField . decodeLatin1 . strEncode
@@ -850,6 +866,12 @@ data AgentMsgEnvelope
         connReq :: ConnectionRequestUri 'CMInvitation,
         connInfo :: ByteString -- this message is only encrypted with per-queue E2E, not with double ratchet,
       }
+  | AgentContactRequest -- DR request to a contact address that published DR keys: a contact invitation or a service (RPC) request
+      { agentVersion :: VersionSMPA,
+        e2eSndParams :: SndE2ERatchetParams 'C.X448,
+        ratchetKeyId :: RatchetKeyId,
+        encConnInfo :: ByteString
+      }
   | AgentRatchetKey
       { agentVersion :: VersionSMPA,
         e2eEncryption :: RcvE2ERatchetParams 'C.X448,
@@ -865,6 +887,8 @@ instance Encoding AgentMsgEnvelope where
       smpEncode (agentVersion, 'M', Tail encAgentMessage)
     AgentInvitation {agentVersion, connReq, connInfo} ->
       smpEncode (agentVersion, 'I', Large $ strEncode connReq, Tail connInfo)
+    AgentContactRequest {agentVersion, e2eSndParams, ratchetKeyId, encConnInfo} ->
+      smpEncode (agentVersion, 'A', e2eSndParams, ratchetKeyId, Tail encConnInfo)
     AgentRatchetKey {agentVersion, e2eEncryption, info} ->
       smpEncode (agentVersion, 'R', e2eEncryption, Tail info)
   smpP = do
@@ -880,11 +904,21 @@ instance Encoding AgentMsgEnvelope where
         connReq <- strDecode . unLarge <$?> smpP
         Tail connInfo <- smpP
         pure AgentInvitation {agentVersion, connReq, connInfo}
+      'A' -> do
+        (e2eSndParams, ratchetKeyId, Tail encConnInfo) <- smpP
+        pure AgentContactRequest {agentVersion, e2eSndParams, ratchetKeyId, encConnInfo}
       'R' -> do
         e2eEncryption <- smpP
         Tail info <- smpP
         pure AgentRatchetKey {agentVersion, e2eEncryption, info}
       _ -> fail "bad AgentMsgEnvelope"
+
+data RequestSignature = RequestSignature C.PublicKeyEd25519 (C.Signature 'C.Ed25519)
+  deriving (Eq, Show)
+
+instance Encoding RequestSignature where
+  smpEncode (RequestSignature k sig) = smpEncode (k, sig)
+  smpP = RequestSignature <$> smpP <*> smpP
 
 -- SMP agent message formats (after double ratchet decryption,
 -- or in case of AgentInvitation - in plain text body)
@@ -895,23 +929,42 @@ data AgentMessage
   | -- AgentConnInfoReply is used by accepting party in duplexHandshake mode (v2), allowing to include reply queue(s) in the initial confirmation.
     -- It made removed REPLY message unnecessary.
     AgentConnInfoReply (NonEmpty SMPQueueInfo) ConnInfo
-  | AgentRatchetInfo ByteString
+  | AgentRatchetInfo RatchetInfo
   | AgentMessage APrivHeader AMessage
+  | AgentServiceRequest (NonEmpty SMPQueueInfo) (Maybe RequestSignature) MsgBody
+  | AgentServiceResponse MsgBody
+  | AgentRejection ByteString
   deriving (Show)
 
 instance Encoding AgentMessage where
   smpEncode = \case
     AgentConnInfo cInfo -> smpEncode ('I', Tail cInfo)
     AgentConnInfoReply smpQueues cInfo -> smpEncode ('D', smpQueues, Tail cInfo) -- 'D' stands for "duplex"
-    AgentRatchetInfo info -> smpEncode ('R', Tail info)
+    AgentRatchetInfo info -> smpEncode ('R', info)
     AgentMessage hdr aMsg -> smpEncode ('M', hdr, aMsg)
+    AgentServiceRequest qs sig_ body -> smpEncode ('A', qs, sig_, Tail body)
+    AgentServiceResponse body -> smpEncode ('P', Tail body)
+    AgentRejection reason -> smpEncode ('J', Tail reason)
   smpP =
     smpP >>= \case
       'I' -> AgentConnInfo . unTail <$> smpP
       'D' -> AgentConnInfoReply <$> smpP <*> (unTail <$> smpP)
-      'R' -> AgentRatchetInfo . unTail <$> smpP
+      'R' -> AgentRatchetInfo <$> smpP
       'M' -> AgentMessage <$> smpP <*> smpP
+      'A' -> AgentServiceRequest <$> smpP <*> smpP <*> (unTail <$> smpP)
+      'P' -> AgentServiceResponse . unTail <$> smpP
+      'J' -> AgentRejection . unTail <$> smpP
       _ -> fail "bad AgentMessage"
+
+data RatchetInfo = RatchetInfo {answeredKeyHash :: Maybe ByteString}
+  deriving (Eq, Show)
+
+instance Encoding RatchetInfo where
+  smpEncode RatchetInfo {answeredKeyHash} = smpEncode answeredKeyHash
+  smpP = do
+    answeredKeyHash <- smpP <|> pure Nothing
+    _ <- A.takeByteString
+    pure RatchetInfo {answeredKeyHash}
 
 -- internal type for storing message type in the database
 data AgentMessageType
@@ -926,7 +979,11 @@ data AgentMessageType
   | AM_QKEY_
   | AM_QUSE_
   | AM_QTEST_
+  | AM_QEND_
   | AM_EREADY_
+  | AM_SRV_REQ
+  | AM_SRV_RESP
+  | AM_RJCT
   deriving (Eq, Show)
 
 instance Encoding AgentMessageType where
@@ -942,7 +999,11 @@ instance Encoding AgentMessageType where
     AM_QKEY_ -> "QK"
     AM_QUSE_ -> "QU"
     AM_QTEST_ -> "QT"
+    AM_QEND_ -> "QE"
     AM_EREADY_ -> "E"
+    AM_SRV_REQ -> "A"
+    AM_SRV_RESP -> "P"
+    AM_RJCT -> "J"
   smpP =
     A.anyChar >>= \case
       'C' -> pure AM_CONN_INFO
@@ -958,8 +1019,12 @@ instance Encoding AgentMessageType where
           'K' -> pure AM_QKEY_
           'U' -> pure AM_QUSE_
           'T' -> pure AM_QTEST_
+          'E' -> pure AM_QEND_
           _ -> fail "bad AgentMessageType"
       'E' -> pure AM_EREADY_
+      'A' -> pure AM_SRV_REQ
+      'P' -> pure AM_SRV_RESP
+      'J' -> pure AM_RJCT
       _ -> fail "bad AgentMessageType"
 
 agentMessageType :: AgentMessage -> AgentMessageType
@@ -968,6 +1033,9 @@ agentMessageType = \case
   AgentConnInfoReply {} -> AM_CONN_INFO_REPLY
   AgentRatchetInfo _ -> AM_RATCHET_INFO
   AgentMessage _ aMsg -> aMessageType aMsg
+  AgentServiceRequest {} -> AM_SRV_REQ
+  AgentServiceResponse {} -> AM_SRV_RESP
+  AgentRejection {} -> AM_RJCT
 
 data APrivHeader = APrivHeader
   { -- | sequential ID assigned by the sending agent
@@ -991,6 +1059,7 @@ data AMsgType
   | QKEY_
   | QUSE_
   | QTEST_
+  | QEND_
   | EREADY_
   deriving (Eq)
 
@@ -1004,6 +1073,7 @@ instance Encoding AMsgType where
     QKEY_ -> "QK"
     QUSE_ -> "QU"
     QTEST_ -> "QT"
+    QEND_ -> "QE"
     EREADY_ -> "E"
   smpP =
     A.anyChar >>= \case
@@ -1017,6 +1087,7 @@ instance Encoding AMsgType where
           'K' -> pure QKEY_
           'U' -> pure QUSE_
           'T' -> pure QTEST_
+          'E' -> pure QEND_
           _ -> fail "bad AMsgType"
       'E' -> pure EREADY_
       _ -> fail "bad AMsgType"
@@ -1041,6 +1112,8 @@ data AMessage
     QUSE (NonEmpty (SndQAddr, Bool))
   | -- sent by the sender to test new queues and to complete switching
     QTEST (NonEmpty SndQAddr)
+  | -- sent by the sender to remove queues from the connection (fast rotation, v8)
+    QEND (NonEmpty SndQAddr)
   | -- ratchet re-synchronization is complete, with last decrypted sender message id (recipient's `last_external_snd_msg_id`)
     EREADY AgentMsgId
   deriving (Show)
@@ -1059,6 +1132,7 @@ aMessageType = \case
   QKEY _ -> AM_QKEY_
   QUSE _ -> AM_QUSE_
   QTEST _ -> AM_QTEST_
+  QEND _ -> AM_QEND_
   EREADY _ -> AM_EREADY_
 
 -- | this type is used to send as part of the protocol between different clients
@@ -1111,6 +1185,7 @@ instance Encoding AMessage where
     QKEY qs -> smpEncode (QKEY_, qs)
     QUSE qs -> smpEncode (QUSE_, qs)
     QTEST qs -> smpEncode (QTEST_, qs)
+    QEND qs -> smpEncode (QEND_, qs)
     EREADY lastDecryptedMsgId -> smpEncode (EREADY_, lastDecryptedMsgId)
   smpP =
     smpP
@@ -1123,6 +1198,7 @@ instance Encoding AMessage where
         QKEY_ -> QKEY <$> smpP
         QUSE_ -> QUSE <$> smpP
         QTEST_ -> QTEST <$> smpP
+        QEND_ -> QEND <$> smpP
         EREADY_ -> EREADY <$> smpP
 
 instance ToField AMessage where toField = toField . Binary . smpEncode
@@ -1138,11 +1214,13 @@ instance Encoding AMessageReceipt where
 
 instance ConnectionModeI m => StrEncoding (ConnectionRequestUri m) where
   strEncode = \case
-    CRInvitationUri crData e2eParams -> crEncode "invitation" crData (Just e2eParams)
-    CRContactUri crData -> crEncode "contact" crData Nothing
+    CRInvitationUri crData e2eParams -> crEncode "invitation" crData (Just e2eParams, Nothing)
+    CRContactUri crData rks -> crEncode "contact" crData $ case rks of
+      Just (ratchetKeyId, e2eRcvParams) -> (Just e2eRcvParams, Just ratchetKeyId)
+      Nothing -> (Nothing, Nothing)
     where
-      crEncode :: ByteString -> ConnReqUriData -> Maybe (RcvE2ERatchetParamsUri 'C.X448) -> ByteString
-      crEncode crMode ConnReqUriData {crScheme, crAgentVRange, crSmpQueues, crClientData} e2eParams =
+      crEncode :: ByteString -> ConnReqUriData -> (Maybe (RcvE2ERatchetParamsUri 'C.X448), Maybe RatchetKeyId) -> ByteString
+      crEncode crMode ConnReqUriData {crScheme, crAgentVRange, crSmpQueues, crClientData} (e2eParams, rk) =
         strEncode crScheme <> "/" <> crMode <> "#/?" <> queryStr
         where
           queryStr =
@@ -1150,23 +1228,24 @@ instance ConnectionModeI m => StrEncoding (ConnectionRequestUri m) where
               -- semicolon is used to separate SMP queues because comma is used to separate server address hostnames
               [("v", strEncode crAgentVRange), ("smp", B.intercalate ";" $ map strEncode $ L.toList crSmpQueues)]
                 <> maybe [] (\e2e -> [("e2e", strEncode e2e)]) e2eParams
+                <> maybe [] (\k -> [("rk", strEncode k)]) rk
                 <> maybe [] (\cd -> [("data", encodeUtf8 cd)]) crClientData
   strP = connReqUriP' (Just SSPopopx)
 
-instance ConnectionModeI m => Encoding (ConnectionRequestUri m) where
+instance ConnectionModeI m => Encoding (BinaryConnectionRequestUri m) where
   smpEncode = \case
-    CRInvitationUri crData e2eParams -> smpEncode (CMInvitation, crData, e2eParams)
-    CRContactUri crData -> smpEncode (CMContact, crData)
-  smpP = (\(ACR _ cr) -> checkConnMode cr) <$?> smpP
+    BCRInvitationUri crData e2eParams -> smpEncode (CMInvitation, crData, e2eParams)
+    BCRContactUri crData -> smpEncode (CMContact, crData)
+  smpP = (\(ABCR _ cr) -> checkConnMode cr) <$?> smpP
   {-# INLINE smpP #-}
 
-instance Encoding AConnectionRequestUri where
-  smpEncode (ACR _ cr) = smpEncode cr
+instance Encoding ABinaryConnectionRequestUri where
+  smpEncode (ABCR _ cr) = smpEncode cr
   {-# INLINE smpEncode #-}
   smpP =
     smpP >>= \case
-      CMInvitation -> ACR SCMInvitation <$> (CRInvitationUri <$> smpP <*> smpP)
-      CMContact -> ACR SCMContact . CRContactUri <$> smpP
+      CMInvitation -> ABCR SCMInvitation <$> (BCRInvitationUri <$> smpP <*> smpP)
+      CMContact -> ABCR SCMContact . BCRContactUri <$> smpP
 
 instance Encoding ConnReqUriData where
   smpEncode ConnReqUriData {crAgentVRange, crSmpQueues, crClientData} =
@@ -1209,7 +1288,10 @@ connReqUriP overrideScheme = do
       pure . ACR SCMInvitation $ CRInvitationUri crData crE2eParams
     -- contact links are adjusted to the minimum version supported by the agent
     -- to preserve compatibility with the old links published online
-    CMContact -> pure . ACR SCMContact $ CRContactUri crData {crAgentVRange = adjustAgentVRange aVRange}
+    CMContact -> do
+      e2e_ <- queryParam_ "e2e" query
+      rk_ <- queryParam_ "rk" query
+      pure . ACR SCMContact $ CRContactUri crData {crAgentVRange = adjustAgentVRange aVRange} ((,) <$> rk_ <*> e2e_)
   where
     crModeP = "invitation" $> CMInvitation <|> "contact" $> CMContact
     -- semicolon is used to separate SMP queues because comma is used to separate server address hostnames
@@ -1303,6 +1385,15 @@ type ConfirmationId = ByteString
 
 type InvitationId = ByteString
 
+data ConnVerifyCodes = ConnVerifyCodes
+  { codeAD :: ByteString,
+    codePQ :: Maybe ByteString
+  }
+  deriving (Eq, Show)
+
+data ContactRequestBinding = CRBRatchet ConnVerifyCodes | CRBRequest ByteString
+  deriving (Eq, Show)
+
 extraSMPServerHosts :: Map TransportHost TransportHost
 extraSMPServerHosts =
   M.fromList
@@ -1335,6 +1426,7 @@ sameQueue addr q = sameQAddress addr (qAddress q)
 
 data SMPQueueInfo = SMPQueueInfo {clientVersion :: VersionSMPC, queueAddress :: SMPQueueAddress}
   deriving (Eq, Show)
+  deriving (ToJSON, FromJSON) via (StrJSON "SMPQueueInfo" SMPQueueInfo)
 
 instance Encoding SMPQueueInfo where
   smpEncode (SMPQueueInfo clientVersion SMPQueueAddress {smpServer, senderId, dhPublicKey, queueMode})
@@ -1369,7 +1461,7 @@ instance VersionRangeI SMPClientVersion SMPQueueUri where
 
 -- | SMP queue information sent out-of-band.
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/popopx-messaging.md#out-of-band-messages
+-- https://github.com/popopx/popopxmq/blob/master/protocol/simplex-messaging.md#out-of-band-messages
 data SMPQueueUri = SMPQueueUri {clientVRange :: VersionRangeSMPC, queueAddress :: SMPQueueAddress}
   deriving (Eq, Show)
 
@@ -1440,6 +1532,10 @@ instance StrEncoding SMPQueueUri where
               _ -> Nothing
         pure (vr, maybe [] thList_ hs_, dhKey, queueMode)
 
+instance StrEncoding SMPQueueInfo where
+  strEncode (SMPQueueInfo v addr) = strEncode (SMPQueueUri (versionToRange v) addr)
+  strP = (\(SMPQueueUri vr addr) -> SMPQueueInfo (maxVersion vr) addr) <$> strP
+
 instance Encoding SMPQueueUri where
   smpEncode (SMPQueueUri clientVRange@(VersionRange minV maxV) SMPQueueAddress {smpServer, senderId, dhPublicKey, queueMode})
     -- The condition is for minVersion as earlier clients won't be able to support it.
@@ -1459,16 +1555,30 @@ instance Encoding SMPQueueUri where
 queueModeP :: Parser (Maybe QueueMode)
 queueModeP = Just <$> smpP <|> optional ((\case True -> QMMessaging; _ -> QMContact) <$> smpP)
 
+data BinaryConnectionRequestUri (m :: ConnectionMode) where
+  BCRInvitationUri :: ConnReqUriData -> RcvE2ERatchetParamsUri 'C.X448 -> BinaryConnectionRequestUri CMInvitation
+  BCRContactUri :: ConnReqUriData -> BinaryConnectionRequestUri CMContact
+
+deriving instance Eq (BinaryConnectionRequestUri m)
+
+deriving instance Show (BinaryConnectionRequestUri m)
+
+data ABinaryConnectionRequestUri = forall m. ConnectionModeI m => ABCR (SConnectionMode m) (BinaryConnectionRequestUri m)
+
 data ConnectionRequestUri (m :: ConnectionMode) where
   CRInvitationUri :: ConnReqUriData -> RcvE2ERatchetParamsUri 'C.X448 -> ConnectionRequestUri CMInvitation
-  -- contact connection request does NOT contain E2E encryption parameters for double ratchet -
-  -- they are passed in AgentInvitation message
-  CRContactUri :: ConnReqUriData -> ConnectionRequestUri CMContact
+  -- optional contact address DR keys for double ratchet e2e from message 1
+  CRContactUri :: ConnReqUriData -> Maybe AddressRatchetKeys -> ConnectionRequestUri CMContact
 
 popopxConnReqUri :: ConnectionRequestUri m -> ConnectionRequestUri m
 popopxConnReqUri = \case
   CRInvitationUri crData e2eParams -> CRInvitationUri crData {crScheme = SSPopopx} e2eParams
-  CRContactUri crData -> CRContactUri crData {crScheme = SSPopopx}
+  CRContactUri crData rk -> CRContactUri crData {crScheme = SSPopopx} rk
+
+binaryConnReq :: ConnectionRequestUri m -> BinaryConnectionRequestUri m
+binaryConnReq = \case
+  CRInvitationUri crData e2eParams -> BCRInvitationUri crData e2eParams
+  CRContactUri crData _ -> BCRContactUri crData
 
 deriving instance Eq (ConnectionRequestUri m)
 
@@ -1526,9 +1636,12 @@ data PreparedLinkParams = PreparedLinkParams
     -- | smpEncode of FixedLinkData (includes linkEntityId)
     plpSignedFixedData :: ByteString,
     -- | Server with basic auth (not stored in link)
-    plpSrvWithAuth :: SMPServerWithAuth
+    plpSrvWithAuth :: SMPServerWithAuth,
+    -- | Initial PQ keys
+    plpInitKeys :: InitialKeys,
+    -- | Contact address double ratchet keys
+    plpAddressKeys :: Maybe (RatchetKeyId, RcvE2EPrivRatchetParams 'C.X448)
   }
-  deriving (Show)
 
 instance ConnectionModeI c => ToField (ConnectionLink c) where toField = toField . Binary . strEncode
 
@@ -1740,7 +1853,7 @@ findPresetServer ProtocolServer {host = h :| _} = find (\ProtocolServer {host = 
 {-# INLINE findPresetServer #-}
 
 sameConnReqContact :: ConnectionRequestUri 'CMContact -> ConnectionRequestUri 'CMContact -> Bool
-sameConnReqContact (CRContactUri ConnReqUriData {crSmpQueues = qs}) (CRContactUri ConnReqUriData {crSmpQueues = qs'}) =
+sameConnReqContact (CRContactUri ConnReqUriData {crSmpQueues = qs} _) (CRContactUri ConnReqUriData {crSmpQueues = qs'} _) =
   L.length qs == L.length qs' && all same (L.zip qs qs')
   where
     same (q, q') = sameQAddress (qAddress q) (qAddress q')
@@ -1779,7 +1892,7 @@ type CRClientData = Text
 data FixedLinkData c = FixedLinkData
   { agentVRange :: VersionRangeSMPA,
     rootKey :: C.PublicKeyEd25519,
-    linkConnReq :: ConnectionRequestUri c,
+    linkConnReq :: BinaryConnectionRequestUri c,
     linkEntityId :: Maybe ByteString
   }
   deriving (Eq, Show)
@@ -1792,6 +1905,31 @@ deriving instance Eq (ConnLinkData c)
 
 deriving instance Show (ConnLinkData c)
 
+newtype RatchetKeyId = RatchetKeyId ByteString
+  deriving (Eq, Show)
+  deriving newtype (Encoding, StrEncoding)
+
+-- | double ratchet keys in contact address
+type AddressRatchetKeys = (RatchetKeyId, RcvE2ERatchetParamsUri 'C.X448)
+
+-- | Whether to rotate double ratchet keys in contact address
+type NewRatchetKeys = Bool
+
+-- | stored invitation with double ratchet keys
+data DRInvitation = DRInvitation
+  { ratchetState :: RatchetX448,
+    replyQueue :: SMPQueueInfo,
+    agentVersion :: VersionSMPA,
+    pqSupport :: PQSupport
+  }
+  deriving (Show)
+
+data JoinRequest
+  = JRConnReq {enableNtfs :: Bool, joinConnReq :: AConnectionRequestUri, joinPQSupport :: PQSupport}
+  | JRServiceReq {contactReq :: ConnectionRequestUri 'CMContact, joinPQSupport :: PQSupport, requestKey :: Maybe (C.StoredPrivateKey C.Ed25519)}
+  | JRInvitationDR DRInvitation
+  deriving (Show)
+
 data UserContactData = UserContactData
   { -- direct connection via connReq in fixed data is allowed.
     direct :: Bool,
@@ -1799,7 +1937,8 @@ data UserContactData = UserContactData
     owners :: [OwnerAuth],
     -- alternative addresses of chat relays that receive requests for this contact address.
     relays :: [ConnShortLink 'CMContact],
-    userData :: UserLinkData
+    userData :: UserLinkData,
+    ratchetKeys :: Maybe AddressRatchetKeys
   }
   deriving (Eq, Show)
 
@@ -1877,10 +2016,12 @@ validateLinkOwners rootKey = go []
 
 instance ConnectionModeI c => Encoding (FixedLinkData c) where
   smpEncode FixedLinkData {agentVRange, rootKey, linkConnReq, linkEntityId} =
+    -- TODO this encoding is not extensible, replace with smpEncode (fromMaybe "" linkEntityId) - safe to do it in 2027
     smpEncode (agentVRange, rootKey, linkConnReq) <> maybe "" smpEncode linkEntityId
   smpP = do
     (agentVRange, rootKey, linkConnReq) <- smpP
-    linkEntityId <- optional smpP <* A.takeByteString -- ignoring tail for forward compatibility with the future link data encoding
+    linkEntityId <- ((\s -> if B.null s then Nothing else Just s) =<<) <$> optional smpP
+    _ <- A.takeByteString -- ignoring tail for forward compatibility with the future link data encoding (added in January 2026)
     pure FixedLinkData {agentVRange, rootKey, linkConnReq, linkEntityId}
 
 instance ConnectionModeI c => Encoding (ConnLinkData c) where
@@ -1927,14 +2068,13 @@ instance ConnectionModeI c => StrEncoding (UserConnLinkData c) where
   {-# INLINE strP #-}
 
 instance Encoding UserContactData where
-  smpEncode UserContactData {direct, owners, relays, userData} =
-    B.concat [smpEncode direct, smpEncodeList owners, smpEncodeList relays, smpEncode userData]
+  smpEncode UserContactData {direct, owners, relays, userData, ratchetKeys} =
+    smpEncode (direct, EncList owners, EncList relays, userData, ratchetKeys)
   smpP = do
-    direct <- smpP
-    owners <- smpListP
-    relays <- smpListP
-    userData <- smpP <* A.takeByteString -- ignoring tail for forward compatibility with the future link data encoding
-    pure UserContactData {direct, owners, relays, userData}
+    (direct, EncList owners, EncList relays, userData) <- smpP
+    ratchetKeys <- smpP <|> pure Nothing
+    _ <- A.takeByteString -- ignoring tail for forward compatibility with the future link data encoding
+    pure UserContactData {direct, owners, relays, userData, ratchetKeys}
 
 instance Encoding UserLinkData where
   smpEncode (UserLinkData s) = if B.length s <= 254 then smpEncode s else smpEncode ('\255', Large s)
@@ -2071,8 +2211,8 @@ data ConnectionErrorType
     NOT_FOUND
   | -- | connection already exists
     DUPLICATE
-  | -- | connection is one-way, but operation requires another queue
-    ONE_WAY
+  | -- | connection is unidirectional, but operation requires another queue
+    POPOPX
   | -- | connection not accepted on join HELLO after timeout
     NOT_ACCEPTED
   | -- | connection not available on reply confirmation/HELLO after timeout
@@ -2082,7 +2222,7 @@ data ConnectionErrorType
 -- | Errors of another SMP agent.
 data SMPAgentError
   = -- | client or agent message that failed to parse
-    A_MESSAGE
+    A_MESSAGE {messageErr :: String}
   | -- | prohibited SMP/agent message
     A_PROHIBITED {prohibitedErr :: String}
   | -- | incompatible version of SMP client, agent or encryption protocols
@@ -2097,7 +2237,16 @@ data SMPAgentError
     A_DUPLICATE {droppedMsg_ :: Maybe DroppedMsg}
   | -- | error in the message to add/delete/etc queue in connection
     A_QUEUE {queueErr :: String}
+  | A_SERVICE {serviceError :: AgentServiceError}
   deriving (Eq, Show, Exception)
+
+data AgentServiceError
+  = ASERejected {rejectReason :: Text}
+  | ASETimeout
+  | ASENoPendingRequest
+  | ASENotDRAddress
+  | ASEBadSignature
+  deriving (Eq, Show)
 
 data AgentCryptoError
   = -- | AES decryption error
@@ -2122,6 +2271,19 @@ cryptoErrToSyncState = \case
   RATCHET_EARLIER _ -> RSAllowed
   RATCHET_SKIPPED _ -> RSRequired
   RATCHET_SYNC -> RSRequired
+
+$(J.deriveJSON defaultJSON ''DRInvitation)
+
+-- JRConnReq is identical to JOIN before DR support for old/new client compatibility
+instance StrEncoding JoinRequest where
+  strEncode = \case
+    JRConnReq ntfs cReq pqSup -> strEncode (ntfs, cReq, pqSup)
+    JRServiceReq cReq pqSup signKey -> strEncode ('S', cReq, pqSup, signKey)
+    JRInvitationDR dr -> serializeBinary $ LB.toStrict (J'.encode dr)
+  strP =
+    (A.char 'S' *> (JRServiceReq <$> _strP <*> _strP <*> _strP))
+      <|> (JRConnReq <$> strP <*> _strP <*> (_strP <|> pure PQSupportOff))
+      <|> (JRInvitationDR <$> (J'.eitherDecodeStrict' <$?> (A.take =<< (A.decimal <* "\n"))))
 
 -- | SMP agent command and response parser for commands stored in db (fully parses binary bodies)
 dbCommandP :: Parser ACommand
@@ -2153,10 +2315,11 @@ commandP :: Parser ByteString -> Parser ACommand
 commandP binaryP =
   strP
     >>= \case
-      NEW_ -> s (NEW <$> strP_ <*> strP_ <*> pqIKP <*> (strP <|> pure SMP.SMSubscribe))
+      -- useDR is a trailing field defaulting to False, so NEW persisted before it was added still parses
+      NEW_ -> s (NEW <$> strP_ <*> strP_ <*> pqIKP <*> (strP <|> pure SMP.SMSubscribe) <*> (_strP <|> pure False))
       LSET_ -> s (LSET <$> strP <*> optional (A.space *> strP))
       LGET_ -> s (LGET <$> strP)
-      JOIN_ -> s (JOIN <$> strP_ <*> strP_ <*> pqSupP <*> (strP_ <|> pure SMP.SMSubscribe) <*> binaryP)
+      JOIN_ -> s (JOIN <$> strP_ <*> (strP_ <|> pure SMP.SMSubscribe) <*> binaryP)
       LET_ -> s (LET <$> A.takeTill (== ' ') <* A.space <*> binaryP)
       ACK_ -> s (ACK <$> A.decimal <*> optional (A.space *> binaryP))
       SWCH_ -> pure SWCH
@@ -2166,16 +2329,14 @@ commandP binaryP =
     s p = A.space *> p
     pqIKP :: Parser InitialKeys
     pqIKP = strP_ <|> pure (IKLinkPQ PQSupportOff)
-    pqSupP :: Parser PQSupport
-    pqSupP = strP_ <|> pure PQSupportOff
 
 -- | Serialize SMP agent command.
 serializeCommand :: ACommand -> ByteString
 serializeCommand = \case
-  NEW ntfs cMode pqIK subMode -> s (NEW_, ntfs, cMode, pqIK, subMode)
+  NEW ntfs cMode pqIK subMode useDR -> s (NEW_, ntfs, cMode, pqIK, subMode, useDR)
   LSET uld cd_ -> s (LSET_, uld) <> maybe "" (B.cons ' ' . s) cd_
   LGET sl -> s (LGET_, sl)
-  JOIN ntfs cReq pqSup subMode cInfo -> s (JOIN_, ntfs, cReq, pqSup, subMode, Str $ serializeBinary cInfo)
+  JOIN joinReq subMode cInfo -> s (JOIN_, joinReq, subMode, Str $ serializeBinary cInfo)
   LET confId cInfo -> B.unwords [s LET_, confId, serializeBinary cInfo]
   ACK mId rcptInfo_ -> s (ACK_, mId) <> maybe "" (B.cons ' ' . serializeBinary) rcptInfo_
   SWCH -> s SWCH_
@@ -2206,6 +2367,8 @@ $(J.deriveJSON (sumTypeJSON id) ''CommandErrorType)
 $(J.deriveJSON (sumTypeJSON id) ''ConnectionErrorType)
 
 $(J.deriveJSON (sumTypeJSON id) ''AgentCryptoError)
+
+$(J.deriveJSON (sumTypeJSON $ dropPrefix "ASE") ''AgentServiceError)
 
 $(J.deriveJSON defaultJSON ''DroppedMsg)
 

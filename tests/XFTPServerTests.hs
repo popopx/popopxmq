@@ -22,13 +22,15 @@ import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as LB
 import qualified Data.CaseInsensitive as CI
 import Data.List (find, isInfixOf)
+import Data.List.NonEmpty (NonEmpty)
 import Data.Time.Clock (getCurrentTime)
 import qualified Data.X509 as X
 import Data.X509.Validation (Fingerprint (..), getFingerprint)
 import Network.HPACK.Token (tokenKey)
 import qualified Network.HTTP2.Client as H2
 import ServerTests (logSize)
-import Popopx.FileTransfer.Client
+import Popopx.FileTransfer.Client hiding (createXFTPChunk)
+import qualified Popopx.FileTransfer.Client as A
 import Popopx.FileTransfer.Description (kb)
 import Popopx.FileTransfer.Protocol (FileInfo (..), XFTPFileId, xftpBlockSize)
 import Popopx.FileTransfer.Server.Env (AFStoreType, XFTPServerConfig (..))
@@ -37,7 +39,7 @@ import Popopx.Messaging.Client (ProtocolClientError (..))
 import qualified Popopx.Messaging.Crypto as C
 import qualified Popopx.Messaging.Crypto.Lazy as LC
 import Popopx.Messaging.Encoding (smpDecode, smpEncode)
-import Popopx.Messaging.Protocol (BasicAuth, EntityId (..), pattern NoEntity)
+import Popopx.Messaging.Protocol (BasicAuth, EntityId (..), RecipientId, SenderId, pattern NoEntity)
 import Popopx.Messaging.Server.Expiration (ExpirationConfig (..))
 import Popopx.Messaging.Transport (CertChainPubKey (..), TLS (..), TransportPeer (..), defaultSupportedParams, defaultSupportedParamsHTTPS)
 import Popopx.Messaging.Transport.Client (TransportClientConfig (..), TransportHost (..), defaultTransportClientConfig, runTLSTransportClient)
@@ -61,8 +63,6 @@ xftpServerTests =
       it "should create, add recipients, upload and receive file chunk" testFileChunkDeliveryAddRecipients
       it "should delete file chunk (1 client)" testFileChunkDelete
       it "should delete file chunk (2 clients)" testFileChunkDelete2
-      it "should acknowledge file chunk reception (1 client)" testFileChunkAck
-      it "should acknowledge file chunk reception (2 clients)" testFileChunkAck2
       it "should not allow chunks of wrong size" testWrongChunkSize
       it "should expire chunks after set interval" testFileChunkExpiration
       it "should disconnect inactive clients" testInactiveClientExpiration
@@ -99,6 +99,9 @@ createTestChunk fp = do
   bytes <- atomically $ C.randomBytes chSize g
   B.writeFile fp bytes
   pure bytes
+
+createXFTPChunk :: XFTPClient -> C.APrivateAuthKey -> FileInfo -> NonEmpty C.APublicAuthKey -> Maybe BasicAuth -> ExceptT XFTPClientError IO (SenderId, NonEmpty RecipientId)
+createXFTPChunk c spKey file rcps auth = (\(sId, rIds, _) -> (sId, rIds)) <$> A.createXFTPChunk c spKey file rcps auth Nothing
 
 readChunk :: XFTPFileId -> IO ByteString
 readChunk sId = B.readFile (xftpServerFiles </> B.unpack (B64.encode $ unEntityId sId))
@@ -179,33 +182,6 @@ runTestFileChunkDelete s r = do
   deleteXFTPChunk s spKey sId
     `catchError` (liftIO . (`shouldBe` PCEProtocolError AUTH))
 
-testFileChunkAck :: AFStoreType -> Expectation
-testFileChunkAck = xftpTest $ \c -> runRight_ $ runTestFileChunkAck c c
-
-testFileChunkAck2 :: AFStoreType -> Expectation
-testFileChunkAck2 = xftpTest2 $ \s r -> runRight_ $ runTestFileChunkAck s r
-
-runTestFileChunkAck :: XFTPClient -> XFTPClient -> ExceptT XFTPClientError IO ()
-runTestFileChunkAck s r = do
-  g <- liftIO C.newRandom
-  (sndKey, spKey) <- atomically $ C.generateAuthKeyPair C.SEd25519 g
-  (rcvKey, rpKey) <- atomically $ C.generateAuthKeyPair C.SEd25519 g
-  bytes <- liftIO $ createTestChunk testChunkPath
-  digest <- liftIO $ LC.sha256Hash <$> LB.readFile testChunkPath
-  let file = FileInfo {sndKey, size = chSize, digest}
-      chunkSpec = XFTPChunkSpec {filePath = testChunkPath, chunkOffset = 0, chunkSize = chSize}
-  (sId, [rId]) <- createXFTPChunk s spKey file [rcvKey] Nothing
-  uploadXFTPChunk s spKey sId chunkSpec
-
-  downloadXFTPChunk g r rpKey rId $ XFTPRcvChunkSpec "tests/tmp/received_chunk1" chSize digest
-  liftIO $ B.readFile "tests/tmp/received_chunk1" `shouldReturn` bytes
-  ackXFTPChunk r rpKey rId
-  liftIO $ readChunk sId `shouldReturn` bytes
-  downloadXFTPChunk g r rpKey rId (XFTPRcvChunkSpec "tests/tmp/received_chunk2" chSize digest)
-    `catchError` (liftIO . (`shouldBe` PCEProtocolError AUTH))
-  ackXFTPChunk r rpKey rId
-    `catchError` (liftIO . (`shouldBe` PCEProtocolError AUTH))
-
 testWrongChunkSize :: AFStoreType -> Expectation
 testWrongChunkSize = xftpTest $ \c -> do
   g <- C.newRandom
@@ -240,13 +216,13 @@ testFileChunkExpiration fsType = withXFTPServerConfigOn (updateXFTPCfg (cfgFS fs
     deleteXFTPChunk c spKey sId
       `catchError` (liftIO . (`shouldBe` PCEProtocolError AUTH))
   where
-    fileExpiration = Just ExpirationConfig {ttl = 1, checkInterval = 1}
+    fileExpiration = ExpirationConfig {ttl = 1, checkInterval = 1}
 
 testInactiveClientExpiration :: AFStoreType -> Expectation
 testInactiveClientExpiration fsType = withXFTPServerConfigOn (updateXFTPCfg (cfgFS fsType) $ \c -> c {inactiveClientExpiration}) $ \_ -> runRight_ $ do
   disconnected <- newEmptyTMVarIO
   ts <- liftIO getCurrentTime
-  c <- ExceptT $ getXFTPClient (1, testXFTPServer, Nothing) testXFTPClientConfig [] ts (\_ -> atomically $ putTMVar disconnected ())
+  c <- ExceptT $ getXFTPClient (1, testXFTPServer, Nothing) testXFTPClientConfig [] ts (\_ -> pure Nothing) (\_ -> atomically $ putTMVar disconnected ())
   pingXFTP c
   liftIO $ do
     threadDelay 100000
@@ -332,31 +308,11 @@ testFileLog _ = do
   threadDelay 100000
 
   withXFTPServerStoreLogOn $ \_ -> testXFTPClient $ \c -> runRight_ $ do
-    rId1 <- liftIO $ readTVarIO rIdVar1
-    rId2 <- liftIO $ readTVarIO rIdVar2
-    -- recipient 1 can download, acknowledges - +1 to log
-    download g c rpKey1 rId1 digest bytes
-    ackXFTPChunk c rpKey1 rId1
-    -- recipient 2 can download
-    download g c rpKey2 rId2 digest bytes
-  logSize testXFTPLogFile `shouldReturn` 4
-  logSize testXFTPStatsBackupFile `shouldReturn` 15
-
-  threadDelay 100000
-
-  withXFTPServerStoreLogOn $ \_ -> pure () -- ack is compacted - -1 from log
-  logSize testXFTPLogFile `shouldReturn` 3
-
-  threadDelay 100000
-
-  withXFTPServerStoreLogOn $ \_ -> testXFTPClient $ \c -> runRight_ $ do
     sId <- liftIO $ readTVarIO sIdVar
     rId1 <- liftIO $ readTVarIO rIdVar1
     rId2 <- liftIO $ readTVarIO rIdVar2
-    -- recipient 1 can't download due to previous acknowledgement
+    -- recipients can download
     download g c rpKey1 rId1 digest bytes
-      `catchError` (liftIO . (`shouldBe` PCEProtocolError AUTH))
-    -- recipient 2 can download
     download g c rpKey2 rId2 digest bytes
     -- sender can delete - +1 to log
     deleteXFTPChunk c spKey sId
@@ -538,7 +494,7 @@ testWebHandshake =
       -- Verify signedPubKey (DH key auth)
       void $ either error pure $ C.verifyX509 leafPubKey signedPubKey
       -- Send client handshake with echoed challenge
-      let clientHs = XFTPClientHandshake {xftpVersion = VersionXFTP 1, keyHash}
+      let clientHs = XFTPClientHandshake {xftpVersion = VersionXFTP 1, keyHash, entitlementProof = Nothing}
       clientHsPadded <- either (error . show) pure $ C.pad (smpEncode clientHs) xftpBlockSize
       let clientHsReq = H2.requestBuilder "POST" "/" [] $ byteString clientHsPadded
       resp2 <- either (error . show) pure =<< HC.sendRequest h2 clientHsReq (Just 5000000)
@@ -564,7 +520,7 @@ testWebReHandshake =
       resp1 <- either (error . show) pure =<< HC.sendRequest h2 helloReq1 (Just 5000000)
       serverHs1 <- either (error . show) pure $ C.unPad (bodyHead (HC.respBody resp1))
       XFTPServerHandshake {sessionId = sid1} <- either error pure $ smpDecode serverHs1
-      clientHsPadded <- either (error . show) pure $ C.pad (smpEncode (XFTPClientHandshake {xftpVersion = VersionXFTP 1, keyHash})) xftpBlockSize
+      clientHsPadded <- either (error . show) pure $ C.pad (smpEncode (XFTPClientHandshake {xftpVersion = VersionXFTP 1, keyHash, entitlementProof = Nothing})) xftpBlockSize
       resp1b <- either (error . show) pure =<< HC.sendRequest h2 (H2.requestBuilder "POST" "/" [] $ byteString clientHsPadded) (Just 5000000)
       B.length (bodyHead (HC.respBody resp1b)) `shouldBe` 0
       -- Re-handshake on same connection with xftp-web-hello header

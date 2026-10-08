@@ -19,6 +19,10 @@ import Popopx.FileTransfer.Server (runXFTPServerBlocking)
 import Popopx.FileTransfer.Server.Env (XFTPServerConfig (..), XFTPStoreConfig (..), AFStoreType (..), defaultFileExpiration, defaultInactiveClientExpiration)
 import Popopx.FileTransfer.Server.Store (FileStoreClass, SFSType (..), STMFileStore)
 import Popopx.FileTransfer.Transport (alpnSupportedXFTPhandshakes, supportedFileServerVRange)
+import Popopx.FileTransfer.Types (SndFileId)
+import qualified Popopx.Messaging.Agent as A
+import Popopx.Messaging.Agent.Protocol (UserId)
+import Popopx.Messaging.Crypto.File (CryptoFile)
 import Popopx.Messaging.Protocol (XFTPServer)
 import Popopx.Messaging.Transport.HTTP2 (httpALPN)
 import Popopx.Messaging.Transport.Server
@@ -31,6 +35,9 @@ import Popopx.FileTransfer.Server.Store.Postgres.Config (PostgresFileStoreCfg (.
 import Popopx.Messaging.Agent.Store.Postgres.Options (DBOpts (..))
 import Popopx.Messaging.Agent.Store.Shared (MigrationConfirmation (..))
 #endif
+
+xftpSendFile :: A.AgentClient -> UserId -> CryptoFile -> Int -> A.AE SndFileId
+xftpSendFile c userId file n = A.xftpSendFile c userId file n Nothing
 
 data AXFTPServerConfig = forall s. FileStoreClass s => AXFTPSrvCfg (XFTPServerConfig s)
 
@@ -181,7 +188,9 @@ testXFTPServerConfig =
       newFileBasicAuth = Nothing,
       controlPortAdminAuth = Nothing,
       controlPortUserAuth = Nothing,
-      fileExpiration = Just defaultFileExpiration,
+      fileExpiration = defaultFileExpiration,
+      fileStorageEntitlements = mempty,
+      entitlementKeys = mempty,
       fileTimeout = 10000000,
       inactiveClientExpiration = Just defaultInactiveClientExpiration,
       xftpCredentials =
@@ -192,6 +201,7 @@ testXFTPServerConfig =
           },
       httpCredentials = Nothing,
       xftpServerVRange = supportedFileServerVRange,
+      information = Nothing,
       logStatsInterval = Nothing,
       logStatsStartTime = 0,
       serverStatsLogFile = "tests/tmp/xftp-server-stats.daily.log",
@@ -215,7 +225,7 @@ testXFTPClient = testXFTPClientWith testXFTPClientConfig
 testXFTPClientWith :: HasCallStack => XFTPClientConfig -> (HasCallStack => XFTPClient -> IO a) -> IO a
 testXFTPClientWith cfg client = do
   ts <- getCurrentTime
-  getXFTPClient (1, testXFTPServer, Nothing) cfg [] ts (\_ -> pure ()) >>= \case
+  getXFTPClient (1, testXFTPServer, Nothing) cfg [] ts (\_ -> pure Nothing) (\_ -> pure ()) >>= \case
     Right c -> client c
     Left e -> error $ show e
 

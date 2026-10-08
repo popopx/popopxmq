@@ -67,6 +67,8 @@ import Popopx.Messaging.Agent.Store.Interface (DBOpts)
 import Popopx.Messaging.Agent.Store.Shared (MigrationConfig (..), MigrationError (..))
 import Popopx.Messaging.Client
 import qualified Popopx.Messaging.Crypto as C
+import Popopx.Messaging.Crypto.BBS (BBSPublicKey)
+import Popopx.Messaging.Crypto.Entitlement (EntitlementCredential, entitlementIssuerKeys)
 import Popopx.Messaging.Crypto.Ratchet (VersionRangeE2E, supportedE2EEncryptVRange)
 import Popopx.Messaging.Notifications.Client (defaultNTFClientConfig)
 import Popopx.Messaging.Notifications.Transport (NTFVersion)
@@ -89,6 +91,7 @@ data InitialAgentServers = InitialAgentServers
   { smp :: Map UserId (NonEmpty (ServerCfg 'PSMP)),
     ntf :: [NtfServer],
     xftp :: Map UserId (NonEmpty (ServerCfg 'PXFTP)),
+    entitlements :: Map UserId EntitlementCredential,
     netCfg :: NetworkConfig,
     useServices :: Map UserId Bool,
     presetDomains :: [HostName],
@@ -148,14 +151,18 @@ data AgentConfig = AgentConfig
     smpCfg :: ProtocolClientConfig SMPVersion,
     ntfCfg :: ProtocolClientConfig NTFVersion,
     xftpCfg :: XFTPClientConfig,
+    entitlementKeys :: Map Word16 BBSPublicKey,
     reconnectInterval :: RetryInterval,
     messageRetryInterval :: RetryInterval2,
     userNetworkInterval :: Int,
     userOfflineDelay :: NominalDiffTime,
     messageTimeout :: NominalDiffTime,
+    serviceRequestTimeout :: NominalDiffTime, -- client side: default time the client waits for a service response (overridable per request)
+    serviceResponseTimeout :: NominalDiffTime, -- service side: time a received service request is valid to respond to
     connDeleteDeliveryTimeout :: NominalDiffTime,
     helloTimeout :: NominalDiffTime,
     quotaExceededTimeout :: NominalDiffTime,
+    commandQuotaRetryInterval :: RetryInterval,
     persistErrorInterval :: NominalDiffTime,
     initialCleanupDelay :: Int64,
     cleanupInterval :: Int64,
@@ -170,6 +177,7 @@ data AgentConfig = AgentConfig
     xftpConsecutiveRetries :: Int,
     xftpMaxRecipientsPerRequest :: Int,
     deleteErrorCount :: Int,
+    keepAddressKeys :: Int,
     ntfCron :: Word16,
     ntfBatchSize :: Int,
     ntfSubFirstCheckInterval :: NominalDiffTime,
@@ -223,14 +231,18 @@ defaultAgentConfig =
       smpCfg = defaultSMPClientConfig,
       ntfCfg = defaultNTFClientConfig,
       xftpCfg = defaultXFTPClientConfig,
+      entitlementKeys = entitlementIssuerKeys,
       reconnectInterval = defaultReconnectInterval,
       messageRetryInterval = defaultMessageRetryInterval,
       userNetworkInterval = 1800_000000, -- 30 minutes, should be less than Int32 max value
       userOfflineDelay = 2, -- if network offline event happens in less than 2 seconds after it was set online, it is ignored
       messageTimeout = 2 * nominalDay,
+      serviceRequestTimeout = 30,
+      serviceResponseTimeout = 180,
       connDeleteDeliveryTimeout = 2 * nominalDay,
       helloTimeout = 2 * nominalDay,
       quotaExceededTimeout = 7 * nominalDay,
+      commandQuotaRetryInterval = RetryInterval {initialInterval = 30_000000, increaseAfter = 0, maxInterval = 3600_000000},
       persistErrorInterval = 3, -- seconds
       initialCleanupDelay = 30 * 1000000, -- 30 seconds
       cleanupInterval = 5 * 60 * 1000000, -- 5 minutes
@@ -245,6 +257,7 @@ defaultAgentConfig =
       xftpConsecutiveRetries = 3,
       xftpMaxRecipientsPerRequest = 200,
       deleteErrorCount = 10,
+      keepAddressKeys = 3,
       ntfCron = 20, -- minutes
       ntfBatchSize = 150,
       ntfSubFirstCheckInterval = nominalDay,

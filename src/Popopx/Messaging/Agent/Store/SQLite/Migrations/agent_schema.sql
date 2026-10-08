@@ -1,9 +1,3 @@
--- Original Work Copyright (C) 2020-2022 simplex.chat
---
--- --- MODIFICATION NOTICE (AGPL v3 Section 5.a) ---
--- This file was modified by POPOPX Team in 2026.
--- Changes: Renamed SQL functions from simplex_* to popopx_* prefix.
-
 CREATE TABLE migrations(
   name TEXT NOT NULL PRIMARY KEY,
   ts TEXT NOT NULL,
@@ -33,7 +27,9 @@ CREATE TABLE connections(
   REFERENCES users ON DELETE CASCADE,
   ratchet_sync_state TEXT NOT NULL DEFAULT 'ok',
   deleted_at_wait_delivery TEXT,
-  pq_support INTEGER NOT NULL DEFAULT 0
+  pq_support INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT('1970-01-01 00:00:00'),
+  service_request_expires_at TEXT
 ) WITHOUT ROWID, STRICT;
 CREATE TABLE rcv_queues(
   host TEXT NOT NULL,
@@ -170,6 +166,8 @@ CREATE TABLE conn_invitations(
   accepted INTEGER NOT NULL DEFAULT 0,
   own_conn_info BLOB,
   created_at TEXT NOT NULL DEFAULT(datetime('now'))
+  ,
+  service_request INTEGER NOT NULL DEFAULT 0
 ) WITHOUT ROWID, STRICT;
 CREATE TABLE ratchets(
   conn_id BLOB NOT NULL PRIMARY KEY REFERENCES connections
@@ -184,7 +182,9 @@ CREATE TABLE ratchets(
   x3dh_pub_key_1 BLOB,
   x3dh_pub_key_2 BLOB,
   pq_priv_kem BLOB,
-  pq_pub_kem BLOB
+  pq_pub_kem BLOB,
+  rc_verify_code_ad BLOB,
+  rc_verify_code_pq BLOB
 ) WITHOUT ROWID, STRICT;
 CREATE TABLE skipped_messages(
   skipped_message_id INTEGER PRIMARY KEY,
@@ -247,7 +247,7 @@ CREATE TABLE ntf_subscriptions(
   ON DELETE RESTRICT ON UPDATE CASCADE
 ) WITHOUT ROWID, STRICT;
 CREATE TABLE commands(
-  command_id INTEGER PRIMARY KEY,
+  command_id INTEGER PRIMARY KEY AUTOINCREMENT,
   conn_id BLOB NOT NULL REFERENCES connections ON DELETE CASCADE,
   host TEXT,
   port TEXT,
@@ -261,6 +261,7 @@ CREATE TABLE commands(
   FOREIGN KEY(host, port) REFERENCES servers
   ON DELETE RESTRICT ON UPDATE CASCADE
 ) STRICT;
+CREATE TABLE sqlite_sequence(name,seq);
 CREATE TABLE snd_message_deliveries(
   snd_message_delivery_id INTEGER PRIMARY KEY AUTOINCREMENT,
   conn_id BLOB NOT NULL REFERENCES connections ON DELETE CASCADE,
@@ -269,7 +270,6 @@ CREATE TABLE snd_message_deliveries(
   failed INTEGER DEFAULT 0,
   FOREIGN KEY(conn_id, internal_id) REFERENCES messages ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
 ) STRICT;
-CREATE TABLE sqlite_sequence(name,seq);
 CREATE TABLE users(
   user_id INTEGER PRIMARY KEY AUTOINCREMENT
   ,
@@ -354,7 +354,8 @@ CREATE TABLE snd_files(
   src_file_nonce BLOB,
   failed INTEGER DEFAULT 0,
   redirect_size INTEGER,
-  redirect_digest BLOB
+  redirect_digest BLOB,
+  storage_time INTEGER
 ) STRICT;
 CREATE TABLE snd_file_chunks(
   snd_file_chunk_id INTEGER PRIMARY KEY,
@@ -378,6 +379,8 @@ CREATE TABLE snd_file_chunk_replicas(
   retries INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT(datetime('now')),
   updated_at TEXT NOT NULL DEFAULT(datetime('now'))
+  ,
+  replica_expires_at INTEGER
 ) STRICT;
 CREATE TABLE snd_file_chunk_replica_recipients(
   snd_file_chunk_replica_recipient_id INTEGER PRIMARY KEY,
@@ -471,6 +474,15 @@ CREATE TABLE client_services(
   service_queue_ids_hash BLOB NOT NULL DEFAULT x'00000000000000000000000000000000',
   FOREIGN KEY(host, port) REFERENCES servers ON UPDATE CASCADE ON DELETE RESTRICT
 ) STRICT;
+CREATE TABLE address_ratchet_keys(
+  address_ratchet_key_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  conn_id BLOB NOT NULL REFERENCES connections ON DELETE CASCADE,
+  ratchet_key_id BLOB NOT NULL,
+  x3dh_priv_key_1 BLOB NOT NULL,
+  x3dh_priv_key_2 BLOB NOT NULL,
+  pq_priv_kem BLOB,
+  created_at TEXT NOT NULL DEFAULT(datetime('now'))
+) STRICT;
 CREATE UNIQUE INDEX idx_rcv_queues_ntf ON rcv_queues(host, port, ntf_id);
 CREATE UNIQUE INDEX idx_rcv_queue_id ON rcv_queues(conn_id, rcv_queue_id);
 CREATE UNIQUE INDEX idx_snd_queue_id ON snd_queues(conn_id, snd_queue_id);
@@ -561,10 +573,6 @@ CREATE INDEX idx_encrypted_rcv_message_hashes_hash ON encrypted_rcv_message_hash
   conn_id,
   hash
 );
-CREATE INDEX idx_processed_ratchet_key_hashes_hash ON processed_ratchet_key_hashes(
-  conn_id,
-  hash
-);
 CREATE INDEX idx_snd_messages_rcpt_internal_id ON snd_messages(
   conn_id,
   rcpt_internal_id
@@ -621,6 +629,22 @@ CREATE UNIQUE INDEX idx_server_certs_user_id_host_port ON client_services(
   server_key_hash
 );
 CREATE INDEX idx_server_certs_host_port ON client_services(host, port);
+CREATE UNIQUE INDEX idx_address_ratchet_keys ON address_ratchet_keys(
+  conn_id,
+  ratchet_key_id
+);
+CREATE INDEX idx_connections_deleted ON connections(deleted);
+CREATE INDEX idx_connections_service_request_expires_at ON connections(
+  service_request_expires_at
+);
+CREATE UNIQUE INDEX idx_processed_ratchet_key_hashes_hash ON processed_ratchet_key_hashes(
+  conn_id,
+  hash
+);
+CREATE INDEX idx_processed_ratchet_key_hashes_conn_id ON processed_ratchet_key_hashes(
+  conn_id,
+  processed_ratchet_key_hash_id
+);
 CREATE TRIGGER tr_rcv_queue_insert
 AFTER INSERT ON rcv_queues
 FOR EACH ROW

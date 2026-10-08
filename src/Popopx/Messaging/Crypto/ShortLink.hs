@@ -46,21 +46,21 @@ userDataPaddedLength = 13784 -- 13824 - 24 - 16
 
 contactShortLinkKdf :: LinkKey -> (LinkId, C.SbKey)
 contactShortLinkKdf (LinkKey k) =
-  let (lnkId, sbKey) = B.splitAt 24 $ C.hkdf "" k "POPOPXContactLink" 56
+  let (lnkId, sbKey) = B.splitAt 24 $ C.hkdf "" k "SimpleXContactLink" 56
    in (EntityId lnkId, C.unsafeSbKey sbKey)
 
 invShortLinkKdf :: LinkKey -> C.SbKey
-invShortLinkKdf (LinkKey k) = C.unsafeSbKey $ C.hkdf "" k "POPOPXInvLink" 32
+invShortLinkKdf (LinkKey k) = C.unsafeSbKey $ C.hkdf "" k "SimpleXInvLink" 32
 
 encodeSignLinkData :: forall c. ConnectionModeI c => C.KeyPairEd25519 -> VersionRangeSMPA -> ConnectionRequestUri c -> Maybe ByteString -> UserConnLinkData c -> (LinkKey, (ByteString, ByteString))
-encodeSignLinkData keys@(_, pk) agentVRange linkConnReq linkEntityId userData =
-  let (linkKey, fd) = encodeSignFixedData keys agentVRange linkConnReq linkEntityId
+encodeSignLinkData keys@(_, pk) agentVRange connReq linkEntityId userData =
+  let (linkKey, fd) = encodeSignFixedData keys agentVRange connReq linkEntityId
       md = encodeSignUserData (sConnectionMode @c) pk agentVRange userData
    in (linkKey, (fd, md))
 
 encodeSignFixedData :: ConnectionModeI c => C.KeyPairEd25519 -> VersionRangeSMPA -> ConnectionRequestUri c -> Maybe ByteString -> (LinkKey, ByteString)
-encodeSignFixedData (rootKey, pk) agentVRange linkConnReq linkEntityId =
-  let fd = smpEncode FixedLinkData {agentVRange, rootKey, linkConnReq, linkEntityId}
+encodeSignFixedData (rootKey, pk) agentVRange connReq linkEntityId =
+  let fd = smpEncode FixedLinkData {agentVRange, rootKey, linkConnReq = binaryConnReq connReq, linkEntityId}
    in (LinkKey (C.sha3_256 fd), encodeSign pk fd)
 
 encodeSignUserData :: ConnectionModeI c => SConnectionMode c -> C.PrivateKeyEd25519 -> VersionRangeSMPA -> UserConnLinkData c -> ByteString
@@ -120,6 +120,6 @@ decryptLinkData linkKey k (encFD, encMD) = do
       pure (sig, s)
     decode :: Encoding a => ByteString -> Either AgentErrorType a
     decode = msgErr . smpDecode
-    msgErr = first (const $ AGENT A_MESSAGE)
+    msgErr = first (const $ AGENT $ A_MESSAGE "parse link data")
     linkErr :: String -> Either AgentErrorType ()
     linkErr = Left . AGENT . A_LINK

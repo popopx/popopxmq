@@ -13,6 +13,10 @@ import Popopx.Messaging.Agent.Store.Postgres.Migrations.M20251010_client_notices
 import Popopx.Messaging.Agent.Store.Postgres.Migrations.M20251230_strict_tables
 import Popopx.Messaging.Agent.Store.Postgres.Migrations.M20260410_receive_attempts
 import Popopx.Messaging.Agent.Store.Postgres.Migrations.M20260411_service_certs
+import Popopx.Messaging.Agent.Store.Postgres.Migrations.M20260712_address_dr_rpc
+import Popopx.Messaging.Agent.Store.Postgres.Migrations.M20260823_snd_files_entitlement
+import Popopx.Messaging.Agent.Store.Postgres.Migrations.M20260919_ratchet_verify_codes
+import Popopx.Messaging.Agent.Store.Postgres.Migrations.M20260929_ratchet_indexes
 import Popopx.Messaging.Agent.Store.Shared (Migration (..))
 
 schemaMigrations :: [(String, Text, Maybe Text)]
@@ -25,7 +29,11 @@ schemaMigrations =
     ("20251010_client_notices", m20251010_client_notices, Just down_m20251010_client_notices),
     ("20251230_strict_tables", m20251230_strict_tables, Just down_m20251230_strict_tables),
     ("20260410_receive_attempts", m20260410_receive_attempts, Just down_m20260410_receive_attempts),
-    ("20260411_service_certs", m20260411_service_certs, Just down_m20260411_service_certs)
+    ("20260411_service_certs", m20260411_service_certs, Just down_m20260411_service_certs),
+    ("20260712_address_dr_rpc", m20260712_address_dr_rpc, Just down_m20260712_address_dr_rpc),
+    ("20260823_snd_files_entitlement", m20260823_snd_files_entitlement, Just down_m20260823_snd_files_entitlement),
+    ("20260919_ratchet_verify_codes", m20260919_ratchet_verify_codes, Just down_m20260919_ratchet_verify_codes),
+    ("20260929_ratchet_indexes", m20260929_ratchet_indexes, Just down_m20260929_ratchet_indexes)
   ]
 
 -- | The list of migrations in ascending order by date

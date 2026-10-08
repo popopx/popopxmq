@@ -1,7 +1,7 @@
 cabal-version: 3.0
 
 name:           popopxmq
-version:        7.0.1.0
+version:        7.1.0.10
 synopsis:       POPOPXMQ message broker
 description:    This package includes <./docs/Popopx-Messaging-Server.html server>,
                 <./docs/Popopx-Messaging-Client.html client> and
@@ -135,6 +135,7 @@ library
       Popopx.Messaging.Crypto.Lazy
       Popopx.Messaging.Crypto.Ratchet
       Popopx.Messaging.Crypto.BBS
+      Popopx.Messaging.Crypto.Entitlement
       Popopx.Messaging.Crypto.SNTRUP761
       Popopx.Messaging.Crypto.SNTRUP761.Bindings
       Popopx.Messaging.Crypto.SNTRUP761.Bindings.Defines
@@ -152,6 +153,7 @@ library
       Popopx.Messaging.Protocol
       Popopx.Messaging.Protocol.Types
       Popopx.Messaging.Server.Expiration
+      Popopx.Messaging.Server.Information
       Popopx.Messaging.Server.QueueStore.Postgres.Config
       Popopx.Messaging.Server.QueueStore.QueueInfo
       Popopx.Messaging.ServiceScheme
@@ -190,6 +192,10 @@ library
           Popopx.Messaging.Agent.Store.Postgres.Migrations.M20251230_strict_tables
           Popopx.Messaging.Agent.Store.Postgres.Migrations.M20260410_receive_attempts
           Popopx.Messaging.Agent.Store.Postgres.Migrations.M20260411_service_certs
+          Popopx.Messaging.Agent.Store.Postgres.Migrations.M20260712_address_dr_rpc
+          Popopx.Messaging.Agent.Store.Postgres.Migrations.M20260823_snd_files_entitlement
+          Popopx.Messaging.Agent.Store.Postgres.Migrations.M20260919_ratchet_verify_codes
+          Popopx.Messaging.Agent.Store.Postgres.Migrations.M20260929_ratchet_indexes
   else
       exposed-modules:
           Popopx.Messaging.Agent.Store.SQLite
@@ -242,6 +248,11 @@ library
           Popopx.Messaging.Agent.Store.SQLite.Migrations.M20251230_strict_tables
           Popopx.Messaging.Agent.Store.SQLite.Migrations.M20260410_receive_attempts
           Popopx.Messaging.Agent.Store.SQLite.Migrations.M20260411_service_certs
+          Popopx.Messaging.Agent.Store.SQLite.Migrations.M20260712_address_dr_rpc
+          Popopx.Messaging.Agent.Store.SQLite.Migrations.M20260823_snd_files_entitlement
+          Popopx.Messaging.Agent.Store.SQLite.Migrations.M20260919_ratchet_verify_codes
+          Popopx.Messaging.Agent.Store.SQLite.Migrations.M20260929_ratchet_indexes
+          Popopx.Messaging.Agent.Store.SQLite.Migrations.M20261005_commands_autoincrement
           Popopx.Messaging.Agent.Store.SQLite.Util
   if flag(client_postgres) || flag(server_postgres)
       exposed-modules:
@@ -266,7 +277,6 @@ library
           Popopx.Messaging.Server.CLI
           Popopx.Messaging.Server.Control
           Popopx.Messaging.Server.Env.STM
-          Popopx.Messaging.Server.Information
           Popopx.Messaging.Server.Main
           Popopx.Messaging.Server.Main.GitCommit
           Popopx.Messaging.Server.Main.Init

@@ -6,30 +6,42 @@
 
 module CoreTests.CryptoTests (cryptoTests) where
 
+import Control.Concurrent (forkIO, newEmptyMVar, putMVar, takeMVar)
 import Control.Concurrent.STM
+import Control.Exception (bracket, evaluate)
 import Control.Monad.Except
 import qualified Data.Aeson as J
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as LB
 import Data.Either (isLeft, isRight)
 import Data.Int (Int64)
+import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
+import Data.Time.Calendar (fromGregorian)
+import Data.Time.Clock (UTCTime (..))
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LE
 import Data.Type.Equality
+import Data.Word (Word8)
 import qualified Data.X509 as X
 import qualified Data.X509.CertificateStore as XS
 import qualified Data.X509.Validation as XV
+import Foreign (FunPtr, allocaBytes, fillBytes, freeHaskellFunPtr, nullPtr)
+import Foreign.C.Types (CInt, CSize (..))
 import qualified SMPClient
 import qualified Popopx.Messaging.Crypto as C
 import qualified Popopx.Messaging.Crypto.Lazy as LC
 import Popopx.Messaging.Crypto.BBS
+import Popopx.Messaging.Crypto.Entitlement
 import Popopx.Messaging.Crypto.SNTRUP761.Bindings
 import Popopx.Messaging.Crypto.SNTRUP761.Bindings.Defines
+import Popopx.Messaging.Crypto.SNTRUP761.Bindings.FFI (c_sntrup761_keypair)
+import Popopx.Messaging.Crypto.SNTRUP761.Bindings.RNG (RNGFunc)
 import Popopx.Messaging.Encoding (Large (..), smpDecode, smpEncode)
 import Popopx.Messaging.Encoding.String (strDecode, strEncode)
 import Popopx.Messaging.Transport.Client
+import System.Timeout (timeout)
 import Test.Hspec hiding (fit, it)
 import Test.Hspec.QuickCheck (modifyMaxSuccess)
 import Test.QuickCheck hiding (Large)
@@ -108,6 +120,7 @@ cryptoTests = do
   describe "sntrup761" $ do
     it "should enc/dec key" testSNTRUP761
     it "should reject malformed KEM encodings" testSNTRUP761RejectsMalformedEncodings
+    it "should fail key generation with degenerate RNG" testSNTRUP761KeypairDegenerateRNG
   describe "BBS+" $ do
     it "should sign and verify" testBBSSignVerify
     it "should derive public key from secret key" testBBSPublicKeyDerivation
@@ -119,6 +132,9 @@ cryptoTests = do
     it "should produce unlinkable proofs" testBBSUnlinkable
     it "should produce proof of expected size" testBBSProofSize
     it "should roundtrip JSON and reject wrong-length input" testBBSJSON
+  describe "Entitlement" $ do
+    it "should sign, prove and verify, bound to the presentation header" testEntitlementRoundtrip
+    it "should decode all issuer keys" testEntitlementIssuerKeys
 
 instance Eq C.APublicKey where
   C.APublicKey a k == C.APublicKey a' k' = case testEquality a a' of
@@ -290,6 +306,26 @@ testSNTRUP761 = do
   KEMSharedKey k' <- sntrup761Dec c sk
   k' `shouldBe` k
 
+foreign import ccall "wrapper"
+  mkRNGFunc :: RNGFunc -> IO (FunPtr RNGFunc)
+
+testSNTRUP761KeypairDegenerateRNG :: IO ()
+testSNTRUP761KeypairDegenerateRNG = do
+  -- constant byte 0 draws invertible g = -(1 + x + ... + x^760), byte 0x20 draws g = 0
+  keypairWithConstantRNG 0 `shouldReturn` Just 0
+  keypairWithConstantRNG 0x20 `shouldReturn` Just (-1)
+  where
+    keypairWithConstantRNG :: Word8 -> IO (Maybe CInt)
+    keypairWithConstantRNG b = do
+      result <- newEmptyMVar
+      -- timeout cannot interrupt a foreign call, so the call runs in another thread
+      _ <- forkIO $
+        bracket (mkRNGFunc $ \_ sz buf -> fillBytes buf b (fromIntegral sz)) freeHaskellFunPtr $ \rng ->
+          allocaBytes c_SNTRUP761_PUBLICKEY_SIZE $ \pkPtr ->
+            allocaBytes c_SNTRUP761_SECRETKEY_SIZE $ \skPtr ->
+              c_sntrup761_keypair pkPtr skPtr nullPtr rng >>= putMVar result
+      timeout 10000000 $ takeMVar result
+
 testSNTRUP761RejectsMalformedEncodings :: IO ()
 testSNTRUP761RejectsMalformedEncodings = do
   smpDecode @KEMPublicKey (smpEncode $ Large shortPublicKey) `shouldSatisfy` isLeft
@@ -321,7 +357,7 @@ shortSecretKey = B.replicate (c_SNTRUP761_SECRETKEY_SIZE - 1) 's'
 -- BBS+ tests
 
 bbsHeader :: BBSHeader
-bbsHeader = BBSHeader "POPOPX"
+bbsHeader = BBSHeader "SimpleX"
 
 bbsMessages :: [B.ByteString]
 bbsMessages = ["secret_master_key", "2026-07-31", "supporter"]
@@ -444,3 +480,26 @@ testBBSJSON = do
   -- FromJSON must reject wrong-length input (regression: StrJSON length validation)
   (J.decode (J.encode (BBSSecretKey (B.replicate 16 '\0'))) :: Maybe BBSSecretKey) `shouldBe` Nothing
   (J.decode (J.encode (BBSSignature (B.replicate 10 '\0'))) :: Maybe BBSSignature) `shouldBe` Nothing
+
+testEntitlementRoundtrip :: IO ()
+testEntitlementRoundtrip = do
+  Right (pk, sk) <- bbsKeyGen
+  let keys = M.singleton 1 pk
+      mk = MasterKey (B.replicate 32 '\7')
+      ent = Entitlement {entitlementName = "supporter", expiresAt = UTCTime (fromGregorian 2030 1 1) 0, extraInfo = ""}
+      ph = BBSPresHeader "session-id"
+  Right cred <- signEntitlement sk 1 mk ent
+  verifyCredential pk cred `shouldReturn` True
+  Right proof <- generateEntitlementProof keys cred ph
+  verifyEntitlement keys ph proof `shouldReturn` EVValid
+  -- a different presentation header does not verify (session binding)
+  verifyEntitlement keys (BBSPresHeader "other") proof `shouldReturn` EVInvalid
+  -- an unknown issuer key index is distinguished from an invalid proof
+  verifyEntitlement (M.singleton 2 pk) ph proof `shouldReturn` EVUnknownIssuer
+  -- the protocol encoding of the proof roundtrips
+  smpDecode (smpEncode proof) `shouldBe` Right proof
+
+testEntitlementIssuerKeys :: IO ()
+testEntitlementIssuerKeys = do
+  mapM_ evaluate entitlementIssuerKeys
+  M.size entitlementIssuerKeys `shouldBe` 8
