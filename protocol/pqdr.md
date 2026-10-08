@@ -26,7 +26,7 @@ Version 1, 2024-06-22
 
 It is a reasonable assumption that "record-now-decrypt-later" attacks are ongoing, so the users want to use cryptographic schemes for end-to-end encryption that are augmented with some post-quantum algorithm that is believed to be resistant to quantum computers.
 
-POPOPX Chat uses [double-ratchet with header encryption](https://signal.org/docs/specifications/doubleratchet/#double-ratchet-with-header-encryption) to provide end-to-end encryption to messages and files. This document describes augmented algorithm with post-quantum key encapsulation mechanism (KEM) making it resistant to quantum computers.
+SimpleX Chat uses [double-ratchet with header encryption](https://signal.org/docs/specifications/doubleratchet/#double-ratchet-with-header-encryption) to provide end-to-end encryption to messages and files. This document describes augmented algorithm with post-quantum key encapsulation mechanism (KEM) making it resistant to quantum computers.
 
 Double-ratchet algorithm is a state of the art solution for end to end encryption offering a set of qualities that is not present in any other algorithm:
 
@@ -62,14 +62,16 @@ It is possible to reduce size overhead by using only one KEM agreement and makin
 
 ## Double ratchet with encrypted headers augmented with double PQ KEM
 
-Algorithm below assumes that in addition to shared secret from the initial key agreement, there will be an encapsulation key available from the party that published its keys (Bob).
+Algorithm below assumes that in addition to shared secret from the initial key agreement, there will be an encapsulation key available from the initiating party, that sent its keys in the connection invitation to the joining party (see [agent protocol](./agent-protocol.md)). Following the double ratchet specification, the pseudo-code below names the joining party Alice and the initiating party Bob.
+
+Unlike X3DH prekey bundles, these keys are not reusable keys published for any party to use. The initiating party generates two X448 key pairs and, optionally, a sntrup761 KEM key pair for each connection, sends the public keys in the invitation, and deletes the stored private keys once the ratchet is initialized; only the second X448 private key and the agreed KEM key pair remain in the ratchet state as its initial ratchet keys. The joining party generates its keys when joining and keeps only its KEM key pair, in the ratchet state. The exception is a contact address that publishes ratchet keys in its link data: all requesters use these keys until the address owner rotates them, and the owner keeps the private keys of a few recent generations.
 
 ### Initialization
 
 The double ratchet initialization is defined in pseudo-code. This pseudo-code is identical to Signal algorithm specification except for that parts that add post-quantum key agreement.
 
 ```
-// Alice obtained Bob's keys and initializes ratchet first
+// Alice (joining party) received Bob's keys in the invitation and initializes ratchet first
 def RatchetInitAlicePQ2HE(state, SK, bob_dh_public_key, shared_hka, shared_nhkb, bob_pq_kem_encapsulation_key):
     state.DHRs = GENERATE_DH()
     state.DHRr = bob_dh_public_key
@@ -89,7 +91,7 @@ def RatchetInitAlicePQ2HE(state, SK, bob_dh_public_key, shared_hka, shared_nhkb,
     state.HKr = None
     state.NHKr = shared_nhkb
 
-// Bob initializes ratchet second, having received Alice's connection request
+// Bob (initiating party) initializes ratchet second, having received Alice's first message
 def RatchetInitBobPQ2HE(state, SK, bob_dh_key_pair, shared_hka, shared_nhkb, bob_pq_kem_key_pair):
     state.DHRs = bob_dh_key_pair
     state.DHRr = None
@@ -196,7 +198,7 @@ It is worth noting that while DH agreements work as ping-pong, when the new rece
 
 ## Ratchet message wire format
 
-The pseudocode above describes the algorithm. This section specifies the actual binary encoding used in POPOPX implementation with Curve448 DH keys, sntrup761 KEM and AES-256-GCM AEAD.
+The pseudocode above describes the algorithm. This section specifies the actual binary encoding used in SimpleX implementation with Curve448 DH keys, sntrup761 KEM and AES-256-GCM AEAD.
 
 The ratchet-encrypted message has three encoding layers, from outermost to innermost:
 
@@ -209,6 +211,8 @@ The ratchet-encrypted message has three encoding layers, from outermost to inner
 The outer envelope contains the encrypted header (used as associated data for body authentication), the body authentication tag, and the encrypted message body.
 
 The message body is encrypted with AES-256-GCM using the message key derived from the sending chain key (`KDF_CK`). The associated data for body encryption is the concatenation of the ratchet associated data and the encoded encrypted header.
+
+`KDF_CK(CK)` is HKDF-SHA512 with empty salt, `CK` as input key material and info `"SimpleXChainRatchet"`, producing 96 bytes split into the next chain key (32 bytes), the message key (32 bytes), the message body IV (16 bytes, not transmitted) and `headerIV` (16 bytes). Both IVs are used as 16-byte AES-256-GCM IVs, not the 12-byte IVs recommended by NIST SP 800-38D, so the initial counter block is J0 = GHASH(IV || 0^64 || [128]_64) as defined there for non-96-bit IVs. WebCrypto and other conforming implementations compute it when given the full 16-byte IV; truncating the IV to 12 bytes produces different ciphertext.
 
 ```abnf
 encRatchetMessage = versionedLength encMessageHeader msgAuthTag encMsgBody
@@ -268,13 +272,13 @@ PQ encryption can be enabled or disabled during a connection's lifetime. The KEM
 
 The transition from Proposed to Accepted happens when a party receives a message containing KEM parameters (either Proposed or Accepted) and responds with its own Accepted parameters. Once both parties are in Accepted state, the double PQ KEM augmentation described in the algorithm above operates in each DH ratchet step.
 
-## Implementation considerations for POPOPX Messaging Protocol
+## Implementation considerations for SimpleX Messaging Protocol
 
-As POPOPX Messaging Protocol pads messages to a fixed size, using 16kb transport blocks, the size increase introduced by this scheme can be compensated for by using ZSTD encryption of JSON bodies and image previews encoded as base64. While there may be some rare cases of random texts that would fail to compress, in all real scenarios it would not cause the message size reduction.
+As SimpleX Messaging Protocol pads messages to a fixed size, using 16kb transport blocks, the size increase introduced by this scheme can be compensated for by using ZSTD encryption of JSON bodies and image previews encoded as base64. While there may be some rare cases of random texts that would fail to compress, in all real scenarios it would not cause the message size reduction.
 
-Sharing the initial keys in case of POPOPX Chat it is equivalent to sharing the invitation link. As encapsulation key is large, it may be inconvenient to share it in the link in some contexts, e.g. when QR codes are used.
+Sharing the initial keys in case of SimpleX Chat it is equivalent to sharing the invitation link. As encapsulation key is large, it may be inconvenient to share it in the link in some contexts, e.g. when QR codes are used.
 
-It is possible to postpone sharing the encapsulation key until the first message from Alice (confirmation message in SMP protocol), the party sending connection request. The upside here is that the invitation link size would not increase. The downside is that the user profile shared in this confirmation will not be encrypted with PQ-resistant algorithm.
+It is possible to postpone sharing the encapsulation key until the first message from the joining party (confirmation message in SMP protocol). The upside here is that the invitation link size would not increase. The downside is that the user profile shared in this confirmation will not be encrypted with PQ-resistant algorithm.
 
 Another consideration is pairwise ratchets in groups. Key generation in sntrup761 is quite slow - on slow devices it can be as slow as 10-20 keys per second, so using this primitive in groups larger than 10-20 members would result in slow performance.
 

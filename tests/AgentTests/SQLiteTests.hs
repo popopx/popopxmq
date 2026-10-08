@@ -187,7 +187,7 @@ testForeignKeysEnabled =
             INSERT INTO snd_queues
               ( host, port, snd_id, conn_id, snd_private_key, e2e_dh_secret, status)
             VALUES
-              ('smp.simplex.im', '5223', '1234', '2345', x'', x'', 'new');
+              ('smp.popopx.im', '5223', '1234', '2345', x'', x'', 'new');
           |]
     DB.execute_ db inconsistentQuery
       `shouldThrow` (\e -> SQL.sqlError e == SQL.ErrorConstraint)
@@ -216,7 +216,7 @@ testDhSecret :: C.DhSecretX25519
 testDhSecret = "01234567890123456789012345678901"
 
 smpServer1 :: SMPServer
-smpServer1 = SMPServer "smp.simplex.im" "5223" testKeyHash
+smpServer1 = SMPServer "smp.popopx.im" "5223" testKeyHash
 
 rcvQueue1 :: NewRcvQueue
 rcvQueue1 =
@@ -341,7 +341,7 @@ testCreateSndConnDuplicate =
 testGetRcvConn :: SpecWith DBStore
 testGetRcvConn =
   it "should get connection using rcv queue id and server" . withStoreTransaction $ \db -> do
-    let smpServer = SMPServer "smp.simplex.im" "5223" testKeyHash
+    let smpServer = SMPServer "smp.popopx.im" "5223" testKeyHash
     let recipientId = EntityId "1234"
     g <- C.newRandom
     Right (_, rq) <- createRcvConn db g cData1 rcvQueue1 SCMInvitation
@@ -409,7 +409,7 @@ testUpgradeRcvConnToDuplex =
           SndQueue
             { userId = 1,
               connId = "conn1",
-              server = SMPServer "smp.simplex.im" "5223" testKeyHash,
+              server = SMPServer "smp.popopx.im" "5223" testKeyHash,
               sndId = EntityId "2345",
               queueMode = Just QMMessaging,
               sndPrivateKey = testPrivateAuthKey,
@@ -437,7 +437,7 @@ testUpgradeSndConnToDuplex =
           RcvQueue
             { userId = 1,
               connId = "conn1",
-              server = SMPServer "smp.simplex.im" "5223" testKeyHash,
+              server = SMPServer "smp.popopx.im" "5223" testKeyHash,
               rcvId = EntityId "3456",
               rcvPrivateKey = testPrivateAuthKey,
               rcvDhSecret = testDhSecret,
@@ -513,7 +513,7 @@ hw = encodeUtf8 "Hello world!"
 ts :: UTCTime
 ts = UTCTime (fromGregorian 2021 02 24) (secondsToDiffTime 0)
 
-mkRcvMsgData :: InternalId -> InternalRcvId -> ExternalSndId -> BrokerId -> MsgHash -> RcvMsgData
+mkRcvMsgData :: InternalId -> InternalRcvId -> ExternalSndId -> ByteString -> MsgHash -> RcvMsgData
 mkRcvMsgData internalId internalRcvId externalSndId brokerId internalHash =
   RcvMsgData
     { internalRcvId,
@@ -522,7 +522,7 @@ mkRcvMsgData internalId internalRcvId externalSndId brokerId internalHash =
           { integrity = MsgOk,
             recipient = (unId internalId, ts),
             sndMsgId = externalSndId,
-            broker = (brokerId, ts),
+            broker = (SMP.unsafeMsgId $ mconcat (replicate 24 brokerId), ts),
             pqEncryption = CR.PQEncOn
           },
       msgType = AM_A_MSG_,
@@ -742,7 +742,7 @@ testGetPendingServerCommand st = do
     corruptCmd db corrId connId = DB.execute db "UPDATE commands SET command = cast('bad' as blob) WHERE conn_id = ? AND corr_id = ?" (connId, corrId)
 
 xftpServer1 :: SMP.XFTPServer
-xftpServer1 = SMP.ProtocolServer SMP.SPXFTP "xftp.simplex.im" "5223" testKeyHash
+xftpServer1 = SMP.ProtocolServer SMP.SPXFTP "xftp.popopx.im" "5223" testKeyHash
 
 rcvFileDescr1 :: FileDescription 'FRecipient
 rcvFileDescr1 =

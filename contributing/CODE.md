@@ -7,6 +7,7 @@ This file provides guidance on coding style and approaches and on building the c
 When designing code and planning implementations:
 - Apply adversarial thinking, and consider what may happen if one of the communicating parties is malicious.
 - Formulate an explicit threat model for each change - who can do which undesirable things and under which circumstances.
+- Use the default cryptographic primitive for each purpose from the [primitive registry](../protocol/crypto-registry.md); any exception requires review, and the registry must be updated with every new primitive use or domain-separation string.
 
 ## Code Quality Standards
 
@@ -28,7 +29,7 @@ The project uses **fourmolu** for Haskell code formatting. Configuration is in `
 
 ```bash
 # Format a single file
-fourmolu -i src/Simplex/Messaging/Protocol.hs
+fourmolu -i src/Popopx/Messaging/Protocol.hs
 ```
 
 Some files that use CPP language extension cannot be formatted as a whole, so individual code fragments need to be formatted.
@@ -99,6 +100,6 @@ cabal list-bin exe:smp-server
 ## External Dependencies
 
 Custom forks specified in `cabal.project`:
-- `aeson`, `hs-socks` (POPOPX forks)
+- `aeson`, `hs-socks` (SimpleX forks)
 - `direct-sqlcipher`, `sqlcipher-simple` (encrypted SQLite)
 - `warp`, `warp-tls` (HTTP server)

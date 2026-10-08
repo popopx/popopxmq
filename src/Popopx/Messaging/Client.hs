@@ -16,16 +16,16 @@
 
 -- |
 -- Module      : Popopx.Messaging.Client
--- Copyright   : (c) simplex.chat
+-- Copyright   : (c) popopx.chat
 -- License     : AGPL-3
 --
--- Maintainer  : chat@popopx.xyz
+-- Maintainer  : chat@popopx.chat
 -- Stability   : experimental
 -- Portability : non-portable
 --
 -- This module provides a functional client API for SMP protocol.
 --
--- See https://github.com/popopx/popopxmq/blob/master/protocol/simplex-messaging.md
+-- See https://github.com/popopx-chat/popopxmq/blob/master/protocol/popopx-messaging.md
 module Popopx.Messaging.Client
   ( -- * Connect (disconnect) client to (from) SMP server
     TransportSession,
@@ -166,7 +166,7 @@ import Popopx.Messaging.Parsers (defaultJSON, dropPrefix, enumJSON, sumTypeJSON)
 import Popopx.Messaging.Protocol
 import Popopx.Messaging.Protocol.Types
 import Popopx.Messaging.Server.QueueStore.QueueInfo
-import Popopx.Messaging.PoName (PopopxDomain, fullDomainName)
+import Popopx.Messaging.PopopxName (PopopxDomain, fullDomainName)
 import Popopx.Messaging.TMap (TMap)
 import qualified Popopx.Messaging.TMap as TM
 import Popopx.Messaging.Transport
@@ -828,7 +828,7 @@ smpErrorClientNotice = \case
 
 -- | Create a new SMP queue.
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/simplex-messaging.md#create-queue-command
+-- https://github.com/popopx-chat/popopxmq/blob/master/protocol/popopx-messaging.md#create-queue-command
 createSMPQueue ::
   SMPClient ->
   NetworkRequestMode ->
@@ -847,7 +847,7 @@ createSMPQueue c nm nonce_ (rKey, rpKey) dhKey auth subMode qrd ntfCreds =
 
 -- | Subscribe to the SMP queue.
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/simplex-messaging.md#subscribe-to-queue
+-- https://github.com/popopx-chat/popopxmq/blob/master/protocol/popopx-messaging.md#subscribe-to-queue
 -- This command is always sent in background request mode
 subscribeSMPQueue :: SMPClient -> RcvPrivateAuthKey -> RecipientId -> ExceptT SMPClientError IO (Maybe ServiceId)
 subscribeSMPQueue c rpKey rId = do
@@ -888,7 +888,7 @@ serverTransmission ProtocolClient {thParams, client_ = PClient {transportSession
 
 -- | Get message from SMP queue. The server returns ERR PROHIBITED if a client uses SUB and GET via the same transport connection for the same queue
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/simplex-messaging.md#receive-a-message-from-the-queue
+-- https://github.covm/popopx-chat/popopxmq/blob/master/protocol/popopx-messaging.md#receive-a-message-from-the-queue
 -- This command is always sent in interactive request mode, as NSE has limited time
 getSMPMessage :: SMPClient -> RcvPrivateAuthKey -> RecipientId -> ExceptT SMPClientError IO (Maybe RcvMessage)
 getSMPMessage c rpKey rId =
@@ -900,7 +900,7 @@ getSMPMessage c rpKey rId =
 
 -- | Subscribe to the SMP queue notifications.
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/simplex-messaging.md#subscribe-to-queue-notifications
+-- https://github.com/popopx-chat/popopxmq/blob/master/protocol/popopx-messaging.md#subscribe-to-queue-notifications
 -- This command is always sent in background request mode
 subscribeSMPQueueNotifications :: SMPClient -> NtfPrivateAuthKey -> NotifierId -> ExceptT SMPClientError IO (Maybe ServiceId)
 subscribeSMPQueueNotifications c npKey nId = do
@@ -956,7 +956,7 @@ enablePings ProtocolClient {client_ = PClient {sendPings}} = atomically $ writeT
 
 -- | Secure the SMP queue by adding a sender public key.
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/simplex-messaging.md#secure-queue-command
+-- https://github.com/popopx-chat/popopxmq/blob/master/protocol/popopx-messaging.md#secure-queue-command
 secureSMPQueue :: SMPClient -> NetworkRequestMode -> RcvPrivateAuthKey -> RecipientId -> SndPublicAuthKey -> ExceptT SMPClientError IO ()
 secureSMPQueue c nm rpKey rId senderKey = okSMPCommand (KEY senderKey) c nm rpKey rId
 {-# INLINE secureSMPQueue #-}
@@ -1011,7 +1011,7 @@ proxyGetSMPQueueLink c nm proxiedRelay lnkId =
 
 -- | Enable notifications for the queue for push notifications server.
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/simplex-messaging.md#enable-notifications-command
+-- https://github.com/popopx-chat/popopxmq/blob/master/protocol/popopx-messaging.md#enable-notifications-command
 enableSMPQueueNotifications :: SMPClient -> RcvPrivateAuthKey -> RecipientId -> NtfPublicAuthKey -> RcvNtfPublicDhKey -> ExceptT SMPClientError IO (NotifierId, RcvNtfPublicDhKey)
 enableSMPQueueNotifications c rpKey rId notifierKey rcvNtfPublicDhKey =
   sendSMPCommand c NRMBackground (Just rpKey) rId (NKEY notifierKey rcvNtfPublicDhKey) >>= \case
@@ -1031,7 +1031,7 @@ enableSMPQueuesNtfs c qs = L.map process <$> sendProtocolCommands c NRMBackgroun
 
 -- | Disable notifications for the queue for push notifications server.
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/simplex-messaging.md#disable-notifications-command
+-- https://github.com/popopx-chat/popopxmq/blob/master/protocol/popopx-messaging.md#disable-notifications-command
 -- This command is always sent in background request mode
 disableSMPQueueNotifications :: SMPClient -> RcvPrivateAuthKey -> RecipientId -> ExceptT SMPClientError IO ()
 disableSMPQueueNotifications c = okSMPCommand NDEL c NRMBackground
@@ -1045,7 +1045,7 @@ disableSMPQueuesNtfs c = okSMPCommands NDEL c NRMBackground
 
 -- | Send SMP message.
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/simplex-messaging.md#send-message
+-- https://github.com/popopx-chat/popopxmq/blob/master/protocol/popopx-messaging.md#send-message
 sendSMPMessage :: SMPClient -> NetworkRequestMode -> Maybe SndPrivateAuthKey -> SenderId -> MsgFlags -> MsgBody -> ExceptT SMPClientError IO ()
 sendSMPMessage c nm spKey sId flags msg =
   sendSMPCommand c nm spKey sId (SEND flags msg) >>= \case
@@ -1089,7 +1089,7 @@ resolvedNameOrNotFound d NameResponse {registration} = case registration of
 
 -- | Acknowledge message delivery (server deletes the message).
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/simplex-messaging.md#acknowledge-message-delivery
+-- https://github.com/popopx-chat/popopxmq/blob/master/protocol/popopx-messaging.md#acknowledge-message-delivery
 -- This command is always sent in background request mode
 ackSMPMessage :: SMPClient -> RcvPrivateAuthKey -> QueueId -> MsgId -> ExceptT SMPClientError IO ()
 ackSMPMessage c rpKey rId msgId =
@@ -1101,14 +1101,14 @@ ackSMPMessage c rpKey rId msgId =
 -- | Irreversibly suspend SMP queue.
 -- The existing messages from the queue will still be delivered.
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/simplex-messaging.md#suspend-queue
+-- https://github.com/popopx-chat/popopxmq/blob/master/protocol/popopx-messaging.md#suspend-queue
 suspendSMPQueue :: SMPClient -> NetworkRequestMode -> RcvPrivateAuthKey -> QueueId -> ExceptT SMPClientError IO ()
 suspendSMPQueue = okSMPCommand OFF
 {-# INLINE suspendSMPQueue #-}
 
 -- | Irreversibly delete SMP queue and all messages in it.
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/simplex-messaging.md#delete-queue
+-- https://github.com/popopx-chat/popopxmq/blob/master/protocol/popopx-messaging.md#delete-queue
 deleteSMPQueue :: SMPClient -> NetworkRequestMode -> RcvPrivateAuthKey -> RecipientId -> ExceptT SMPClientError IO ()
 deleteSMPQueue = okSMPCommand DEL
 {-# INLINE deleteSMPQueue #-}
@@ -1228,7 +1228,7 @@ proxySMPCommand c@ProtocolClient {thParams = proxyThParams, client_ = PClient {c
   -- encode
   let TransmissionForAuth {tForAuth, tToSend} = encodeTransmissionForAuth serverThParams (CorrId corrId, sId, Cmd (sParty @p) command)
   -- serviceAuth is False here – proxied commands are not used with service certificates
-  auth <- liftEitherWith PCETransportError $ authTransmission serverThAuth False spKey nonce tForAuth
+  auth <- liftEitherWith PCETransportError $ authTransmission serverThAuth False spKey (Just nonce) tForAuth
   b <- case batchTransmissions serverThParams [Right (auth, tToSend)] of
     [] -> throwE $ PCETransportError TELargeMsg
     TBError e _ : _ -> throwE $ PCETransportError e
@@ -1262,7 +1262,7 @@ proxySMPCommand c@ProtocolClient {thParams = proxyThParams, client_ = PClient {c
 -- receives RRES :: Maybe C.CbNonce -> EncFwdResponse -> BrokerMsg
 -- proxy should send PRES to the client with EncResponse
 -- Always uses background timeout mode
-forwardSMPTransmission :: SMPClient -> CorrId -> VersionSMP -> C.PublicKeyX25519 -> EncTransmission -> ExceptT SMPClientError IO (Maybe C.CbNonce, EncResponse)
+forwardSMPTransmission :: SMPClient -> C.CorrCbNonce -> VersionSMP -> C.PublicKeyX25519 -> EncTransmission -> ExceptT SMPClientError IO (Maybe C.CbNonce, EncResponse)
 forwardSMPTransmission c@ProtocolClient {thParams, client_ = PClient {clientCorrId = g}} fwdCorrId fwdVersion fwdKey fwdTransmission = do
   -- prepare params
   sessSecret <- case thAuth thParams of
@@ -1400,7 +1400,7 @@ mkTransmission_ :: forall v err msg. Protocol v err msg => ProtocolClient v err 
 mkTransmission_ ProtocolClient {thParams, client_ = PClient {clientCorrId, sentCommands}} nonce_ (entityId, pKey_, command) = do
   nonce@(C.CbNonce corrId) <- maybe (atomically $ C.randomCbNonce clientCorrId) pure nonce_
   let TransmissionForAuth {tForAuth, tToSend} = encodeTransmissionForAuth thParams (CorrId corrId, entityId, command)
-      auth = authTransmission (thAuth thParams) (useServiceAuth command) pKey_ nonce tForAuth
+      auth = authTransmission (thAuth thParams) (useServiceAuth command) pKey_ (Just nonce) tForAuth
   r <- mkRequest (CorrId corrId)
   pure ((,tToSend) <$> auth, r)
   where
@@ -1419,14 +1419,14 @@ mkTransmission_ ProtocolClient {thParams, client_ = PClient {clientCorrId, sentC
       atomically $ TM.insert corrId r sentCommands
       pure r
 
-authTransmission :: Maybe (THandleAuth 'TClient) -> Bool -> Maybe C.APrivateAuthKey -> C.CbNonce -> ByteString -> Either TransportError (Maybe TAuthorizations)
-authTransmission thAuth serviceAuth pKey_ nonce t = traverse authenticate pKey_
+authTransmission :: Maybe (THandleAuth 'TClient) -> Bool -> Maybe C.APrivateAuthKey -> Maybe C.CbNonce -> ByteString -> Either TransportError (Maybe TAuthorizations)
+authTransmission thAuth serviceAuth pKey_ nonce_ t = traverse authenticate pKey_
   where
     authenticate :: C.APrivateAuthKey -> Either TransportError TAuthorizations
     authenticate (C.APrivateAuthKey a pk) = (,serviceSig) <$> case a of
-      C.SX25519 -> case thAuth of
-        Just THAuthClient {peerServerPubKey = k} -> Right $ TAAuthenticator $ C.cbAuthenticate k pk nonce t'
-        Nothing -> Left TENoServerAuth
+      C.SX25519 -> case (thAuth, nonce_) of
+        (Just THAuthClient {peerServerPubKey = k}, Just nonce) -> Right $ TAAuthenticator $ C.cbAuthenticate k pk nonce t'
+        _ -> Left TENoServerAuth
       C.SEd25519 -> sign pk
       C.SEd448 -> sign pk
     -- When command is signed by both entity key and service key,

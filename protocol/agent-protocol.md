@@ -37,13 +37,13 @@ Version 7, 2025-01-24
 The purpose of SMP agent protocol is to define the syntax and the semantics of communications between the client and the agent that connects to [SMP](./popopx-messaging.md) routers.
 
 It provides:
-- API to create and manage bi-directional (duplex) connections between the users of SMP agents consisting of two (or more) separate unidirectional (simplex) SMP queues, abstracting away multiple steps required to establish bi-directional connections and any information about the routers location from the users of the agent protocol.
+- API to create and manage bi-directional (duplex) connections between the users of SMP agents consisting of two (or more) separate unidirectional (popopx) SMP queues, abstracting away multiple steps required to establish bi-directional connections and any information about the routers location from the users of the agent protocol.
 - management of E2E encryption between SMP agents, generating ephemeral asymmetric keys for each connection.
 - SMP command authentication on SMP routers, generating ephemeral keys for each SMP queue.
 - TCP/TLS transport handshake with SMP routers.
 - validation of message integrity.
 
-SMP agent API provides no security between the agent and the client - it is assumed that the agent is executed in the trusted and secure environment, via the agent library, when the agent logic is included directly into the client application - [POPOPX Chat for terminal](https://github.com/simplex-chat/simplex-chat) uses this approach.
+SMP agent API provides no security between the agent and the client - it is assumed that the agent is executed in the trusted and secure environment, via the agent library, when the agent logic is included directly into the client application - [SimpleX Chat for terminal](https://github.com/popopx-chat/popopx-chat) uses this approach.
 
 This document describes SMP agent protocol version 7. The version history:
 
@@ -57,7 +57,7 @@ This document describes SMP agent protocol version 7. The version history:
 
 ## SMP agent
 
-SMP agents communicate with each other via SMP routers using [simplex messaging protocol (SMP)](./popopx-messaging.md) according to the API calls used by the client applications. This protocol is a middle layer in POPOPX protocols (above SMP protocol but below any application level protocol) - it is intended to be used by client-side applications that need secure asynchronous bi-directional communication channels ("connections").
+SMP agents communicate with each other via SMP routers using [popopx messaging protocol (SMP)](./popopx-messaging.md) according to the API calls used by the client applications. This protocol is a middle layer in SimpleX protocols (above SMP protocol but below any application level protocol) - it is intended to be used by client-side applications that need secure asynchronous bi-directional communication channels ("connections").
 
 The agent must have a persistent storage to manage the states of known connections and of the client-side information of SMP queues that each connection consists of, and also the buffer of the most recent sent and received messages. The number of the messages that should be stored is implementation specific, depending on the error management approach that the agent implements; at the very least the agent must store the hashes and IDs of the last received and sent messages.
 
@@ -72,7 +72,7 @@ SMP agent API does not use the addresses of the SMP routers that the agent will 
 SMP agent protocol has 2 main parts:
 
 - the messages that SMP agents exchange with each other in order to:
-  - negotiate establishing unidirectional (simplex) encrypted queues on SMP routers.
+  - negotiate establishing unidirectional (popopx) encrypted queues on SMP routers.
   - exchange client messages and delivery notifications, providing sequential message IDs and message integrity (by including the hash of the previous message).
   - re-negotiate messaging queues to use and connection e2e encryption.
 - the messages that the clients of SMP agents should send out-of-band (as pre-shared "invitation" including queue URIs) to protect [E2E encryption][1] from active attacks ([MITM attacks][2]).
@@ -85,14 +85,14 @@ SMP agent protocol has 2 main parts:
 
 ![Duplex connection procedure](./diagrams/duplex-messaging/duplex-creating.svg)
 
-The procedure of establishing a duplex connection is explained on the example of Alice and Bob creating a bi-directional connection consisting of two unidirectional (simplex) queues, using SMP agents (A and B) to facilitate it, and two different SMP routers (which could be the same router). It is shown on the diagram above and has these steps:
+The procedure of establishing a duplex connection is explained on the example of Alice (the initiating party) and Bob (the joining party) creating a bi-directional connection consisting of two unidirectional (popopx) queues, using SMP agents (A and B) to facilitate it, and two different SMP routers (which could be the same router). It is shown on the diagram above and has these steps:
 
 1. Alice requests the new connection from the SMP agent A using agent `createConnection` api function.
 2. Agent A creates an SMP queue on the router (using [SMP protocol](./popopx-messaging.md) `NEW` command) and responds to Alice with the invitation that contains queue information and the encryption keys Bob's agent B should use. The invitation format is described in [Connection link](connection-link-1-time-invitation-and-contact-address).
 3. Alice sends the [connection link](#connection-link-1-time-invitation-and-contact-address) to Bob via any secure channel (out-of-band message) - as a link or as a QR code.
 4. Bob uses agent `joinConnection` api function with the connection link as a parameter to agent B to accept the connection.
 5. Agent B creates Bob's SMP reply queue with SMP router `NEW` command.
-6. Agent B confirms the connection: sends an "SMP confirmation" with SMP router `SEND` command to the SMP queue specified in the connection link - SMP confirmation is an unauthenticated message with an ephemeral key that will be used to authenticate Bob's commands to the queue, as described in SMP protocol, and Bob's info (profile, public key for E2E encryption, and the connection link to this 2nd queue to Agent A - this connection link SHOULD use "simplex" URI scheme). This message is encrypted using key passed in the connection link (or with the derived shared secret, in which case public key for key derivation should be sent in clear text).
+6. Agent B confirms the connection: sends an "SMP confirmation" with SMP router `SEND` command to the SMP queue specified in the connection link - SMP confirmation is an unauthenticated message with an ephemeral key that will be used to authenticate Bob's commands to the queue, as described in SMP protocol, and Bob's info (profile, public key for E2E encryption, and the connection link to this 2nd queue to Agent A - this connection link SHOULD use "popopx" URI scheme). This message is encrypted using key passed in the connection link (or with the derived shared secret, in which case public key for key derivation should be sent in clear text).
 7. Alice confirms and continues the connection:
   - Agent A receives the SMP confirmation containing Bob's key, reply queue and info as SMP router `MSG`.
   - Agent A notifies Alice sending `CONF` notification with Bob's info.
@@ -141,7 +141,7 @@ Faster duplex connection process is possible with the `SKEY` command added in v9
 4. Bob uses agent `joinConnection` api function with the connection link as a parameter to agent B to accept the connection.
 5. Agent B secures Alice's queue with SMP command `SKEY` - this command can be proxied.
 6. Agent B creates Bob's SMP reply queue with SMP router `NEW` command (with the flag allowing the sender to secure the queue).
-7. Agent B confirms the connection: sends an "SMP confirmation" with SMP router `SEND` command to the SMP queue specified in the connection link - SMP confirmation is an unauthenticated message with an ephemeral key that will be used to authenticate Bob's commands to the queue, as described in SMP protocol, and Bob's info (profile, public key for E2E encryption, and the connection link to this 2nd queue to Agent A - this connection link SHOULD use "simplex" URI scheme). This message is encrypted using key passed in the connection link (or with the derived shared secret, in which case public key for key derivation should be sent in clear text).
+7. Agent B confirms the connection: sends an "SMP confirmation" with SMP router `SEND` command to the SMP queue specified in the connection link - SMP confirmation is an unauthenticated message with an ephemeral key that will be used to authenticate Bob's commands to the queue, as described in SMP protocol, and Bob's info (profile, public key for E2E encryption, and the connection link to this 2nd queue to Agent A - this connection link SHOULD use "popopx" URI scheme). This message is encrypted using key passed in the connection link (or with the derived shared secret, in which case public key for key derivation should be sent in clear text).
 8. Alice confirms the connection:
   - Agent A receives the SMP confirmation containing Bob's key, reply queue and info as SMP router `MSG`.
   - Agent A notifies Alice sending `CONF` notification with Bob's info (that indicates that Agent B already secured the queue).
@@ -208,7 +208,7 @@ This syntax of decrypted SMP client message body is defined by `decryptedAgentMe
 Decrypted SMP message client body can be one of 4 types:
 - `agentConnInfo` - used by the initiating party when confirming reply queue - sent in `agentConfirmation` envelope.
 - `agentConnInfoReply` - used by accepting party, includes reply queue(s) in the initial confirmation - sent in `agentConfirmation` envelope.
-- `agentRatchetInfo` - used to pass additional information when renegotiating double ratchet encryption - sent in `agentRatchetKey` envelope.
+- `agentRatchetInfo` - used to pass additional information when renegotiating double ratchet encryption - sent in `agentRatchetKey` envelope. A key sent in reply to another key includes the hash of that key; agents do not reply to such keys.
 - `agentMessage` - all other agent messages.
 
 `agentMessage` contains these parts:
@@ -233,7 +233,8 @@ connInfo = *OCTET
 agentConnInfoReply = %s"D" smpQueues connInfo
 smpQueues = length 1*newQueueInfo ; NonEmpty list of reply queues
 agentRatchetInfo = %s"R" ratchetInfo
-ratchetInfo = *OCTET
+ratchetInfo = [answeredKeyHash *OCTET] ; bytes after answeredKeyHash are ignored
+answeredKeyHash = %s"0" / (%s"1" shortString) ; "0" in a key that starts renegotiation, otherwise SHA-256 of the two raw public keys of the answered key
 
 agentMessage = %s"M" agentMsgHeader aMessage
 agentMsgHeader = agentMsgId prevMsgHash
@@ -387,7 +388,7 @@ connectionLink = connectionScheme "/" connLinkType "#/?v=" versionRange "&smp=" 
 connLinkType = %s"invitation" / %s"contact"
 connectionScheme = (%s"https://" clientAppServer) / %s"popopx:"
 clientAppServer = hostname [ ":" port ]
-; client app server, e.g. simplex.chat
+; client app server, e.g. popopx.chat
 versionRange = 1*DIGIT / 1*DIGIT "-" 1*DIGIT ; agent version range
 e2eEncryption = <e2e encryption parameters for double ratchet>
 smpQueues = smpQueue *(";" smpQueue) ; SMP queues for the connection (semicolon-separated)
@@ -450,14 +451,14 @@ The fixed link data includes:
 For contact links, the link ID and encryption key are derived from the link key using HKDF:
 
 ```
-(linkId, encryptionKey) = HKDF(info="POPOPXContactLink", key=linkKey, outputLen=56)
+(linkId, encryptionKey) = HKDF(info="SimpleXContactLink", key=linkKey, outputLen=56)
 ; linkId = first 24 bytes, encryptionKey = remaining 32 bytes
 ```
 
 For invitation links, the link ID is stored separately (usually included in the URI), and only the encryption key is derived:
 
 ```
-encryptionKey = HKDF(info="POPOPXInvLink", key=linkKey, outputLen=32)
+encryptionKey = HKDF(info="SimpleXInvLink", key=linkKey, outputLen=32)
 ```
 
 ### Link data encryption
@@ -680,7 +681,7 @@ This list of events is not exhaustive and provided for information only. Please 
 
 ## Threat model
 
-This threat model complements POPOPX Messaging Protocol [threat model](./security.md#threat-model) with agent-level concerns: duplex connections, end-to-end encryption with [post-quantum double ratchet](./pqdr.md), message integrity, connection establishment and queue rotation. Only additional properties not covered in the SMP threat model are listed below.
+This threat model complements SimpleX Messaging Protocol [threat model](./security.md#threat-model) with agent-level concerns: duplex connections, end-to-end encryption with [post-quantum double ratchet](./pqdr.md), message integrity, connection establishment and queue rotation. Only additional properties not covered in the SMP threat model are listed below.
 
 #### Additional global assumptions
 

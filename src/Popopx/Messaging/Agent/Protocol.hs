@@ -26,16 +26,16 @@
 
 -- |
 -- Module      : Popopx.Messaging.Agent.Protocol
--- Copyright   : (c) simplex.chat
+-- Copyright   : (c) popopx.chat
 -- License     : AGPL-3
 --
--- Maintainer  : chat@popopx.xyz
+-- Maintainer  : chat@popopx.chat
 -- Stability   : experimental
 -- Portability : non-portable
 --
 -- Types, parsers, serializers and functions to send and receive SMP agent protocol commands and responses.
 --
--- See https://github.com/popopx/popopxmq/blob/master/protocol/agent-protocol.md
+-- See https://github.com/popopx-chat/popopxmq/blob/master/protocol/agent-protocol.md
 module Popopx.Messaging.Agent.Protocol
   ( -- * Protocol parameters
     VersionSMPA,
@@ -252,7 +252,7 @@ import Popopx.Messaging.Crypto.Ratchet
   )
 import Popopx.Messaging.Encoding
 import Popopx.Messaging.Encoding.String
-import Popopx.Messaging.PoName (PopopxDomain (..), PopopxNameInfo (..), PopopxNameType (..), PopopxTLD (..), fullDomainName, shortNameInfoStr)
+import Popopx.Messaging.PopopxName (PopopxDomain (..), PopopxNameInfo (..), PopopxNameType (..), PopopxTLD (..), fullDomainName, shortNameInfoStr)
 import Popopx.Messaging.Parsers
 import Popopx.Messaging.Protocol
   ( AProtocolType,
@@ -1094,7 +1094,7 @@ instance Encoding AMsgType where
 
 -- | Messages sent between SMP agents once SMP queue is secured.
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/agent-protocol.md#messages-between-smp-agents
+-- https://github.com/popopx-chat/popopxmq/blob/master/protocol/agent-protocol.md#messages-between-smp-agents
 data AMessage
   = -- | the first message in the queue to validate it is secured
     HELLO
@@ -1397,12 +1397,12 @@ data ContactRequestBinding = CRBRatchet ConnVerifyCodes | CRBRequest ByteString
 extraSMPServerHosts :: Map TransportHost TransportHost
 extraSMPServerHosts =
   M.fromList
-    [ ("smp4.simplex.im", "o5vmywmrnaxalvz6wi3zicyftgio6psuvyniis6gco6bp6ekl4cqj4id.onion"),
-      ("smp5.simplex.im", "jjbyvoemxysm7qxap7m5d5m35jzv5qq6gnlv7s4rsn7tdwwmuqciwpid.onion"),
-      ("smp6.simplex.im", "bylepyau3ty4czmn77q4fglvperknl4bi2eb2fdy2bh4jxtf32kf73yd.onion"),
-      ("smp8.simplex.im", "beccx4yfxxbvyhqypaavemqurytl6hozr47wfc7uuecacjqdvwpw2xid.onion"),
-      ("smp9.simplex.im", "jssqzccmrcws6bhmn77vgmhfjmhwlyr3u7puw4erkyoosywgl67slqqd.onion"),
-      ("smp10.simplex.im", "rb2pbttocvnbrngnwziclp2f4ckjq65kebafws6g4hy22cdaiv5dwjqd.onion")
+    [ ("smp4.popopx.im", "o5vmywmrnaxalvz6wi3zicyftgio6psuvyniis6gco6bp6ekl4cqj4id.onion"),
+      ("smp5.popopx.im", "jjbyvoemxysm7qxap7m5d5m35jzv5qq6gnlv7s4rsn7tdwwmuqciwpid.onion"),
+      ("smp6.popopx.im", "bylepyau3ty4czmn77q4fglvperknl4bi2eb2fdy2bh4jxtf32kf73yd.onion"),
+      ("smp8.popopx.im", "beccx4yfxxbvyhqypaavemqurytl6hozr47wfc7uuecacjqdvwpw2xid.onion"),
+      ("smp9.popopx.im", "jssqzccmrcws6bhmn77vgmhfjmhwlyr3u7puw4erkyoosywgl67slqqd.onion"),
+      ("smp10.popopx.im", "rb2pbttocvnbrngnwziclp2f4ckjq65kebafws6g4hy22cdaiv5dwjqd.onion")
     ]
 
 updateSMPServerHosts :: SMPServer -> SMPServer
@@ -1461,7 +1461,7 @@ instance VersionRangeI SMPClientVersion SMPQueueUri where
 
 -- | SMP queue information sent out-of-band.
 --
--- https://github.com/popopx/popopxmq/blob/master/protocol/simplex-messaging.md#out-of-band-messages
+-- https://github.com/popopx-chat/popopxmq/blob/master/protocol/popopx-messaging.md#out-of-band-messages
 data SMPQueueUri = SMPQueueUri {clientVRange :: VersionRangeSMPC, queueAddress :: SMPQueueAddress}
   deriving (Eq, Show)
 
@@ -2211,7 +2211,7 @@ data ConnectionErrorType
     NOT_FOUND
   | -- | connection already exists
     DUPLICATE
-  | -- | connection is unidirectional, but operation requires another queue
+  | -- | connection is popopx, but operation requires another queue
     POPOPX
   | -- | connection not accepted on join HELLO after timeout
     NOT_ACCEPTED

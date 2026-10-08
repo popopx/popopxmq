@@ -1,6 +1,6 @@
-Version 20, 2026-05-25
+Version 21, 2026-07-05
 
-# Simplex Messaging Protocol (SMP)
+# Popopx Messaging Protocol (SMP)
 
 ## Table of contents
 
@@ -8,14 +8,14 @@ Version 20, 2026-05-25
 - [Introduction](#introduction)
 - [SMP Model](#smp-model)
 - [Out-of-band messages](#out-of-band-messages)
-- [Simplex queue](#simplex-queue)
+- [Popopx queue](#popopx-queue)
 - [SMP queue URI](#smp-queue-uri)
 - [SMP procedure](#smp-procedure)
 - [Fast SMP procedure](#fast-smp-procedure)
 - [SMP qualities and features](#smp-qualities-and-features)
 - [Cryptographic algorithms](#cryptographic-algorithms)
 - [Deniable client authentication scheme](#deniable-client-authentication-scheme)
-- [Simplex queue IDs](#simplex-queue-ids)
+- [Popopx queue IDs](#popopx-queue-ids)
 - [Router security requirements](#router-security-requirements)
 - [Message delivery notifications](#message-delivery-notifications)
 - [Client services](#client-services)
@@ -80,13 +80,13 @@ Version 20, 2026-05-25
 
 ## Abstract
 
-Simplex Messaging Protocol is a transport agnostic client-router protocol for asynchronous distributed secure unidirectional message transmission via persistent simplex message queues.
+Popopx Messaging Protocol is a transport agnostic client-router protocol for asynchronous distributed secure unidirectional message transmission via persistent popopx message queues.
 
 It's designed with the focus on communication security and integrity, under the assumption that any part of the message transmission network can be compromised.
 
 It is designed as a low level protocol for other application protocols to solve the problem of secure and private message transmission, making [MITM attack][1] very difficult at any part of the message transmission system.
 
-This document describes SMP protocol version 20. Versions 1-5 are discontinued. The version history:
+This document describes SMP protocol version 23. Versions 1-5 are discontinued. The version history:
 
 - v1: binary protocol encoding
 - v2: message flags (used to control notifications)
@@ -107,16 +107,19 @@ This document describes SMP protocol version 20. Versions 1-5 are discontinued. 
 - v18: support client notices in BLOCKED error
 - v19: service subscriptions to messages (SUBS, NSUBS, SOKS, ENDS, ALLS commands)
 - v20: public namespaces resolver (RSLV command, RNAME response) — direct or forwarded via PFWD
+- v21: server public information in handshake
+- v22: `RNAME` says whether a name can be registered, not only what it resolves to
+- v23: version in nonces of forwarded commands, random nonces for forwarded responses
 
 ## Introduction
 
-The objective of Simplex Messaging Protocol (SMP) is to facilitate the secure and private unidirectional transfer of messages from senders to recipients via persistent simplex queues managed by the message routers.
+The objective of Popopx Messaging Protocol (SMP) is to facilitate the secure and private unidirectional transfer of messages from senders to recipients via persistent popopx queues managed by the message routers.
 
 SMP is independent of any particular transmission system and requires only a reliable ordered data stream channel. While this document describes transport over TCP, other transports are also possible.
 
 The protocol describes the set of commands that recipients and senders can exchange with SMP routers to create and to operate unidirectional "queues" (a data abstraction identifying one of many communication channels managed by the router) and to send messages from the sender to the recipient via the SMP router.
 
-More complex communication scenarios can be designed using multiple queues - for example, a duplex communication channel can be made of 2 simplex queues.
+More complex communication scenarios can be designed using multiple queues - for example, a duplex communication channel can be made of 2 popopx queues.
 
 The protocol is designed with the focus on privacy and security, to some extent deprioritizing reliability by requiring that SMP routers only store messages until they are acknowledged by the recipients and, in any case, for a limited period of time. For communication scenarios requiring more reliable transmission the users should use several SMP routers to pass each message and implement some additional protocol to ensure that messages are not removed, inserted or changed - this is out of scope of this document.
 
@@ -130,7 +133,7 @@ SMP does not use any form of participants' identities and provides [E2EE][2] wit
 
 The SMP model has three communication participants: the recipient, the message router (SMP router) that is chosen and, possibly, controlled by the recipient, and the sender.
 
-SMP router manages multiple "simplex queues" - data records on the router that identify communication channels from the senders to the recipients. The same communicating party that is the sender in one queue, can be the recipient in another - without exposing this fact to the router.
+SMP router manages multiple "popopx queues" - data records on the router that identify communication channels from the senders to the recipients. The same communicating party that is the sender in one queue, can be the recipient in another - without exposing this fact to the router.
 
 The queue record consists of 2 unique random IDs generated by the router, one for the recipient and another for the sender, and 2 keys to verify the recipient's and the sender's commands, provided by the clients. The users of SMP protocol must use a unique ephemeral keys for each queue, to prevent aggregating their queues by keys in case SMP router is compromised.
 
@@ -142,9 +145,9 @@ The out-of-band message with the queue information is sent via some trusted alte
 
 The approach to out-of-band message passing and their syntax should be defined in application-level protocols.
 
-## Simplex queue
+## Popopx queue
 
-The simplex queue is the main unit of SMP protocol. It is used by:
+The popopx queue is the main unit of SMP protocol. It is used by:
 
 - Sender of the queue (who received out-of-band message) to send messages to the router using sender's queue ID, authorized by sender's key.
 
@@ -152,7 +155,7 @@ The simplex queue is the main unit of SMP protocol. It is used by:
 
 - Participant identities are not shared with the router - new unique keys and queue IDs are used for each queue.
 
-This simplex queue can serve as a building block for more complex communication network. For example, two (or more, for redundancy) simplex queues can be used to create a duplex communication channel. Higher level primitives that are only known to system participants in their client applications can be created as well - e.g., contacts, conversations, groups and broadcasts. Simplex messaging routers only have the information about the low-level simplex queues. In this way a high level of privacy and security of the communication is provided. Application level primitives are not in scope of this protocol.
+This popopx queue can serve as a building block for more complex communication network. For example, two (or more, for redundancy) popopx queues can be used to create a duplex communication channel. Higher level primitives that are only known to system participants in their client applications can be created as well - e.g., contacts, conversations, groups and broadcasts. Popopx messaging routers only have the information about the low-level popopx queues. In this way a high level of privacy and security of the communication is provided. Application level primitives are not in scope of this protocol.
 
 This approach is based on the concept of [unidirectional networks][4] that are used for applications with high level of information security.
 
@@ -160,9 +163,9 @@ Access to each queue is controlled with unique (not shared with other queues) as
 
 The messages sent over the queue are end-to-end encrypted using the DH secret agreed via out-of-band message and SMP confirmation.
 
-**Simplex queue diagram:**
+**Popopx queue diagram:**
 
-![Simplex queue](./diagrams/popopx-messaging/popopx.svg)
+![Popopx queue](./diagrams/popopx-messaging/popopx.svg)
 
 Queue is defined by recipient ID `RID` and sender ID `SID`, unique for the router. Sender key (`SK`) is used by the router to verify sender's commands (identified by `SID`) to send messages. Recipient key (`RK`) is used by the router to verify recipient's commands (identified by `RID`) to retrieve messages.
 
@@ -202,11 +205,11 @@ x509UrlEncoded = <base64url X509 key encoding>
 
 ## SMP procedure
 
-The SMP procedure of creating a simplex queue on SMP router is explained using participants Alice (the recipient) who wants to receive messages from Bob (the sender).
+The SMP procedure of creating a popopx queue on SMP router is explained using participants Alice (the recipient) who wants to receive messages from Bob (the sender).
 
-To create and start using a simplex queue Alice and Bob follow these steps:
+To create and start using a popopx queue Alice and Bob follow these steps:
 
-1. Alice creates a simplex queue on the router:
+1. Alice creates a popopx queue on the router:
 
    1. Decides which SMP router to use (can be the same or different router that Alice uses for other queues) and opens secure encrypted transport connection to the chosen SMP router (see [Transport connection](#transport-connection-with-the-smp-router)).
 
@@ -216,7 +219,7 @@ To create and start using a simplex queue Alice and Bob follow these steps:
 
    4. Generates one more random key pair (recipient DH key - `RDHK`) to negotiate symmetric key that will be used by the router to encrypt message bodies delivered to Alice (to avoid shared cipher-text inside transport connection).
 
-   5. Sends `"NEW"` command to the router to create a simplex queue (see `create` in [Create queue command](#create-queue-command)). This command contains previously generated unique "public" keys `RK` and `RDHK`. `RK` will be used by the router to verify the subsequent commands related to the same queue authorized by its private counterpart, for example to subscribe to the messages received to this queue or to update the queue, e.g. by setting the key required to send the messages (initially Alice creates the queue that accepts unauthorized messages, so anybody could send the message via this queue if they knew the queue sender's ID and router address).
+   5. Sends `"NEW"` command to the router to create a popopx queue (see `create` in [Create queue command](#create-queue-command)). This command contains previously generated unique "public" keys `RK` and `RDHK`. `RK` will be used by the router to verify the subsequent commands related to the same queue authorized by its private counterpart, for example to subscribe to the messages received to this queue or to update the queue, e.g. by setting the key required to send the messages (initially Alice creates the queue that accepts unauthorized messages, so anybody could send the message via this queue if they knew the queue sender's ID and router address).
 
    6. The router sends `IDS` response with queue IDs (`queueIds`):
 
@@ -226,7 +229,7 @@ To create and start using a simplex queue Alice and Bob follow these steps:
 
       - Router public DH key (`SDHK`) to negotiate a shared secret for message body encryption, that Alice uses to derive a shared secret with the router `SS`.
 
-2. Alice sends an out-of-band message to Bob via the alternative channel that both Alice and Bob trust (see [protocol abstract](#simplex-messaging-protocol-abstract)). The message must include [SMP queue URI](#smp-queue-uri) with:
+2. Alice sends an out-of-band message to Bob via the alternative channel that both Alice and Bob trust (see [protocol abstract](#popopx-messaging-protocol-abstract)). The message must include [SMP queue URI](#smp-queue-uri) with:
 
    - Unique "public" key (`EK`) that Bob must use to agree a shared secret for E2E encryption.
 
@@ -266,11 +269,11 @@ To create and start using a simplex queue Alice and Bob follow these steps:
 
    3. Once queue is secured, Alice deletes `SID` and `SK` - even if Alice's client is compromised in the future, the attacker would not be able to send messages pretending to be Bob.
 
-6. The simplex queue `RID` is now ready to be used.
+6. The popopx queue `RID` is now ready to be used.
 
 This flow is shown on the sequence diagram below.
 
-**Creating simplex queue from Bob to Alice:**
+**Creating popopx queue from Bob to Alice:**
 
 ![Creating queue](./diagrams/popopx-messaging/popopx-creating.svg)
 
@@ -278,7 +281,7 @@ Bob now can securely send messages to Alice:
 
 1. Bob sends the message:
 
-   1. He encrypts the message to Alice with the agreed shared secret (using "public" key `EK` provided by Alice, only known to Bob, used only for one simplex queue).
+   1. He encrypts the message to Alice with the agreed shared secret (using "public" key `EK` provided by Alice, only known to Bob, used only for one popopx queue).
 
    2. He authorizes `"SEND"` command to the router queue `SID` using the "private" key `SK` (that only he knows, used only for this queue).
 
@@ -296,21 +299,21 @@ Bob now can securely send messages to Alice:
 
 This flow is show on sequence diagram below.
 
-**Sending messages from Bob to Alice via simplex queue:**
+**Sending messages from Bob to Alice via popopx queue:**
 
 ![Using queue](./diagrams/popopx-messaging/popopx-using.svg)
 
-**Simplex queue operation:**
+**Popopx queue operation:**
 
-![Simplex queue operations](./diagrams/popopx-messaging/popopx-op.svg)
+![Popopx queue operations](./diagrams/popopx-messaging/popopx-op.svg)
 
 Sequence diagram does not show E2E encryption - router knows nothing about encryption between the sender and the receiver.
 
-A higher level application protocol should define the semantics that allow to use two simplex queues (or two sets of queues for redundancy) for the bi-directional or any other communication scenarios.
+A higher level application protocol should define the semantics that allow to use two popopx queues (or two sets of queues for redundancy) for the bi-directional or any other communication scenarios.
 
 The SMP is intentionally unidirectional - it provides no answer to how Bob will know that the transmission succeeded, and whether Alice received any messages. There may be a scenario when Alice wants to securely receive the messages from Bob, but she does not want Bob to have any proof that she received any messages - this low-level protocol can be used in this scenario, as all Bob knows as a fact is that he was able to send one unsigned message to the router that Alice provided, and now he can only send messages signed with the key `SK` that he sent to the router - it does not prove that any message was received by Alice.
 
-For bi-directional conversation, now that Bob can securely send encrypted messages to Alice, Bob can create the second simplex queue that will allow Alice to send messages to Bob in the same way, sending the second queue details via the first queue. If both Alice and Bob have their respective unique "public" keys (Alice's and Bob's `EK`s of two separate queues), or pass additional keys to sign the messages, the conversation can be both encrypted and signed.
+For bi-directional conversation, now that Bob can securely send encrypted messages to Alice, Bob can create the second popopx queue that will allow Alice to send messages to Bob in the same way, sending the second queue details via the first queue. If both Alice and Bob have their respective unique "public" keys (Alice's and Bob's `EK`s of two separate queues), or pass additional keys to sign the messages, the conversation can be both encrypted and signed.
 
 The established queues can also be used to change the encryption keys providing [forward secrecy][5], or to negotiate using other SMP queue(s).
 
@@ -330,7 +333,7 @@ In step 3.2, prior to sending the confirmation message Bob secures the queue usi
 
 ## SMP qualities and features
 
-Simplex Messaging Protocol:
+Popopx Messaging Protocol:
 
 - Defines only message-passing protocol:
 
@@ -354,7 +357,7 @@ Simplex Messaging Protocol:
 
   - Routers are required to NOT store any message history or delivery log, but even if the router is compromised, it does not allow to decrypt the messages or to determine the list of queues established by any participant - this information is only stored on client devices.
 
-- The only element provided by SMP routers is simplex queues:
+- The only element provided by SMP routers is popopx queues:
 
   - Each queue is created and managed by the queue recipient.
 
@@ -370,7 +373,7 @@ Simplex Messaging Protocol:
 
 ## Cryptographic algorithms
 
-Simplex messaging clients must cryptographically authorize commands for the following operations:
+Popopx messaging clients must cryptographically authorize commands for the following operations:
 
 - With the recipient's key `RK` (router to verify):
   - create the queue (`NEW`)
@@ -409,24 +412,24 @@ authenticator = crypto_box(sha512(authorized), secret = dh(client long term queu
 authorized = sessionIdentifier corrId queueId protocol_command ; same as the currently signed part of the transmission
 ```
 
-## Simplex queue IDs
+## Popopx queue IDs
 
-Simplex messaging routers MUST generate 2 different IDs for each new queue - for the recipient (that created the queue) and for the sender. It is REQUIRED that:
+Popopx messaging routers MUST generate 2 different IDs for each new queue - for the recipient (that created the queue) and for the sender. It is REQUIRED that:
 
 - These IDs are different and unique within the router.
 - Based on random bytes generated with cryptographically strong pseudo-random number generator.
 
 ## Router security requirements
 
-Simplex messaging router implementations MUST NOT create, store or send to any other routers:
+Popopx messaging router implementations MUST NOT create, store or send to any other routers:
 
 - Logs of the client commands and transport connections in the production environment.
 
 - History of deleted queues, retrieved or acknowledged messages (deleted queues MAY be stored temporarily as part of the queue persistence implementation).
 
-- Snapshots of the database they use to store queues and messages (instead simplex messaging clients must manage redundancy by using more than one simplex messaging router). In-memory persistence is recommended.
+- Snapshots of the database they use to store queues and messages (instead popopx messaging clients must manage redundancy by using more than one popopx messaging router). In-memory persistence is recommended.
 
-- Any other information that may compromise privacy or [forward secrecy][4] of communication between clients using simplex messaging routers (the routers cannot compromise forward secrecy of any application layer protocol, such as double ratchet).
+- Any other information that may compromise privacy or [forward secrecy][4] of communication between clients using popopx messaging routers (the routers cannot compromise forward secrecy of any application layer protocol, such as double ratchet).
 
 Routers with the names role make outbound HTTP calls to a backing resolver service (the reference implementation is `scripts/resolver/snrc-resolve.py`, which in turn makes JSON-RPC calls to an Ethereum endpoint) to read `NameRecord` data; the lookup key reaches that resolver and its upstream RPC endpoint. Operators MUST run both the resolver process and its upstream RPC endpoint themselves (loopback Reth + Nimbus, or a self-hosted central deployment) — sharing them across multiple operators collapses the two-server privacy property because the resolver / RPC operator would see every lookup key across all of them. The names role and the SMP-proxy role MUST NOT be enabled on the same router by default: a client forwarding `RSLV` through a proxy that is also the names router would expose both its connection and the lookup key to one operator, collapsing the two-server privacy property. (Resolution itself runs on a forked thread, so a slow `RSLV` does not serialise other forwarded commands on the session.)
 
@@ -650,13 +653,13 @@ Once the queue is created, depending on `subscribeMode` parameter of `NEW` comma
 
 #### Subscribe to queue
 
-When the simplex queue was not created in the current transport connection, the recipient must use this command to start receiving messages from it:
+When the popopx queue was not created in the current transport connection, the recipient must use this command to start receiving messages from it:
 
 ```abnf
 subscribe = %s"SUB"
 ```
 
-If subscription is successful the router must respond with the first available message or with [queue subscription response](#queue-subscription-response) (`SOK`) if no messages are available. The recipient will continue receiving the messages from this queue until the transport connection is closed or until another transport connection subscribes to the same simplex queue - in this case the first subscription should be cancelled and [subscription END notification](#subscription-end-notification) delivered.
+If subscription is successful the router must respond with the first available message or with [queue subscription response](#queue-subscription-response) (`SOK`) if no messages are available. The recipient will continue receiving the messages from this queue until the transport connection is closed or until another transport connection subscribes to the same popopx queue - in this case the first subscription should be cancelled and [subscription END notification](#subscription-end-notification) delivered.
 
 The first message will be delivered either immediately or as soon as it is available; to receive the following message the recipient must acknowledge the reception of the message (see [Acknowledge message delivery](#acknowledge-message-delivery)).
 
@@ -794,7 +797,7 @@ Client must send message ID to acknowledge a particular message - to prevent dou
 
 The router should limit the time the message is stored, even if the message was not delivered or if acknowledgement is not sent by the recipient.
 
-Having received the acknowledgement, SMP router should delete the message and then send the next available message or respond with `ok` if there are no more messages available in this simplex queue.
+Having received the acknowledgement, SMP router should delete the message and then send the next available message or respond with `ok` if there are no more messages available in this popopx queue.
 
 #### Suspend queue
 
@@ -1118,13 +1121,15 @@ When the client receives PKEY response it MUST validate that:
 - the fingerprint of the received certificate matches fingerprint in the router address - it mitigates MITM attack by proxy.
 - the router session key is correctly signed with the received certificate.
 
+`smpVersionRange` in `PKEY` is not signed.
+
 The proxy router may respond with error response in case the destination router is not available or in case it has an earlier version that does not support proxied commands.
 
 #### Send command via proxy
 
 Sender can send `SKEY` and `SEND` commands via proxy after obtaining the session ID with `PRXY` command (see [Request proxied session](#request-proxied-session)).
 
-Transmission sent to proxy router should use session ID as entity ID and use a random correlation ID of 24 bytes as a nonce for crypto_box encryption of transmission to the destination router. The random ephemeral X25519 key to encrypt transmission should be unique per command, and it should be combined with the key sent by the router in the handshake header to proxy and to the client in `PKEY` command.
+Transmission sent to proxy router should use session ID as entity ID and use a random correlation ID of 24 bytes as a nonce for crypto_box encryption of transmission to the destination router. When `smpVersion` in `PFWD` is 23 or higher, the first 2 bytes of this nonce are XOR-ed with `smpVersion`. The random ephemeral X25519 key to encrypt transmission should be unique per command, and it should be combined with the key sent by the router in the handshake header to proxy and to the client in `PKEY` command.
 
 Encrypted transmission should use the received session ID from the connection between proxy router and destination router in the authorized body.
 
@@ -1136,10 +1141,11 @@ commandKey = length x509encoded
 
 The proxy router will forward the encrypted transmission in `RFWD` command (see below).
 
-Having received the `RRES` response from the destination router, proxy router will forward `PRES` response to the client. `PRES` response should use the same correlation ID as `PFWD` command. The destination router will use this correlation ID increased by 1 as a nonce for encryption of the response.
+Having received the `RRES` response from the destination router, proxy router will forward `PRES` response to the client. `PRES` response should use the same correlation ID as `PFWD` command. The destination router will use this correlation ID increased by 1 as a nonce for encryption of the response. When `smpVersion` in `PFWD` is 23 or higher, the destination router uses a random nonce instead, and sends it before the encrypted response.
 
 ```abnf
-proxyResponse = %s"PRES" SP <encrypted padded(forwardedResponse, 16226)>
+proxyResponse = %s"PRES" SP [responseNonce] <encrypted padded(forwardedResponse, 16226)>
+responseNonce = %s"0" / (%s"1" 24*24 OCTET) ; from v23
 forwardedResponse = *OCTET ; client-encrypted SMP response, decrypted by client using per-command DH secret
 ```
 
@@ -1166,7 +1172,7 @@ The shared secret for encrypting transmission bodies between proxy router and de
 
 
 ```abnf
-relayResponse = %s"RRES" SP <encrypted(responseTransmission)>
+relayResponse = %s"RRES" SP [responseNonce] <encrypted(responseTransmission)>
 responseTransmission = fwdCorrId forwardedResponse
   ; fwdCorrId and forwardedResponse defined above in RFWD section
 ```
@@ -1210,7 +1216,7 @@ The push notifications router (notifier) must use this command to start receivin
 subscribeNotifications = %s"NSUB"
 ```
 
-If subscription is successful the router must respond with [queue subscription response](#queue-subscription-response) (`SOK`). The notifier will be receiving the message notifications from this queue until the transport connection is closed or until another transport connection subscribes to notifications from the same simplex queue - in this case the first subscription should be cancelled and [subscription END notification](#subscription-end-notification) delivered.
+If subscription is successful the router must respond with [queue subscription response](#queue-subscription-response) (`SOK`). The notifier will be receiving the message notifications from this queue until the transport connection is closed or until another transport connection subscribes to notifications from the same popopx queue - in this case the first subscription should be cancelled and [subscription END notification](#subscription-end-notification) delivered.
 
 The first message notification will be delivered either immediately or as soon as the message is available.
 
@@ -1279,7 +1285,7 @@ When router delivers the messages to the recipient, message body should be encry
 
 This is done to prevent the possibility of correlation of incoming and outgoing traffic of SMP router inside transport protocol.
 
-The router must deliver messages to all subscribed simplex queues on the currently open transport connection. The syntax for the message delivery is:
+The router must deliver messages to all subscribed popopx queues on the currently open transport connection. The syntax for the message delivery is:
 
 ```abnf
 message = %s"MSG" SP msgId encryptedRcvMsgBody
@@ -1302,7 +1308,7 @@ If the sender exceeded queue capacity the recipient will receive a special messa
 
 #### Deliver message notification
 
-The router must deliver message notifications to all simplex queues that were subscribed with `subscribeNotifications` command (`NSUB`) on the currently open transport connection. The syntax for the message notification delivery is:
+The router must deliver message notifications to all popopx queues that were subscribed with `subscribeNotifications` command (`NSUB`) on the currently open transport connection. The syntax for the message notification delivery is:
 
 ```abnf
 messageNotification = %s"NMSG " nmsgNonce encryptedNMsgMeta
@@ -1319,7 +1325,7 @@ Message notification does not contain any message data or non E2E encrypted meta
 
 #### Subscription END notification
 
-When another transport connection is subscribed to the same simplex queue, the router should unsubscribe and to send the notification to the previously subscribed transport connection:
+When another transport connection is subscribed to the same popopx queue, the router should unsubscribe and to send the notification to the previously subscribed transport connection:
 
 ```abnf
 unsubscribed = %s"END"
@@ -1450,53 +1456,150 @@ reads `NameRecord` from. The reference implementation forwards each RSLV to a
 companion REST resolver process (`scripts/resolver/snrc-resolve.py`) that
 queries the SNRC contract on Ethereum; alternative backings (different chains,
 DHT, etc.) are valid as long as they expose the documented HTTP shape (`GET
-/resolve/<name>` returning a `NameRecord` on 200, 404 / 400 for unknown names
-or TLDs, 502 for upstream RPC failures) or substitute a different transport
-while still returning a `NameRecord` matching the encoding below.
+/v2/resolve/<query>` returning a `NameRegistration` on 200 for every
+registration shape, 400 for unknown TLDs, 502 for upstream failures) or
+substitute a different transport returning the same JSON. The resolver API is
+versioned separately from this protocol: `/v1/resolve/<name>` returns a bare
+`NameRecord` and is what relays before v22 call as `/resolve/<name>`.
 
 #### Resolve name command
 
-The `RSLV` command carries the canonical fully-qualified name directly as the
-payload (not JSON):
+The `RSLV` command carries the query as text, not JSON. A client sends the
+hashed form only from v22, and the name itself below it:
 
 ```abnf
-rslv = %s"RSLV" SP domain   ; domain = canonical name as non-space bytes, consuming the remainder of the transmission
+rslv   = %s"RSLV" SP query
+query  = domain / hashed        ; hashed only from v22
+domain = 1*253 OCTET            ; the name as text
+hashed = "[" 64HEXDIG "]" tld   ; keccak-256 of the second-level label
+tld    = %s".popopx" / %s".testing"
 ```
 
 `domain` is the UTF-8 canonical fully-qualified name with the TLD always
 explicit (e.g. `privacy.popopx`, `test.testing`, `example.com`), bounded to
 253 bytes.
 
+**Hashed labels.** The query is a name, or the keccak-256 of a second-level
+label in ENS's bracketed form. A label can only be letters, digits and hyphens,
+so `[` tells the two apart and no tag is needed.
+
+Only a second-level name may be hashed. A name with subnames is sent as text: it
+is resolved rather than priced, and its record names it anyway. A web TLD has no
+registry to key a hash on.
+
+From v22 a client MUST send the hash. Older routers can only read the name, so a
+client on an older session sends the name. A router answering a hashed query
+does not know the label's length, so it cannot check a minimum-length policy
+either: the client does that, from the pricing it is sent.
+
+The same form reaches the backing resolver, which is what its HTTP API takes, so
+the query is one string end to end.
+
+A hashed query still answers with the name. The registrar records the plaintext
+label when a name is registered, keyed by the hash of that label, so a router can
+look up what the hash stands for without ever being told. The router is not
+trusted for it: a client MUST check that the record names the name it asked
+about, and reject the answer otherwise. A registry that does not record the
+label cannot answer a hashed query at all, and the router answers `ERR NAME
+RESOLVER` rather than a record it knows the client will reject. An unregistered
+name has no recorded label, so it cannot be looked up either.
+
 **Server-side validation.** The names router parses `domain` as a
 fully-qualified name (TLD required — bare labels are rejected) and forwards it
 to the configured backing resolver, which is the source of truth for which
 on-chain registry maps to each TLD.
 
-The names router responds with either an `RNAME` response carrying the resolved
-record, or an `ERR NAME` error whose subcode a client iterating across several
-configured servers can act on distinctly:
+The names router responds with either an `RNAME` response saying what it knows
+about the name, or an `ERR NAME` error whose subcode a client iterating across
+several configured servers can act on distinctly:
 
 | Response | Condition | Client action |
 |---|---|---|
-| `RNAME` | record resolved | use it |
-| `ERR NAME NOT_FOUND` | name not registered, unknown TLD, or malformed name | authoritative "no such name" — stop |
+| `RNAME` | the router read the registry | use it |
+| `ERR NAME NOT_FOUND` | below v22 only: every name that does not resolve. From v22 a router never sends it | stop, and do not read it as registrable |
 | `ERR NAME NO_RESOLVER` | this router has no resolver (names role not enabled) | skip this server, try the next |
-| `ERR NAME RESOLVER <detail>` | transient failure: backing resolver error (upstream 5xx, transport, timeout, decode) | transient — retry or surface, do not treat as "not found" |
+| `ERR NAME RESOLVER <detail>` | the router cannot state an answer completely: no registrar or price oracle for the TLD, an unreachable chain, a transport failure, a timeout, a registration it could not date or resolve | surface `<detail>`; retry only if it reads as transient |
 
 A client SHOULD NOT broadcast a `name` to further servers after a name-capable
 router has answered (`NOT_FOUND` or `RESOLVER`), since that router has already
 seen the lookup key; `NO_RESOLVER` discloses nothing about the name beyond the
 fact that this router cannot resolve, so iterating past it is safe.
 
-#### Name record response
+#### Name response
 
-The `RNAME` response carries a JSON-encoded record as the payload:
+`RNAME` answers both what a name resolves to and whether it can be registered.
 
 ```abnf
-rname = %s"RNAME" SP json-bytes   ; json-bytes consumes the remainder of the transmission
+rname = %s"RNAME" SP nameResponse
 ```
 
-`json-bytes` MUST be a UTF-8 JSON object with the following schema:
+`nameResponse` is a UTF-8 JSON object consuming the remainder of the
+transmission: the `registration` below, and `lastBlockTs`, the block timestamp the
+registry was read at. Money is US cents, times are seconds since the Unix epoch, and lengths are
+characters.
+
+| Field | JSON type | Constraints |
+|---|---|---|
+| `lastBlockTs` | number | block timestamp the answer was read at. Absent only from a v20/v21 router, which sent the record alone |
+| `registration` | object | below |
+
+A router reads the registry through a node of its own, which can lag. A name
+registered or changed after `lastBlockTs` still reads as it did before, so a client
+MUST NOT treat an answer as current without checking it.
+
+`registration`'s `type` selects which of the three answers it is.
+
+| `type` | Meaning |
+|---|---|
+| `registered` | held by someone until `expires`, renewable by its owner alone until `graceUntil`. It always carries `nameRecord`: where the owner set none, every field is unset and the resolver address is zero |
+| `available` | held by nobody and registrable now, at `pricing` |
+| `reserved` | held back by the registry and not registered. It carries no price, and a router MUST NOT quote one |
+
+| Field | On | JSON type | Constraints |
+|---|---|---|---|
+| `expires` | `registered` | number | absent only from a v20/v21 router, which sent the record alone |
+| `graceUntil` | `registered` | number | after `expires`; until here only the owner may renew. Absent on the same condition as `expires` |
+| `reservedReason_` | `registered` | string | a reason word, present only when the name is held back as well |
+| `nameRecord` | `registered` | object | the record, schema below |
+| `pricing` | `available` | object | `registrationPrices`, `basePrice` and `minLabelLength`, below |
+| `reservedReason` | `reserved` | string | a reason word |
+
+| `pricing` field | JSON type | Constraints |
+|---|---|---|
+| `registrationPrices` | object | label length, as a decimal string, to US cents per year, for the lengths the registry prices specially |
+| `basePrice` | number | US cents per year for every other length |
+| `minLabelLength` | number | characters; the registry refuses shorter labels |
+
+A reason word is `internal`, `trademark`, `community`, or a word a later version
+reserves under, at most 32 printable ASCII characters. A router truncates an
+unknown word to that and otherwise passes it through unchanged. A client MUST
+read a word it does not know as unknown and still treat the name as reserved.
+
+**Computing the price.** In US cents, for a duration in seconds:
+
+```
+price len duration = tier len * duration / 31536000
+tier len = the entry for len in registrationPrices, or basePrice when there is none
+```
+
+The registry's minimum registration is 730 days, a contract constant, so it is
+specified here rather than sent. `registrationPrices` omits any length below
+`minLabelLength`. A client MUST NOT show a quote for a label the registry
+refuses: a hashed query carries no length, so only the client can check it.
+
+Below v22, `RNAME` carries the bare record and nothing else, and every answer
+without one is `ERR NAME NOT_FOUND`. A v22 client reads such an answer as
+`registered` with no expiry, grace or reservation.
+
+From v22 a client MUST NOT read `ERR NAME NOT_FOUND` as "registrable": only
+`available` says that.
+
+A router that cannot state an answer completely MUST send `ERR NAME RESOLVER
+<detail>` rather than answer partially or guess. That covers a TLD with no
+registrar or price oracle, an unreachable chain, a timeout, a registration it
+could not date or resolve, and any status word it does not recognise.
+
+`nameRecord` MUST be a UTF-8 JSON object with the following schema:
 
 | Field | JSON type | Constraints |
 |---|---|---|
@@ -1504,8 +1607,8 @@ rname = %s"RNAME" SP json-bytes   ; json-bytes consumes the remainder of the tra
 | `nickname` | string | ≤ 255 bytes UTF-8; senders MUST emit the empty string `""` when unset |
 | `website` | string | ≤ 255 bytes UTF-8; same empty-string-when-unset rule |
 | `location` | string | ≤ 255 bytes UTF-8; same empty-string-when-unset rule |
-| `popopxContact` | array of strings | each a POPOPX contact link (primary first); empty array `[]` when unset |
-| `popopxChannel` | array of strings | each a POPOPX channel link (primary first); empty array `[]` when unset |
+| `popopxContact` | array of strings | each a SimpleX contact link (primary first); empty array `[]` when unset |
+| `popopxChannel` | array of strings | each a SimpleX channel link (primary first); empty array `[]` when unset |
 | `eth` | string or null | ≤ 255 bytes UTF-8; senders MUST emit `null` when unset; receivers MUST also accept absent keys as unset |
 | `btc` | string or null | ≤ 255 bytes UTF-8; same null / absent rules |
 | `xmr` | string or null | ≤ 255 bytes UTF-8; same null / absent rules |
@@ -1513,34 +1616,16 @@ rname = %s"RNAME" SP json-bytes   ; json-bytes consumes the remainder of the tra
 | `owner` | string | `"0x"` followed by 40 lowercase hex characters (20 raw bytes) |
 | `resolver` | string | `"0x"` followed by 40 lowercase hex characters; the resolver contract address that produced the record |
 
-Text fields (`nickname`, `website`, `location`) use the empty string `""` as
-the "unset" sentinel: a backing resolver with no value for the field MUST emit
-an empty string, not JSON `null` and not an absent key. Link fields
-(`popopxContact`, `popopxChannel`) are arrays, primary link first, and use the
-empty array `[]` when unset. Coin fields (`eth`, `btc`, `xmr`, `dot`) use JSON
-`null` as the "unset" sentinel and MAY also be absent from the object entirely.
+Testnet-vs-mainnet status is derived from the queried TLD, not from the record.
 
-The backing resolver filters records that are expired or otherwise unavailable
-(the names router then returns `ERR NAME NOT_FOUND` to the client), so the wire
-format carries no expiry field. Testnet-vs-mainnet status is derived from the
-queried TLD rather than an in-record flag.
+Receivers MUST tolerate extra unknown fields; adding a required field is a
+breaking change requiring an SMP version bump. Receivers parse by key name, so
+peers MUST NOT rely on a byte-canonical form.
 
-Receivers MUST tolerate extra unknown fields (forward-compatibility for future
-field additions). Adding a required field is a breaking change requiring an
-SMP version bump.
-
-**Field order is not significant.** Receivers parse JSON by key name, so object
-key order, insignificant whitespace, and number formatting carry no meaning;
-records are interpreted by decoded value, never compared byte-for-byte. Peers
-MUST NOT rely on a byte-canonical form — a different resolver or server may emit
-the same record with different key order or spacing. This order-independence is
-what makes the format forward-compatible (see the unknown-field rule above).
-
-**Wire-size budget.** The names router caps the resolver response it will
-accept (`resolver_max_response_bytes`, ≤ 16000 bytes, the default) so the
-re-encoded `RNAME` stays within the SMP proxied transmission budget of 16224
-bytes; a response over the cap is rejected as `ERR NAME RESOLVER`. The link
-arrays are bounded by this overall budget rather than a fixed per-field count.
+The names router caps the resolver response it will accept
+(`resolver_max_response_bytes`, at most 16000 bytes) so the re-encoded `RNAME`
+stays within the SMP proxied transmission budget of 16224 bytes; a response over
+the cap is `ERR NAME RESOLVER`.
 
 ## Transport connection with the SMP router
 

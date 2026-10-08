@@ -1,8 +1,8 @@
 Revision 1, 2026-03-09
 
-# POPOPX Network: Security
+# SimpleX Network: Security
 
-This document describes the cryptographic primitives and threat model for the POPOPX network. For a general introduction, see [POPOPX: messaging and application platform](./overview-tjr.md).
+This document describes the cryptographic primitives and threat model for the SimpleX network. For a general introduction, see [SimpleX: messaging and application platform](./overview-tjr.md).
 
 ## Table of contents
 
@@ -11,11 +11,11 @@ This document describes the cryptographic primitives and threat model for the PO
   - [Global Assumptions](#global-assumptions)
   - [A passive adversary able to monitor the traffic of one user](#a-passive-adversary-able-to-monitor-the-traffic-of-one-user)
   - [A passive adversary able to monitor a set of senders and recipients](#a-passive-adversary-able-to-monitor-a-set-of-senders-and-recipients)
-  - [POPOPX Messaging Protocol router](#popopx-messaging-protocol-router)
-  - [POPOPX Messaging Protocol router that proxies the messages to another SMP router](#popopx-messaging-protocol-router-that-proxies-the-messages-to-another-smp-router)
+  - [SimpleX Messaging Protocol router](#popopx-messaging-protocol-router)
+  - [SimpleX Messaging Protocol router that proxies the messages to another SMP router](#popopx-messaging-protocol-router-that-proxies-the-messages-to-another-smp-router)
   - [An attacker who obtained Alice's (decrypted) chat database](#an-attacker-who-obtained-alices-decrypted-chat-database)
   - [A user's contact](#a-users-contact)
-  - [An attacker who observes Alice showing an introduction message to Bob](#an-attacker-who-observes-alice-showing-an-introduction-message-to-bob)
+  - [An attacker who observes the initiating party showing an introduction message to the joining party](#an-attacker-who-observes-the-initiating-party-showing-an-introduction-message-to-the-joining-party)
   - [An attacker with Internet access](#an-attacker-with-internet-access)
 
 
@@ -37,6 +37,8 @@ This document describes the cryptographic primitives and threat model for the PO
   - AES-GCM AEAD cipher,
   - SHA512-based HKDF for key derivation.
 
+All primitives in use, their lengths, domain-separation strings and the policy for new code are listed in the [cryptographic primitive registry](./crypto-registry.md).
+
 
 ## Threat Model
 
@@ -52,7 +54,7 @@ This document describes the cryptographic primitives and threat model for the PO
 
 *can:*
 
-- identify that and when a user is using POPOPX.
+- identify that and when a user is using SimpleX.
 
 - determine which routers the user receives messages from.
 
@@ -68,9 +70,9 @@ This document describes the cryptographic primitives and threat model for the PO
 
 *can:*
 
-- identify who and when is using POPOPX.
+- identify who and when is using SimpleX.
 
-- learn which POPOPX Messaging Protocol routers are used as receive queues for which users.
+- learn which SimpleX Messaging Protocol routers are used as receive queues for which users.
 
 - learn when messages are sent and received.
 
@@ -82,7 +84,7 @@ This document describes the cryptographic primitives and threat model for the PO
 
 - perform traffic correlation attacks with any increase in efficiency over a non-compromised transport protocol.
 
-### POPOPX Messaging Protocol router
+### SimpleX Messaging Protocol router
 
 *can:*
 
@@ -118,7 +120,7 @@ This document describes the cryptographic primitives and threat model for the PO
 
 - perform senders' queue correlation (matching multiple queues to a single sender) via either a re-used transport connection, user's IP Address, or connection timing regularities, unless it has additional information from the proxy SMP router (provided messages are sent via proxy SMP router).
 
-### POPOPX Messaging Protocol router that proxies the messages to another SMP router
+### SimpleX Messaging Protocol router that proxies the messages to another SMP router
 
 *can:*
 
@@ -168,7 +170,7 @@ This document describes the cryptographic primitives and threat model for the PO
 
 *cannot:*
 
-- impersonate a sender and send messages to the user whose database was stolen. Doing so requires also compromising the router (to place the message in the queue, that is possible until the Double-Ratchet advances forward) or the user's device at a subsequent time (to place the message in the database).
+- impersonate a sender and send messages to the user whose database was stolen, unless the database contains a new rotation queue that is not secured yet. Doing so requires also compromising the router (to place the message in the queue, that is possible until the Double-Ratchet advances forward) or the user's device at a subsequent time (to place the message in the database).
 
 - undetectably communicate at the same time as Alice with her contacts. Doing so would result in the contact getting different messages with repeated IDs.
 
@@ -190,21 +192,21 @@ This document describes the cryptographic primitives and threat model for the PO
 
 - cannot collaborate with another of the user's contacts to confirm they are communicating with the same user.
 
-### An attacker who observes Alice showing an introduction message to Bob
+### An attacker who observes the initiating party showing an introduction message to the joining party
 
 *can:*
 
-- Impersonate Bob to Alice.
+- Impersonate the joining party to the initiating party.
 
 *cannot:*
 
-- Impersonate Alice to Bob.
+- Impersonate the initiating party to the joining party.
 
 ### An attacker with Internet access
 
 *can:*
 
-- Denial of Service POPOPX messaging routers.
+- Denial of Service SimpleX messaging routers.
 
 - spam a user's public "contact queue" with connection requests.
 
@@ -212,4 +214,4 @@ This document describes the cryptographic primitives and threat model for the PO
 
 - send messages to a user who they are not connected with.
 
-- enumerate queues on a POPOPX router.
+- enumerate queues on a SimpleX router.

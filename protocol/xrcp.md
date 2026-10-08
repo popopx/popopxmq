@@ -1,6 +1,6 @@
 Version 1, 2024-06-22
 
-# POPOPX Remote Control Protocol
+# SimpleX Remote Control Protocol
 
 ## Table of contents
 
@@ -16,7 +16,7 @@ Version 1, 2024-06-22
 
 ## Abstract
 
-The POPOPX Remote Control Protocol is a client-server protocol designed to transform application UIs into thin clients, enabling remote control from another device. This approach allows users to remotely access and utilize chat profiles without the complexities of master-master replication for end-to-end encryption states.
+The SimpleX Remote Control Protocol is a client-server protocol designed to transform application UIs into thin clients, enabling remote control from another device. This approach allows users to remotely access and utilize chat profiles without the complexities of master-master replication for end-to-end encryption states.
 
 Like SMP and XFTP, XRCP leverages out-of-band invitations to mitigate MITM attacks and employs multiple cryptographic layers to safeguard application data.
 
@@ -56,7 +56,7 @@ Protocol consists of four phases:
 
 The invitation to the first session between host and controller pair MUST be shared out-of-band, to establish a long term identity keys/certificates of the controller to host device.
 
-The subsequent sessions can be announced via an application-defined site-local multicast group, e.g. `224.0.0.251` (also used in mDNS/bonjour) and an application-defined port (POPOPX Chat uses 5227).
+The subsequent sessions can be announced via an application-defined site-local multicast group, e.g. `224.0.0.251` (also used in mDNS/bonjour) and an application-defined port (SimpleX Chat uses 5227).
 
 The session invitation contains this data:
 - supported version range for remote control protocol.
@@ -71,7 +71,7 @@ The session invitation contains this data:
 
 Host application decrypts (except the first session) and validates the invitation:
 - Session signature is valid.
-- Timestamp is within some window from the current time.
+- Timestamp of a multicast announcement is not earlier than 3660 seconds before and not later than 3600 seconds after the current time of the host. The host ignores announcements outside of this interval and continues listening.
 - Long-term key signature is valid.
 - Long-term CA and signature key are the same as in the first session.
 - Some version in the offered range is supported.
@@ -121,9 +121,15 @@ During TLS handshake, parties validate certificate chains against previously kno
 
 ### Session verification and protocol negotiation
 
-Once TLS session is established, both the host and controller devices present a "session security code" to the user who must match them (e.g., visually or via QR code scan) and confirm on the host device. The session security code must be a digest of tlsunique channel binding. As it is computed as a digest of the TLS handshake for both the controller and the host, it will validate that the same TLS certificates are used on both sides, and that the same TLS session is established, mitigating the possibility of MITM attack in the connection.
+Once TLS session is established, both the host and controller devices present a "session security code" to the user. The session security code must be a digest of tlsunique channel binding. As it is computed as a digest of the TLS handshake for both the controller and the host, it will validate that the same TLS certificates are used on both sides, and that the same TLS session is established, mitigating the possibility of MITM attack in the connection.
 
-Once the session is confirmed by the user, the host sends HELLO block to the controller.
+To verify the session, the user matches the codes (e.g., visually or via QR code scan) and confirms the session on the host device.
+
+The user MUST verify the first session with a new controller. The host stores the long-term identity of the controller (CA fingerprint and Ed25519 public key) only after this session is verified. A controller with the stored long-term identity is a known controller.
+
+The user MAY verify the subsequent sessions with a known controller. In a session that the host confirms without user action, the controller is authenticated only by its long-term identity stored in the first session (see [Threat model](#threat-model)). SimpleX Chat mobile apps require user verification of sessions with known controllers only when the user enables the "Verify connections" option.
+
+Once the session is confirmed, the host sends HELLO block to the controller.
 
 XRCP blocks inside TLS are padded to 16384 bytes.
 
@@ -208,7 +214,7 @@ Once the controller replies HELLO to the valid host HELLO block, it should stop 
 
 The protocol for communication during the session is out of scope of this protocol.
 
-POPOPX Chat uses HTTP2 encoding, where host device acts as a server and controller acts as a client (these roles are reversed compared with TLS connection, restoring client-server semantics in HTTP).
+SimpleX Chat uses HTTP2 encoding, where host device acts as a server and controller acts as a client (these roles are reversed compared with TLS connection, restoring client-server semantics in HTTP).
 
 Payloads in the protocol must be encrypted using NaCL secret_box using the hybrid shared secret agreed during session establishment.
 
@@ -274,8 +280,8 @@ To decrypt a multicast announcement, the host should try to decrypt it using the
 Once sessionSecret is agreed for the session, it is used to derive two chain keys, to receive and to send messages:
 
 ```
-controller: sndKey, rcvKey = HKDF(sessionSecret, "POPOPXSbChainInit", 64)
-host: rcvKey, sndKey = HKDF(sessionSecret, "POPOPXSbChainInit", 64)
+controller: sndKey, rcvKey = HKDF(sessionSecret, "SimpleXSbChainInit", 64)
+host: rcvKey, sndKey = HKDF(sessionSecret, "SimpleXSbChainInit", 64)
 ```
 
 where HKDF is based on SHA512, with empty salt.
@@ -283,8 +289,8 @@ where HKDF is based on SHA512, with empty salt.
 Actual keys and nonces to encrypt and decrypt messages are derived from these chain keys:
 
 ```
-to send: (sndKey', sk, nonce) = HKDF(sndKey, "POPOPXSbChain", 88)
-to receive: (rcvKey', sk, nonce) = HKDF(rcvKey, "POPOPXSbChain", 88)
+to send: (sndKey', sk, nonce) = HKDF(sndKey, "SimpleXSbChain", 88)
+to receive: (rcvKey', sk, nonce) = HKDF(rcvKey, "SimpleXSbChain", 88)
 ```
 
 ## Threat model
@@ -305,7 +311,7 @@ to receive: (rcvKey', sk, nonce) = HKDF(rcvKey, "POPOPXSbChain", 88)
 - prevent host and controller devices from establishing the session
 
 *cannot:*
-- same as passive adversary, provided that user visually verified session code out-of-band.
+- same as passive adversary, provided that user visually verified session code out-of-band in the first session with the controller.
 
 #### An active adversary with the access to the network:
 
@@ -323,6 +329,15 @@ to receive: (rcvKey', sk, nonce) = HKDF(rcvKey, "POPOPXSbChain", 88)
 
 *cannot:*
 - connect to the host or make host connect to itself.
+
+#### An active adversary with the access to the network who also obtained the long-term private keys of a known controller (e.g., from the controller device):
+
+*can:*
+- make host connect to itself instead of the controller.
+- access any data of the controlled host application, within the capabilities of the provided API, if the host confirms the session without user action.
+
+*cannot:*
+- access host application data, provided that user visually verified session code out-of-band.
 
 #### Compromised controller device:
 

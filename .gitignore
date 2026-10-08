@@ -1,34 +1,19 @@
-# Build artifacts
+*.lock
+# the resolver's Docker image and CI install exactly these
+!/scripts/resolver/service/uv.lock
+# local overrides of scripts/resolver/.env.example
+/scripts/resolver/.env
+*.db
+*.db.bak
+*.session.sql
+tests/tmp
 dist-newstyle/
-dist/
-*.o
-*.hi
-*.dyn_o
-*.dyn_hi
 
-# Cabal
-.cabal-warmup
 cabal.project.local
 cabal.project.local~
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+.hpc/
+*.tix
+.coverage
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-
-# Temporary files
-*.tmp
-*.bak
-
-# Project memory (internal use)
-# .project-memory
-.project-memory
+__pycache__/

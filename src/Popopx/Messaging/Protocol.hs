@@ -31,16 +31,16 @@
 
 -- |
 -- Module      : Popopx.Messaging.ProtocolEncoding
--- Copyright   : (c) simplex.chat
+-- Copyright   : (c) popopx.chat
 -- License     : AGPL-3
 --
--- Maintainer  : chat@popopx.xyz
+-- Maintainer  : chat@popopx.chat
 -- Stability   : experimental
 -- Portability : non-portable
 --
 -- Types, parsers, serializers and functions to send and receive SMP protocol commands and responses.
 --
--- See https://github.com/popopx/popopxmq/blob/master/protocol/simplex-messaging.md
+-- See https://github.com/popopx-chat/popopxmq/blob/master/protocol/popopx-messaging.md
 module Popopx.Messaging.Protocol
   ( -- * SMP protocol parameters
     supportedSMPClientVRange,
@@ -145,7 +145,10 @@ module Popopx.Messaging.Protocol
     RcvNtfDhSecret,
     Message (..),
     RcvMessage (..),
-    MsgId,
+    MsgId (unMsgId),
+    mkMsgId,
+    unsafeMsgId,
+    randomMsgId,
     MsgBody,
     IdsHash (..),
     ServiceSub (..),
@@ -233,8 +236,10 @@ module Popopx.Messaging.Protocol
 where
 
 import Control.Applicative (optional, (<|>))
+import Control.Concurrent.STM (STM, TVar)
 import Control.Exception (Exception, SomeException, displayException, fromException)
 import Control.Monad.Except
+import Crypto.Random (ChaChaDRG)
 import Data.Aeson (FromJSON (..), ToJSON (..))
 import qualified Data.Aeson as J
 import qualified Data.Aeson.TH as J
@@ -269,7 +274,7 @@ import qualified GHC.TypeLits as TE
 import qualified GHC.TypeLits as Type
 import Network.Socket (ServiceName)
 import qualified Network.TLS as TLS
-import Popopx.Messaging.Agent.Store.DB (Binary (..), FromField (..), ToField (..))
+import Popopx.Messaging.Agent.Store.DB (Binary (..), FromField (..), ToField (..), blobFieldDecoder)
 import qualified Popopx.Messaging.Crypto as C
 import Popopx.Messaging.Encoding
 import Popopx.Messaging.Encoding.String
@@ -278,10 +283,10 @@ import Popopx.Messaging.Parsers
 import Popopx.Messaging.Protocol.Types
 import Popopx.Messaging.Server.QueueStore.QueueInfo
 import Popopx.Messaging.ServiceScheme
-import Popopx.Messaging.PoName (LabelHash, PopopxDomain (..), PopopxTLD (..), fullDomainName, labelHash)
+import Popopx.Messaging.PopopxName (LabelHash, PopopxDomain (..), PopopxTLD (..), fullDomainName, labelHash)
 import Popopx.Messaging.Transport
 import Popopx.Messaging.Transport.Client (TransportHost, TransportHosts (..))
-import Popopx.Messaging.Util (bshow, eitherToMaybe, packZipWith, safeDecodeUtf8, (<$?>))
+import Popopx.Messaging.Util (bshow, eitherToMaybe, safeDecodeUtf8, (<$?>))
 import Popopx.Messaging.Version
 import Popopx.Messaging.Version.Internal
 
@@ -703,24 +708,24 @@ instance Encoding NewNtfCreds where
 newtype EncTransmission = EncTransmission ByteString
   deriving (Show)
 
-encTransmissionNonce :: VersionSMP -> C.CbNonce -> C.CbNonce
-encTransmissionNonce v nonce@(C.CbNonce s)
-  | v >= fwdNoncesSMPVersion = C.cbNonce $ packZipWith xor (smpEncode v) s <> BS.drop 2 s
-  | otherwise = nonce
+encTransmissionNonce :: C.CbNonceI n => VersionSMP -> n -> C.CbNonce
+encTransmissionNonce v nonce
+  | v >= fwdNoncesSMPVersion = C.xorNonce (smpEncode v) nonce
+  | otherwise = C.toCbNonce nonce
 
 data FwdTransmission = FwdTransmission
-  { fwdCorrId :: CorrId,
+  { fwdCorrId :: C.CorrCbNonce,
     fwdVersion :: VersionSMP,
     fwdKey :: C.PublicKeyX25519,
     fwdTransmission :: EncTransmission
   }
 
 instance Encoding FwdTransmission where
-  smpEncode FwdTransmission {fwdCorrId = CorrId corrId, fwdVersion, fwdKey, fwdTransmission = EncTransmission t} =
-    smpEncode (corrId, fwdVersion, fwdKey, Tail t)
+  smpEncode FwdTransmission {fwdCorrId, fwdVersion, fwdKey, fwdTransmission = EncTransmission t} =
+    smpEncode (fwdCorrId, fwdVersion, fwdKey, Tail t)
   smpP = do
-    (corrId, fwdVersion, fwdKey, Tail t) <- smpP
-    pure FwdTransmission {fwdCorrId = CorrId corrId, fwdVersion, fwdKey, fwdTransmission = EncTransmission t}
+    (fwdCorrId, fwdVersion, fwdKey, Tail t) <- smpP
+    pure FwdTransmission {fwdCorrId, fwdVersion, fwdKey, fwdTransmission = EncTransmission t}
 
 newtype EncFwdTransmission = EncFwdTransmission ByteString
   deriving (Show)
@@ -766,16 +771,16 @@ newtype EncFwdResponse = EncFwdResponse ByteString
   deriving (Eq, Show)
 
 data FwdResponse = FwdResponse
-  { fwdCorrId :: CorrId,
+  { fwdCorrId :: C.CorrCbNonce,
     fwdResponse :: EncResponse
   }
 
 instance Encoding FwdResponse where
-  smpEncode FwdResponse {fwdCorrId = CorrId corrId, fwdResponse = EncResponse t} =
-    smpEncode (corrId, Tail t)
+  smpEncode FwdResponse {fwdCorrId, fwdResponse = EncResponse t} =
+    smpEncode (fwdCorrId, Tail t)
   smpP = do
-    (corrId, Tail t) <- smpP
-    pure FwdResponse {fwdCorrId = CorrId corrId, fwdResponse = EncResponse t}
+    (fwdCorrId, Tail t) <- smpP
+    pure FwdResponse {fwdCorrId, fwdResponse = EncResponse t}
 
 newtype EncResponse = EncResponse ByteString
   deriving (Eq, Show)
@@ -798,7 +803,7 @@ toMsgInfo = \case
   Message {msgId, msgTs} -> msgInfo msgId msgTs MTMessage
   MessageQuota {msgId, msgTs} -> msgInfo msgId msgTs MTQuota
   where
-    msgInfo msgId msgTs msgType = MsgInfo {msgId = decodeLatin1 $ B64.encode msgId, msgTs = systemToUTCTime msgTs, msgType}
+    msgInfo msgId msgTs msgType = MsgInfo {msgId = decodeLatin1 $ B64.encode $ unMsgId msgId, msgTs = systemToUTCTime msgTs, msgType}
 
 messageId :: Message -> MsgId
 messageId = \case
@@ -1499,7 +1504,34 @@ type RcvNtfPublicDhKey = C.PublicKeyX25519
 type RcvNtfDhSecret = C.DhSecretX25519
 
 -- | SMP message server ID.
-type MsgId = ByteString
+newtype MsgId = MsgId {unMsgId :: ByteString}
+  deriving (Eq, Show)
+
+instance C.CbNonceI MsgId where
+  unCbNonce (MsgId s) = B.take 24 s
+
+instance Encoding MsgId where
+  smpEncode (MsgId s) = smpEncode s
+  smpP = mkMsgId <$?> smpP
+
+instance StrEncoding MsgId where
+  strEncode (MsgId s) = strEncode s
+  strP = mkMsgId <$?> strP
+
+instance FromField MsgId where fromField = blobFieldDecoder mkMsgId
+
+instance ToField MsgId where toField (MsgId s) = toField $ Binary s
+
+mkMsgId :: ByteString -> Either String MsgId
+mkMsgId s
+  | B.length s >= 24 = Right $ MsgId s
+  | otherwise = Left "MsgId: invalid length"
+
+unsafeMsgId :: ByteString -> MsgId
+unsafeMsgId s = either error id $ mkMsgId s
+
+randomMsgId :: Int -> TVar ChaChaDRG -> STM MsgId
+randomMsgId n = fmap MsgId . C.randomBytes (max 24 n)
 
 -- | SMP message body.
 type MsgBody = ByteString

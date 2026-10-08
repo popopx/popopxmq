@@ -34,7 +34,7 @@ import Data.Time.Clock.System (SystemTime (..), getSystemTime)
 import SMPClient (testStoreLogFile, testStoreMsgsDir, testStoreMsgsDir2, testStoreMsgsFile, testStoreMsgsFile2)
 import Popopx.Messaging.Crypto (pattern MaxLenBS)
 import qualified Popopx.Messaging.Crypto as C
-import Popopx.Messaging.Protocol (EncDataBytes (..), EntityId (..), ErrorType (..), LinkId, Message (..), QueueLinkData, RecipientId, SParty (..), noMsgFlags)
+import Popopx.Messaging.Protocol (EncDataBytes (..), EntityId (..), ErrorType (..), LinkId, Message (..), QueueLinkData, RecipientId, SParty (..), noMsgFlags, randomMsgId)
 import Popopx.Messaging.Server (exportMessages, importMessages, printMessageStats)
 import Popopx.Messaging.Server.Env.STM (MsgStore (..), journalMsgStoreDepth, readWriteQueueStore)
 import Popopx.Messaging.Server.Expiration (ExpirationConfig (..), expireBeforeEpoch)
@@ -147,7 +147,7 @@ mkMessage :: MonadIO m => ByteString -> m Message
 mkMessage body = liftIO $ do
   g <- C.newRandom
   msgTs <- getSystemTime
-  msgId <- atomically $ C.randomBytes 24 g
+  msgId <- atomically $ randomMsgId 24 g
   pure Message {msgId, msgTs, msgFlags = noMsgFlags, msgBody = C.unsafeMaxLenBS body}
 
 pattern Msg :: ByteString -> Maybe Message
