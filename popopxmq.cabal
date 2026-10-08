@@ -2,17 +2,17 @@ cabal-version: 3.0
 
 name:           popopxmq
 version:        7.1.0.10
-synopsis:       SimpleXMQ message broker
+synopsis:       PopopxMQ message broker
 description:    This package includes <./docs/Popopx-Messaging-Server.html server>,
                 <./docs/Popopx-Messaging-Client.html client> and
                 <./docs/Popopx-Messaging-Agent.html agent> for SMP protocols:
                 .
-                * <https://github.com/popopx-chat/popopxmq/blob/master/protocol/popopx-messaging.md SMP protocol>
-                * <https://github.com/popopx-chat/popopxmq/blob/master/protocol/agent-protocol.md SMP agent protocol>
+                * <https://github.com/popopx/popopxmq/blob/master/protocol/popopx-messaging.md SMP protocol>
+                * <https://github.com/popopx/popopxmq/blob/master/protocol/agent-protocol.md SMP agent protocol>
                 .
-                See <https://github.com/popopx-chat/popopx-chat terminal chat prototype> built with SimpleXMQ broker.
+                See <https://github.com/popopx/popopx-chat terminal chat prototype> built with PopopxMQ broker.
 category:       Chat, Network, Web, System, Cryptography
-homepage:       https://github.com/popopx-chat/popopxmq#readme
+homepage:       https://github.com/popopx/popopxmq#readme
 author:         popopx.chat
 maintainer:     chat@popopx.chat
 copyright:      2020-2022 popopx.chat
