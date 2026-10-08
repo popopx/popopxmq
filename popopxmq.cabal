@@ -7,10 +7,10 @@ description:    This package includes <./docs/Popopx-Messaging-Server.html serve
                 <./docs/Popopx-Messaging-Client.html client> and
                 <./docs/Popopx-Messaging-Agent.html agent> for SMP protocols:
                 .
-                * <https://github.com/popopx/popopxmq/blob/master/protocol/popopx-messaging.md SMP protocol>
-                * <https://github.com/popopx/popopxmq/blob/master/protocol/agent-protocol.md SMP agent protocol>
+                * <https://github.com/popopx-chat/popopxmq/blob/master/protocol/popopx-messaging.md SMP protocol>
+                * <https://github.com/popopx-chat/popopxmq/blob/master/protocol/agent-protocol.md SMP agent protocol>
                 .
-                See <https://github.com/popopx/popopx-chat terminal chat prototype> built with PopopxMQ broker.
+                See <https://github.com/popopx-chat/popopx-chat terminal chat prototype> built with PopopxMQ broker.
 category:       Chat, Network, Web, System, Cryptography
 homepage:       https://github.com/popopx/popopxmq#readme
 author:         popopx.chat
@@ -196,6 +196,7 @@ library
           Popopx.Messaging.Agent.Store.Postgres.Migrations.M20260823_snd_files_entitlement
           Popopx.Messaging.Agent.Store.Postgres.Migrations.M20260919_ratchet_verify_codes
           Popopx.Messaging.Agent.Store.Postgres.Migrations.M20260929_ratchet_indexes
+          Popopx.Messaging.Agent.Store.Postgres.Migrations.M20261008_rcv_switch_status
   else
       exposed-modules:
           Popopx.Messaging.Agent.Store.SQLite
@@ -253,6 +254,7 @@ library
           Popopx.Messaging.Agent.Store.SQLite.Migrations.M20260919_ratchet_verify_codes
           Popopx.Messaging.Agent.Store.SQLite.Migrations.M20260929_ratchet_indexes
           Popopx.Messaging.Agent.Store.SQLite.Migrations.M20261005_commands_autoincrement
+          Popopx.Messaging.Agent.Store.SQLite.Migrations.M20261008_rcv_switch_status
           Popopx.Messaging.Agent.Store.SQLite.Util
   if flag(client_postgres) || flag(server_postgres)
       exposed-modules:
