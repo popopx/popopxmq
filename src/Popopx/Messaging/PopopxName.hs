@@ -4,7 +4,7 @@
 {-# LANGUAGE StrictData #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Popopx.Messaging.PoName
+module Popopx.Messaging.PopopxName
   ( PopopxNameInfo (..),
     PopopxDomain (..),
     PopopxTLD (..),
