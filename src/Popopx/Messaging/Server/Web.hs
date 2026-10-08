@@ -270,14 +270,14 @@ serverInfoSubsts popopxmqSource information =
       ]
     admin ServerContactAddress {popopx, email, pgp} =
       [ ("admin", Just ""),
-        ("adminSimplex", encodeUtf8 <$> popopx),
+        ("adminPopopx", encodeUtf8 <$> popopx),
         ("adminEmail", encodeUtf8 <$> email),
         ("adminPGP", encodeUtf8 . pkURI <$> pgp),
         ("adminPGPFingerprint", encodeUtf8 . pkFingerprint <$> pgp)
       ]
     complaints ServerContactAddress {popopx, email, pgp} =
       [ ("complaints", Just ""),
-        ("complaintsSimplex", encodeUtf8 <$> popopx),
+        ("complaintsPopopx", encodeUtf8 <$> popopx),
         ("complaintsEmail", encodeUtf8 <$> email),
         ("complaintsPGP", encodeUtf8 . pkURI <$> pgp),
         ("complaintsPGPFingerprint", encodeUtf8 . pkFingerprint <$> pgp)

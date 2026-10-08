@@ -113,7 +113,7 @@ main = do
                 "20260918_expire_messages" -- msg_queue_expire moves to the bottom on down migration
               ] -- skipComparisonForDownMigrations
               testStoreDBOpts
-              "src/Simplex/Messaging/Server/QueueStore/Postgres/server_schema.sql"
+              "src/Popopx/Messaging/Server/QueueStore/Postgres/server_schema.sql"
         around_ (postgressBracket testServerDBConnectInfo) $ do
           -- xdescribe "SMP server via TLS, postgres+jornal message store" $
           --   before (pure (transport @TLS, ASType SQSPostgres SMSJournal)) serverTests
@@ -135,7 +135,7 @@ main = do
               ntfServerMigrations
               [] -- skipComparisonForDownMigrations
               ntfTestStoreDBOpts
-              "src/Simplex/Messaging/Notifications/Server/Store/ntf_server_schema.sql"
+              "src/Popopx/Messaging/Notifications/Server/Store/ntf_server_schema.sql"
         around_ (postgressBracket ntfTestServerDBConnectInfo) $ do
           describe "Notifications server (SMP server: memory store)" $
             ntfServerTests (transport @TLS, ASType SQSMemory SMSMemory)
@@ -190,7 +190,7 @@ main = do
               appMigrations
               ["20250322_short_links"] -- snd_secure and last_broker_ts columns swap order on down migration
               (testDBOpts testDB)
-              "src/Simplex/Messaging/Agent/Store/Postgres/Migrations/agent_postgres_schema.sql"
+              "src/Popopx/Messaging/Agent/Store/Postgres/Migrations/agent_postgres_schema.sql"
 #else
         describe "Agent SQLite schema dump" schemaDumpTest
 #endif

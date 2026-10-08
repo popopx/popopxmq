@@ -26,7 +26,7 @@ testDB :: FilePath
 testDB = "tests/tmp/test_agent_schema.db"
 
 appSchema :: FilePath
-appSchema = "src/Simplex/Messaging/Agent/Store/SQLite/Migrations/agent_schema.sql"
+appSchema = "src/Popopx/Messaging/Agent/Store/SQLite/Migrations/agent_schema.sql"
 
 -- Some indexes found by `.lint fkey-indexes` are not added to schema, explanation:
 --
@@ -35,7 +35,7 @@ appSchema = "src/Simplex/Messaging/Agent/Store/SQLite/Migrations/agent_schema.sq
 --   EXPLAIN QUERY PLAN DELETE FROM connections;
 --   (uses conn_id for ratchets table)
 appLint :: FilePath
-appLint = "src/Simplex/Messaging/Agent/Store/SQLite/Migrations/agent_lint.sql"
+appLint = "src/Popopx/Messaging/Agent/Store/SQLite/Migrations/agent_lint.sql"
 
 testSchema :: FilePath
 testSchema = "tests/tmp/test_agent_schema.sql"

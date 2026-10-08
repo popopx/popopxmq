@@ -3,7 +3,7 @@
 export TEAM_ID=5NN7GUYB6T
 # export APNS_KEY_FILE=""
 # export APNS_KEY_ID=""
-export TOPIC=chat.simplex.app
+export TOPIC=com.popopxchat.popopx
 # export DEVICE_TOKEN=
 export APNS_HOST_NAME=api.sandbox.push.apple.com
 
