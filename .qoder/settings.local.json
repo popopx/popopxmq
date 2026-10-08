@@ -171,7 +171,9 @@
       "Bash(git status --short | grep \"^??\" | grep -v \"popopxmq$\")",
       "Bash(grep -rl \"Simplex\\\\.\" src/ --include=\"*.hs\" | head -10)",
       "Bash(grep -rl \"simplexmq\" src/ --include=\"*.hs\" | head -5)",
-      "Bash(source ~/.ghcup/env && cabal build lib:popopxmq 2>&1 | tail -80)"
+      "Bash(source ~/.ghcup/env && cabal build lib:popopxmq 2>&1 | tail -80)",
+      "Bash(source ~/.ghcup/env && cd /Users/elliot/POPOPX/popopxmq && cabal build lib:popopxmq exe:smp-server 2>&1 | tail -30)",
+      "Bash(cat /var/folders/v6/6smfs35j55vc40hbzxx_bfbh0000gn/T/qoder-cli-cn-501/-Users-elliot-POPOPX-popopxmq/60c6e990-6a9f-45fb-8af1-8fd57cc6f937/tasks/bd47f6itb.output 2>/dev/null | tail -30)"
     ]
   }
 }
