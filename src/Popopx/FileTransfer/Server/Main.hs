@@ -391,8 +391,9 @@ cliCommandP cfgPath logPath iniFile =
           (maybeReader readMaybe)
           ( long "sign-algorithm"
               <> short 'a'
-              <> help "Signature algorithm used for TLS certificates: ED25519, ED448 (default: ED25519)"
+              <> help "Signature algorithm used for TLS certificates: ED25519, ED448"
               <> value ED25519
+              <> showDefault
               <> metavar "ALG"
           )
       ip <-

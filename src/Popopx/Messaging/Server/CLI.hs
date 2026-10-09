@@ -55,6 +55,7 @@ module Popopx.Messaging.Server.CLI
 
 import Control.Logger.Simple (LogLevel (..))
 import Control.Monad
+import Control.Exception (SomeException, catch)
 import Data.ASN1.Types (asn1CharacterToString)
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as B
@@ -84,7 +85,7 @@ import System.Directory (doesDirectoryExist, listDirectory, removeDirectoryRecur
 import System.Environment (lookupEnv)
 import System.Exit (exitFailure)
 import System.FilePath (combine)
-import System.IO (IOMode (..), hFlush, hGetLine, stdout, withFile)
+import System.IO (IOMode (..), hFlush, hGetLine, hPutStrLn, stderr, stdout, withFile)
 import System.Exit (ExitCode (..))
 import System.Process (readCreateProcessWithExitCode, shell)
 import Text.Read (readMaybe)
@@ -479,7 +480,12 @@ printServiceInfo serverVersion srv@(ProtoServerWithAuth ProtocolServer {keyHash}
   B.putStrLn $ "Server address: " <> strEncode srv
 
 clearDirIfExists :: FilePath -> IO ()
-clearDirIfExists path = whenM (doesDirectoryExist path) $ listDirectory path >>= mapM_ (removePathForcibly . combine path)
+clearDirIfExists path = whenM (doesDirectoryExist path) $ do
+  contents <- listDirectory path
+  forM_ contents $ \file -> do
+    let fullPath = combine path file
+    removePathForcibly fullPath `catch` \(e :: SomeException) ->
+      hPutStrLn stderr $ "Warning: failed to remove " ++ fullPath ++ ": " ++ show e
 
 getEnvPath :: String -> FilePath -> IO FilePath
 getEnvPath name def = maybe def (\case "" -> def; f -> f) <$> lookupEnv name
