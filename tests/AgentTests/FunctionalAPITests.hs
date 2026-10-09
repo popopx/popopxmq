@@ -339,8 +339,8 @@ functionalAPITests ps = do
     it "should establish connection without PQ encryption and enable it" $
       withSmpServer ps testEnablePQEncryption
   describe "Duplex connection - delivery stress test" $ do
-    describe "one way (50)" $ testMatrix2Stress ps $ runAgentClientStressTestOneWay 50
-    xdescribe "one way (1000)" $ testMatrix2Stress ps $ runAgentClientStressTestOneWay 1000
+    describe "popopx (50)" $ testMatrix2Stress ps $ runAgentClientStressTestPopopx 50
+    xdescribe "popopx (1000)" $ testMatrix2Stress ps $ runAgentClientStressTestPopopx 1000
     describe "two way concurrently (50)" $ testMatrix2Stress ps $ runAgentClientStressTestConc 50
     xdescribe "two way concurrently (1000)" $ testMatrix2Stress ps $ runAgentClientStressTestConc 1000
   describe "Establishing duplex connection, different PQ settings" $ do
@@ -801,8 +801,8 @@ runAgentClientTestPQ viaProxy (alice, aPQ) (bob, bPQ) baseId =
 pqConnectionMode :: InitialKeys -> PQSupport -> Bool
 pqConnectionMode pqMode1 pqMode2 = supportPQ (CR.connPQEncryption pqMode1) && supportPQ pqMode2
 
-runAgentClientStressTestOneWay :: HasCallStack => Int64 -> PQSupport -> Bool -> AgentClient -> AgentClient -> AgentMsgId -> IO ()
-runAgentClientStressTestOneWay n pqSupport viaProxy alice bob baseId = runRight_ $ do
+runAgentClientStressTestPopopx :: HasCallStack => Int64 -> PQSupport -> Bool -> AgentClient -> AgentClient -> AgentMsgId -> IO ()
+runAgentClientStressTestPopopx n pqSupport viaProxy alice bob baseId = runRight_ $ do
   let pqEnc = PQEncryption $ supportPQ pqSupport
   (aliceId, bobId) <- makeConnection_ pqSupport alice bob
   let proxySrv = if viaProxy then Just testSMPServer else Nothing
