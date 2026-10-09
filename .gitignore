@@ -17,3 +17,6 @@ cabal.project.local~
 .coverage
 
 __pycache__/
+
+.DS_Store
+.github/
