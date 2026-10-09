@@ -287,7 +287,7 @@ cliCommandP cfgPath logPath iniFile =
           ( long "sign-algorithm"
               <> short 'a'
               <> help "Signature algorithm used for TLS certificates: ED25519, ED448"
-              <> value ED448
+              <> value ED25519
               <> showDefault
               <> metavar "ALG"
           )

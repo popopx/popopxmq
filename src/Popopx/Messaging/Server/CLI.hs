@@ -85,7 +85,8 @@ import System.Environment (lookupEnv)
 import System.Exit (exitFailure)
 import System.FilePath (combine)
 import System.IO (IOMode (..), hFlush, hGetLine, stdout, withFile)
-import System.Process (readCreateProcess, shell)
+import System.Exit (ExitCode (..))
+import System.Process (readCreateProcessWithExitCode, shell)
 import Text.Read (readMaybe)
 
 exitError :: String -> IO a
@@ -163,7 +164,13 @@ createServerX509_ createCA cfgPath x509cfg = do
   run $ "openssl x509 -req -days 999999 -extfile " <> c opensslServerConfFile <> " -extensions v3 -in " <> c serverCsrFile <> " -CA " <> c caCrtFile <> " -CAkey " <> c caKeyFile <> " -CAcreateserial -out " <> c serverCrtFile
   saveFingerprint
   where
-    run cmd = void $ readCreateProcess (shell cmd) ""
+    run cmd = do
+      (exitCode, _stdout, stderr_) <- readCreateProcessWithExitCode (shell cmd) ""
+      case exitCode of
+        ExitSuccess -> pure ()
+        ExitFailure code ->
+          error $ "Command failed (exit " <> show code <> "): " <> cmd
+            <> (if null stderr_ then "" else "\nstderr: " <> stderr_)
     c = combine cfgPath . ($ x509cfg)
     createOpensslCaConf =
       writeFile

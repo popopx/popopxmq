@@ -15,6 +15,7 @@ module Popopx.FileTransfer.Server.Main
   ) where
 
 import Control.Monad (forM_, unless, when)
+import qualified Data.ByteString.Char8 as B
 import Data.Either (fromRight)
 import Data.Functor (($>))
 import Data.Ini (Ini, lookupValue, readIniFile)
@@ -390,9 +391,8 @@ cliCommandP cfgPath logPath iniFile =
           (maybeReader readMaybe)
           ( long "sign-algorithm"
               <> short 'a'
-              <> help "Signature algorithm used for TLS certificates: ED25519, ED448"
-              <> value ED448
-              <> showDefault
+              <> help "Signature algorithm used for TLS certificates: ED25519, ED448 (default: ED25519)"
+              <> value ED25519
               <> metavar "ALG"
           )
       ip <-
@@ -420,7 +420,10 @@ cliCommandP cfgPath logPath iniFile =
               <> metavar "PATH"
           )
       fileSizeQuota <-
-        strOption
+        option
+          (eitherReader (\s -> case strDecode (B.pack s) of
+            Left e -> Left $ "Invalid file size: " <> e
+            Right v -> Right v))
           ( long "quota"
               <> short 'q'
               <> help "File storage quota (e.g. 100gb)"
