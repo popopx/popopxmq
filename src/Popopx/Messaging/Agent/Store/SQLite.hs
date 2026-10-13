@@ -184,7 +184,7 @@ reopenDBStore st@DBStore {dbKey, dbClosed} =
 keyString :: ScrubbedBytes -> Text
 keyString key =
   let bs = BA.convert key :: ByteString
-      hexChars = concatMap (\w -> let (h, l) = w `divMod` 16 in [toHexChar h, toHexChar l]) bs
+      hexChars = concatMap (\w -> let (h, l) = w `divMod` 16 in [toHexChar h, toHexChar l]) (BA.unpack bs)
    in "x'" <> T.pack hexChars <> "'"
   where
     toHexChar :: Word8 -> Char
