@@ -189,7 +189,7 @@ keyString key =
         Right decoded -> decoded
         Left _ -> bs  -- If not valid base64, use as-is
       hexChars = concatMap (\w -> let (h, l) = w `divMod` 16 in [toHexChar h, toHexChar l]) (BA.unpack rawBytes)
-   in "'x''" <> T.pack hexChars <> "'''"
+   in "\"x'" <> T.pack hexChars <> "'\""
   where
     toHexChar :: Word8 -> Char
     toHexChar n
