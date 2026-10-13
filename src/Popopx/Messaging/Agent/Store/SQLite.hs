@@ -188,16 +188,12 @@ reopenDBStore st@DBStore {dbKey, dbClosed} =
 keyString :: ScrubbedBytes -> Text
 keyString key =
   let bs = BA.convert key :: ByteString
+      -- Try using base64 string directly as passphrase (not hex format)
+      -- This tests if SQLCipher works at all on the simulator
       rawBytes = case B64.decode bs of
         Right decoded -> decoded
-        Left _ -> bs  -- If not valid base64, use as-is
-      hexChars = concatMap (\w -> let (h, l) = w `divMod` 16 in [toHexChar h, toHexChar l]) (BA.unpack rawBytes)
-   in "\"x'" <> T.pack hexChars <> "'\""
-  where
-    toHexChar :: Word8 -> Char
-    toHexChar n
-      | n < 10 = toEnum (fromIntegral n + fromEnum '0')
-      | otherwise = toEnum (fromIntegral n - 10 + fromEnum 'a')
+        Left _ -> bs
+   in sqlString (safeDecodeUtf8 rawBytes)
 
 sqlString :: Text -> Text
 sqlString s = quote <> T.replace quote "''" s <> quote
