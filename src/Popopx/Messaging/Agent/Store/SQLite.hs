@@ -50,6 +50,7 @@ import Data.Bits (xor)
 import Data.ByteArray (ScrubbedBytes)
 import qualified Data.ByteArray as BA
 import Data.ByteString (ByteString)
+import qualified Data.ByteString.Base64 as B64
 import Data.Functor (($>))
 import Data.IORef
 import Data.Maybe (fromMaybe)
@@ -184,7 +185,10 @@ reopenDBStore st@DBStore {dbKey, dbClosed} =
 keyString :: ScrubbedBytes -> Text
 keyString key =
   let bs = BA.convert key :: ByteString
-      hexChars = concatMap (\w -> let (h, l) = w `divMod` 16 in [toHexChar h, toHexChar l]) (BA.unpack bs)
+      rawBytes = case B64.decode bs of
+        Right decoded -> decoded
+        Left _ -> bs  -- If not valid base64, use as-is
+      hexChars = concatMap (\w -> let (h, l) = w `divMod` 16 in [toHexChar h, toHexChar l]) (BA.unpack rawBytes)
    in "'x''" <> T.pack hexChars <> "'''"
   where
     toHexChar :: Word8 -> Char
