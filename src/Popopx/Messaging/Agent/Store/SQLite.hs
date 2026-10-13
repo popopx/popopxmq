@@ -55,6 +55,7 @@ import Data.IORef
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Word (Word8)
 import Database.SQLite.Simple (Query (..))
 import qualified Database.SQLite.Simple as SQL
 import Database.SQLite.Simple.QQ (sql)
@@ -181,7 +182,15 @@ reopenDBStore st@DBStore {dbKey, dbClosed} =
         Nothing -> fail "reopenDBStore: no key"
 
 keyString :: ScrubbedBytes -> Text
-keyString = sqlString . safeDecodeUtf8 . BA.convert
+keyString key =
+  let bs = BA.convert key :: ByteString
+      hexChars = concatMap (\w -> let (h, l) = w `divMod` 16 in [toHexChar h, toHexChar l]) bs
+   in "x'" <> T.pack hexChars <> "'"
+  where
+    toHexChar :: Word8 -> Char
+    toHexChar n
+      | n < 10 = toEnum (fromIntegral n + fromEnum '0')
+      | otherwise = toEnum (fromIntegral n - 10 + fromEnum 'a')
 
 sqlString :: Text -> Text
 sqlString s = quote <> T.replace quote "''" s <> quote
