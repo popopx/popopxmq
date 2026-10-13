@@ -118,7 +118,10 @@ connectDB path functions key track = do
   pure db
   where
     prepare db = do
-      unless (BA.null key) . SQLite3.exec db' $ "PRAGMA key = " <> keyString key <> ";"
+      let keyCmd = "PRAGMA key = " <> keyString key <> ";"
+      putStrLn $ "DEBUG keyString length: " <> show (T.length (keyString key))
+      putStrLn $ "DEBUG PRAGMA key command: " <> keyCmd
+      unless (BA.null key) . SQLite3.exec db' $ keyCmd
       SQLite3.exec db' . fromQuery $
         [sql|
           PRAGMA busy_timeout = 100;
