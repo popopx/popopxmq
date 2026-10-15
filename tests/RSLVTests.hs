@@ -51,7 +51,7 @@ import Popopx.Messaging.Protocol
   )
 import qualified Popopx.Messaging.Protocol as SMP
 import Popopx.Messaging.Server.Env.STM (ServerConfig (..))
-import Popopx.Messaging.PoName (PopopxDomain)
+import Popopx.Messaging.PopopxName (PopopxDomain)
 import Popopx.Messaging.Transport
 import Popopx.Messaging.Version (mkVersionRange)
 import Test.Hspec hiding (fit, it)

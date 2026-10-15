@@ -191,7 +191,7 @@ keyString key =
       rawBytes = case B64.decode bs of
         Right decoded -> decoded
         Left _ -> bs
-      hexChars = concatMap (\w -> let (h, l) = w `divMod` 16 in [toHexChar h, toHexChar l]) (BA.unpack rawBytes)
+      hexChars = concatMap (\w -> let (h, l) = fromIntegral w `divMod` 16 in [toHexChar h, toHexChar l]) (BA.unpack rawBytes)
    in "\"x'" <> T.pack hexChars <> "'\""
   where
     toHexChar :: Int -> Char

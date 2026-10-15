@@ -28,7 +28,7 @@ import Popopx.Messaging.Server.Names
     resolveName,
   )
 import Popopx.Messaging.Server.Names.HttpResolver (ResolverError (..))
-import Popopx.Messaging.PoName (PopopxDomain (..), PopopxTLD (..), labelHash)
+import Popopx.Messaging.PopopxName (PopopxDomain (..), PopopxTLD (..), labelHash)
 import Popopx.Messaging.SystemTime (RoundedSystemTime (..))
 import Popopx.Messaging.Transport (nameAvailSMPVersion, serverInfoSMPVersion)
 import Test.Hspec

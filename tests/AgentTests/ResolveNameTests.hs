@@ -29,7 +29,7 @@ import Popopx.Messaging.Agent.Protocol (AgentErrorType (..))
 import Popopx.Messaging.Client (SMPProxyFallback (..), SMPProxyMode (..), pattern NRMInteractive)
 import Popopx.Messaging.Protocol (SMPServer)
 import qualified Popopx.Messaging.Protocol as SMP
-import Popopx.Messaging.PoName (PopopxDomain (..), PopopxTLD (..))
+import Popopx.Messaging.PopopxName (PopopxDomain (..), PopopxTLD (..))
 import Popopx.Messaging.Transport
 import Test.Hspec hiding (fit, it)
 import Util (HasTestEnv, it)

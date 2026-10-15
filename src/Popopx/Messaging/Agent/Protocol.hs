@@ -133,7 +133,7 @@ module Popopx.Messaging.Agent.Protocol
     PopopxNameInfo (..),
     PopopxDomain (..),
     PopopxTLD (..),
-    PoNameType (..),
+    PopopxNameType (..),
     ConnShortLink (..),
     AConnShortLink (..),
     CreatedConnLink (..),
@@ -251,7 +251,7 @@ import Popopx.Messaging.Crypto.Ratchet
   )
 import Popopx.Messaging.Encoding
 import Popopx.Messaging.Encoding.String
-import Popopx.Messaging.PoName (PopopxDomain (..), PopopxNameInfo (..), PoNameType (..), PopopxTLD (..), fullDomainName, shortNameInfoStr)
+import Popopx.Messaging.PopopxName (PopopxDomain (..), PopopxNameInfo (..), PopopxNameType (..), PopopxTLD (..), fullDomainName, shortNameInfoStr)
 import Popopx.Messaging.Parsers
 import Popopx.Messaging.Protocol
   ( AProtocolType,
