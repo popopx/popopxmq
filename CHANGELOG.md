@@ -1,3 +1,32 @@
+# POPOPXMQ Fork
+
+This is the POPOPX fork of simplexmq, focused on privacy-preserving messaging
+with custom branding and platform-specific enhancements.
+
+## v7.1.0.11 (2026-10-16)
+
+Synced with upstream simplexmq v7.1.0.11 (commit e91711c7):
+- Removed journal message store (~1100 lines)
+- Added delayed AUTH responses for error delay protection
+- Enforced server command concurrency limit with metrics
+- Agent: prepare invitation link, create ratchet at connection prepare
+- Parallel test execution with race condition fixes
+- Schema updates for agent, ntf, and server databases
+
+POPOPX-specific changes since v7.1.0.10:
+- Complete rebranding from SimpleX to Popopx across codebase
+- SQLCipher key encoding fix (hex format to prevent UTF-8 corruption)
+- Server hardening and migration logic updates
+
+## v7.1.0.10 (2026-10-09)
+
+Initial sync with upstream simplexmq v7.1.0.10:
+- Queue drain logic improvements
+- Database migration for read queue index
+- 175 modules compiling successfully
+
+---
+
 # 6.5.1
 
 Version 6.5.1.0
