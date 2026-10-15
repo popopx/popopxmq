@@ -19,17 +19,12 @@ import Popopx.Messaging.Server.Env.STM (AStoreType (..))
 import Popopx.Messaging.Transport (ASrvTransport)
 import Test.Hspec hiding (fit, it)
 
-#if defined(dbPostgres)
-import Fixtures
-import Popopx.Messaging.Agent.Store.Postgres.Util (dropAllSchemasExceptSystem)
-#else
+#if !defined(dbPostgres)
 import AgentTests.SQLiteTests (storeTests)
 #endif
 
 #if defined(dbServerPostgres)
 import AgentTests.NotificationTests (notificationTests)
-import SMPClient (postgressBracket)
-import NtfClient (ntfTestServerDBConnectInfo)
 #endif
 
 agentCoreTests :: Spec
@@ -42,16 +37,10 @@ agentCoreTests = do
 
 agentTests :: (ASrvTransport, AStoreType) -> Spec
 agentTests ps = do
-#if defined(dbPostgres)
-  after_ (dropAllSchemasExceptSystem testDBConnectInfo) $ do
-#else
-  do
-#endif
-    describe "Functional API" $ functionalAPITests ps
-    describe "Chosen servers" serverChoiceTests
+  describe "Functional API" $ functionalAPITests ps
+  describe "Chosen servers" serverChoiceTests
 #if defined(dbServerPostgres)
-    around_ (postgressBracket ntfTestServerDBConnectInfo) $
-      describe "Notification tests" $ notificationTests ps
+  describe "Notification tests" $ notificationTests ps
 #endif
 #if !defined(dbPostgres)
   describe "SQLite store" storeTests

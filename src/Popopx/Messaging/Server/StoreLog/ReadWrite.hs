@@ -23,7 +23,7 @@ import Data.Text.Encoding (decodeLatin1)
 import Popopx.Messaging.Encoding.String
 import Popopx.Messaging.Protocol (ASubscriberParty (..), ErrorType, RecipientId, SParty (..))
 import Popopx.Messaging.Server.QueueStore (QueueRec, ServiceRec (..))
-import Popopx.Messaging.Server.QueueStore.STM (STMQueueStore (..), STMService (..))
+import Popopx.Messaging.Server.QueueStore.STM (STMQueueStore (..), STMService (..), withLoadedQueues)
 import Popopx.Messaging.Server.QueueStore.Types
 import Popopx.Messaging.Server.StoreLog
 import Popopx.Messaging.Util (tshow)
@@ -71,7 +71,7 @@ readQueueStore tty mkQ f st = readLogLines tty f $ \_ -> processLine
         withQueue qId op a = runExceptT go >>= qError qId op
           where
             go = do
-              q <- ExceptT $ getQueue_ st (\_ -> mkQ) SRecipient qId
+              q <- ExceptT $ getQueue_ st mkQ SRecipient qId
               liftIO (readTVarIO $ queueRec q) >>= \case
                 Nothing -> logWarn $ logPfx qId op <> "already deleted"
                 Just _ -> void $ ExceptT $ a q

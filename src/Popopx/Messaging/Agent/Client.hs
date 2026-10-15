@@ -34,7 +34,6 @@ module Popopx.Messaging.Agent.Client
     withInvLock,
     withLockMap,
     withLocksMap,
-    getMapLock,
     ipAddressProtected,
     closeAgentClient,
     closeProtocolServerClients,
@@ -2480,8 +2479,8 @@ storeError = \case
   SEUserNotFound -> NO_USER
   SERatchetNotFound -> CONN NOT_FOUND ""
   SEConnDuplicate -> CONN DUPLICATE ""
-  SEBadConnType cxt CRcv -> CONN POPOPX cxt
-  SEBadConnType cxt CSnd -> CONN POPOPX cxt
+  SEBadConnType cxt CRcv -> CONN SIMPLEX cxt
+  SEBadConnType cxt CSnd -> CONN SIMPLEX cxt
   SEInvitationNotFound cxt invId -> CMD PROHIBITED $ "SEInvitationNotFound " <> cxt <> ", invitationId = " <> show invId
   -- this error is never reported as store error,
   -- it is used to wrap agent operations when "transaction-like" store access is needed

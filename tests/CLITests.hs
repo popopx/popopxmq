@@ -49,32 +49,32 @@ import Util
 import qualified Data.ByteString.Char8 as B
 import qualified Database.PostgreSQL.Simple as PSQL
 import Database.PostgreSQL.Simple.Types (Query (..))
-import NtfClient (ntfTestServerDBConnectInfo, ntfTestServerDBConnstr, ntfTestStoreDBOpts)
+import NtfClient (ntfTestServerDBConnectInfo, ntfTestServerDBConnstr, ntfTestServerDBOpts)
 import SMPClient (postgressBracket)
 import Popopx.Messaging.Agent.Store.Postgres.Options (DBOpts (..))
 import Popopx.Messaging.Notifications.Server.Main
 #endif
 
-cfgPath :: FilePath
-cfgPath = "tests/tmp/cli/etc/opt/popopx"
+cfgPath :: HasTestEnv => FilePath
+cfgPath = testPath "cli/etc/opt/popopx"
 
-logPath :: FilePath
-logPath = "tests/tmp/cli/etc/var/popopx"
+logPath :: HasTestEnv => FilePath
+logPath = testPath "cli/etc/var/popopx"
 
-webPath :: FilePath
-webPath = "tests/tmp/cli/var/www"
+webPath :: HasTestEnv => FilePath
+webPath = testPath "cli/var/www"
 
-ntfCfgPath :: FilePath
-ntfCfgPath = "tests/tmp/cli/etc/opt/popopx-notifications"
+ntfCfgPath :: HasTestEnv => FilePath
+ntfCfgPath = testPath "cli/etc/opt/popopx-notifications"
 
-ntfLogPath :: FilePath
-ntfLogPath = "tests/tmp/cli/etc/var/popopx-notifications"
+ntfLogPath :: HasTestEnv => FilePath
+ntfLogPath = testPath "cli/etc/var/popopx-notifications"
 
-fileCfgPath :: FilePath
-fileCfgPath = "tests/tmp/cli/etc/opt/popopx-files"
+fileCfgPath :: HasTestEnv => FilePath
+fileCfgPath = testPath "cli/etc/opt/popopx-files"
 
-fileLogPath :: FilePath
-fileLogPath = "tests/tmp/cli/etc/var/popopx-files"
+fileLogPath :: HasTestEnv => FilePath
+fileLogPath = testPath "cli/etc/var/popopx-files"
 
 cliTests :: Spec
 cliTests = do
@@ -87,7 +87,7 @@ cliTests = do
       it "static files" smpServerTestStatic
       it "cloud scripts disable embedded web without certificates" smpCloudScriptsDisableWeb
 #if defined(dbServerPostgres)
-  around_ (postgressBracket ntfTestServerDBConnectInfo) $ before_ (createNtfSchema ntfTestServerDBConnectInfo ntfTestStoreDBOpts) $
+  around_ (postgressBracket ntfTestServerDBConnectInfo) $ before_ (createNtfSchema ntfTestServerDBConnectInfo ntfTestServerDBOpts) $
     describe "Ntf server CLI" $ do
       it "should initialize, start and delete the server (no store log)" $ ntfServerTest False
       it "should initialize, start and delete the server (with store log)" $ ntfServerTest True
@@ -96,7 +96,7 @@ cliTests = do
     it "should initialize, start and delete the server (no store log)" $ xftpServerTest False
     it "should initialize, start and delete the server (with store log)" $ xftpServerTest True
 
-smpServerTest :: Bool -> Bool -> IO ()
+smpServerTest :: HasTestEnv => Bool -> Bool -> IO ()
 smpServerTest storeLog basicAuth = do
   -- init
   capture_ (withArgs (["init", "-y"] <> ["--disable-store-log" | not storeLog] <> ["--no-password" | not basicAuth]) $ smpServerCLI cfgPath logPath)
@@ -122,7 +122,7 @@ smpServerTest storeLog basicAuth = do
     XF.readSignedObject certPath >>= \case
       [cert'] -> pure . X.signedObject $ X.getSigned cert'
       _ -> error "bad crt format"
-  r' <- lines <$> capture_ (withArgs ["cert"] $ (100000 `timeout` smpServerCLI cfgPath logPath) `catchAll_` pure (Just ()))
+  r' <- lines <$> capture_ (withArgs ["cert"] $ smpServerCLI cfgPath logPath)
   r' `shouldContain` ["Generated new server credentials"]
   newCrt <-
     XF.readSignedObject certPath >>= \case
@@ -137,7 +137,7 @@ smpServerTest storeLog basicAuth = do
     >>= (`shouldSatisfy` ("WARNING: deleting the server will make all queues inaccessible" `isPrefixOf`))
   doesFileExist (cfgPath <> "/ca.key") `shouldReturn` False
 
-smpServerTestStatic :: HasCallStack => IO ()
+smpServerTestStatic :: (HasCallStack, HasTestEnv) => IO ()
 smpServerTestStatic = do
   let iniFile = cfgPath <> "/smp-server.ini"
   capture_ (withArgs ["init", "-y", "--no-password", "--web-path", webPath] $ smpServerCLI cfgPath logPath)
@@ -225,7 +225,7 @@ createNtfSchema connInfo DBOpts {schema} = do
   void $ PSQL.execute_ db $ Query $ "CREATE SCHEMA " <> schema
   PSQL.close db
 
-ntfServerTest :: Bool -> IO ()
+ntfServerTest :: HasTestEnv => Bool -> IO ()
 ntfServerTest storeLog = do
   capture_ (withArgs (["init", "--database=" <> B.unpack ntfTestServerDBConnstr] <> ["--disable-store-log" | not storeLog]) $ ntfServerCLI ntfCfgPath ntfLogPath)
     >>= (`shouldSatisfy` (("Server initialized, you can modify configuration in " <> ntfCfgPath <> "/ntf-server.ini") `isPrefixOf`))
@@ -244,9 +244,9 @@ ntfServerTest storeLog = do
   doesFileExist (cfgPath <> "/ca.key") `shouldReturn` False
 #endif
 
-xftpServerTest :: Bool -> IO ()
+xftpServerTest :: HasTestEnv => Bool -> IO ()
 xftpServerTest storeLog = do
-  capture_ (withArgs (["init", "-p", "tests/tmp", "-q", "10gb"] <> ["--disable-store-log" | not storeLog]) $ xftpServerCLI fileCfgPath fileLogPath)
+  capture_ (withArgs (["init", "-p", testDir, "-q", "10gb"] <> ["--disable-store-log" | not storeLog]) $ xftpServerCLI fileCfgPath fileLogPath)
     >>= (`shouldSatisfy` (("Server initialized, you can modify configuration in " <> fileCfgPath <> "/file-server.ini") `isPrefixOf`))
   Right ini <- readIniFile $ fileCfgPath <> "/file-server.ini"
   lookupValue "STORE_LOG" "enable" ini `shouldBe` Right (if storeLog then "on" else "off")
@@ -254,7 +254,7 @@ xftpServerTest storeLog = do
   lookupValue "TRANSPORT" "port" ini `shouldBe` Right "443"
   doesFileExist (fileCfgPath <> "/ca.key") `shouldReturn` True
   r <- lines <$> capture_ (withArgs ["start"] $ (100000 `timeout` xftpServerCLI fileCfgPath fileLogPath) `catchAll_` pure (Just ()))
-  r `shouldContain` ["POPOPX XFTP server v" <> popopxmqVersionCommit]
+  r `shouldContain` ["SimpleX XFTP server v" <> popopxmqVersionCommit]
   r `shouldContain` (if storeLog then ["Store log: " <> fileLogPath <> "/file-server-store.log"] else ["Store log disabled."])
   r `shouldContain` ["Listening on port 443..."]
   capture_ (withStdin "Y" . withArgs ["delete"] $ xftpServerCLI fileCfgPath fileLogPath)

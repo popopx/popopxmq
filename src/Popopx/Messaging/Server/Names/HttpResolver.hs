@@ -11,7 +11,7 @@
 --   GET /v2/resolve/<query> -> 200 with a NameRegistration JSON document, for
 --                              all three registration shapes; 400 for unknown
 --                              TLDs, 502 for upstream RPC failures
---   GET /v1/resolve/<name>  -> 200 with a NameResponse, what relays before SMP
+--   GET /v1/resolve/<name>  -> 200 with a NameRecord, what relays before SMP
 --                              v22 call as /resolve
 --   GET /health             -> 200 when the resolver process is ready
 --
@@ -141,4 +141,8 @@ httpGet ResolverEnv {manager, baseUrl, authHdr, timeoutMicro, maxResponseBytes} 
       else do
         bs <- brReadSome (responseBody res) (maxResponseBytes + 1)
         pure $ if BL.length bs > fromIntegral maxResponseBytes then Left BodyTooLarge else Right bs
-  pure (either (Left . HttpFailure) id result)
+  pure (either (Left . httpError) id result)
+  where
+    httpError = \case
+      HC.HttpExceptionRequest _ HC.ResponseTimeout -> ResolverTimeout
+      e -> HttpFailure e

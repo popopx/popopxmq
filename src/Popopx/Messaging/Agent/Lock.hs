@@ -6,7 +6,6 @@ module Popopx.Messaging.Agent.Lock
     withLock',
     withGetLock,
     withGetLocks,
-    getPutLock,
   )
 where
 

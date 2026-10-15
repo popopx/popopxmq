@@ -26,10 +26,10 @@
 
 -- |
 -- Module      : Popopx.Messaging.Agent.Protocol
--- Copyright   : (c) popopx.chat
+-- Copyright   : (c) popopx.xyz
 -- License     : AGPL-3
 --
--- Maintainer  : chat@popopx.chat
+-- Maintainer  : chat@popopx.xyz
 -- Stability   : experimental
 -- Portability : non-portable
 --
@@ -133,7 +133,7 @@ module Popopx.Messaging.Agent.Protocol
     PopopxNameInfo (..),
     PopopxDomain (..),
     PopopxTLD (..),
-    PopopxNameType (..),
+    PoNameType (..),
     ConnShortLink (..),
     AConnShortLink (..),
     CreatedConnLink (..),
@@ -246,13 +246,12 @@ import Popopx.Messaging.Crypto.Ratchet
     RcvE2ERatchetParams,
     RcvE2ERatchetParamsUri,
     SndE2ERatchetParams,
-    RcvE2EPrivRatchetParams,
     pattern PQSupportOff,
     pattern PQSupportOn,
   )
 import Popopx.Messaging.Encoding
 import Popopx.Messaging.Encoding.String
-import Popopx.Messaging.PopopxName (PopopxDomain (..), PopopxNameInfo (..), PopopxNameType (..), PopopxTLD (..), fullDomainName, shortNameInfoStr)
+import Popopx.Messaging.PoName (PopopxDomain (..), PopopxNameInfo (..), PoNameType (..), PopopxTLD (..), fullDomainName, shortNameInfoStr)
 import Popopx.Messaging.Parsers
 import Popopx.Messaging.Protocol
   ( AProtocolType,
@@ -1627,7 +1626,7 @@ newtype LinkKey = LinkKey ByteString -- sha3-256(fixed_data)
 instance ToField LinkKey where toField (LinkKey s) = toField $ Binary s
 
 -- | Parameters for creating a connection with a prepared link.
-data PreparedLinkParams = PreparedLinkParams
+data PreparedLinkParams k = PreparedLinkParams
   { -- | Correlation ID / determines sender ID
     plpNonce :: C.CbNonce,
     -- | Queue E2EE DH key pair
@@ -1642,8 +1641,8 @@ data PreparedLinkParams = PreparedLinkParams
     plpSrvWithAuth :: SMPServerWithAuth,
     -- | Initial PQ keys
     plpInitKeys :: InitialKeys,
-    -- | Contact address double ratchet keys
-    plpAddressKeys :: Maybe (RatchetKeyId, RcvE2EPrivRatchetParams 'C.X448)
+    -- | Contact address double ratchet keys or invitation X3DH keys
+    plpRatchetKeys :: k
   }
 
 instance ConnectionModeI c => ToField (ConnectionLink c) where toField = toField . Binary . strEncode
@@ -2215,7 +2214,7 @@ data ConnectionErrorType
   | -- | connection already exists
     DUPLICATE
   | -- | connection is popopx, but operation requires another queue
-    POPOPX
+    SIMPLEX
   | -- | connection not accepted on join HELLO after timeout
     NOT_ACCEPTED
   | -- | connection not available on reply confirmation/HELLO after timeout
