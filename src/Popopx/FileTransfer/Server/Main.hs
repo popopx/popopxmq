@@ -91,7 +91,7 @@ xftpServerCLI_ generateSite serveStaticFiles cfgPath logPath = do
       putStrLn "Deleted configuration and log files"
   where
     iniFile = combine cfgPath "file-server.ini"
-    serverVersion = "SimpleX XFTP server v" <> popopxmqVersionCommit
+    serverVersion = "Popopx XFTP server v" <> popopxmqVersionCommit
     defaultServerPort = "443"
     executableName = "file-server"
     storeLogFilePath = combine logPath "file-server-store.log"

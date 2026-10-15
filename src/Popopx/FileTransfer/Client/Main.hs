@@ -240,7 +240,7 @@ xftpClientCLI =
     FileDescrInfo opts -> runE $ cliFileDescrInfo opts
     RandomFile opts -> cliRandomFile opts
   where
-    clientVersion = "SimpleX XFTP client v" <> xftpClientVersion
+    clientVersion = "Popopx XFTP client v" <> xftpClientVersion
     versionOption = infoOption clientVersion (long "version" <> short 'v' <> help "Show version")
 
 runLogE :: HasField "verbose" a Bool => a -> ExceptT CLIError IO () -> IO ()

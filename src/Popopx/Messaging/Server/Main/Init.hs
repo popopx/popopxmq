@@ -222,13 +222,13 @@ informationIniContent InitOptions {sourceCode, serverInfo} =
     <> (optDisabled website <> "website = " <> fromMaybe "" website)
     <> "\n\n\
        \# Administrative contacts.\n\
-       \# admin_popopx = SimpleX address\n\
+       \# admin_popopx = Popopx address\n\
        \# admin_email =\n\
        \# admin_pgp =\n\
        \# admin_pgp_fingerprint =\n\
        \\n\
        \# Contacts for complaints and feedback.\n\
-       \# complaints_popopx = SimpleX address\n\
+       \# complaints_popopx = Popopx address\n\
        \# complaints_email =\n\
        \# complaints_pgp =\n\
        \# complaints_pgp_fingerprint =\n\

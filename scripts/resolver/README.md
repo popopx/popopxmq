@@ -1,6 +1,6 @@
 # Self-hosted SNRC stack
 
-One `docker compose up` runs the self-hosted SimpleX Namespace (SNRC) backend
+One `docker compose up` runs the self-hosted Popopx Namespace (SNRC) backend
 against **Ethereum mainnet** (where the `.testing` contracts live):
 
 | # | Component | What it does |
@@ -346,7 +346,7 @@ language.
 
 | `reasonCode` | Meaning |
 |---|---|
-| `internal` | reserved for SimpleX |
+| `internal` | reserved for Popopx |
 | `trademark` | reserved to protect a trademark |
 | `community` | reserved for the community |
 | `unknown` | a reason added to the contract after this resolver; still reserved |

@@ -144,7 +144,7 @@ CONTROLLERS = {
 # controller from before the enum stores a bool, whose `true` decodes as 1,
 # which is why 1 reads as "internal".
 RESERVED_REASONS = {
-    1: ("internal", "reserved for SimpleX"),
+    1: ("internal", "reserved for Popopx"),
     2: ("trademark", "reserved to protect a trademark"),
     3: ("community", "reserved for the community"),
 }

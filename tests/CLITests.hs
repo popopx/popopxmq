@@ -254,7 +254,7 @@ xftpServerTest storeLog = do
   lookupValue "TRANSPORT" "port" ini `shouldBe` Right "443"
   doesFileExist (fileCfgPath <> "/ca.key") `shouldReturn` True
   r <- lines <$> capture_ (withArgs ["start"] $ (100000 `timeout` xftpServerCLI fileCfgPath fileLogPath) `catchAll_` pure (Just ()))
-  r `shouldContain` ["SimpleX XFTP server v" <> popopxmqVersionCommit]
+  r `shouldContain` ["Popopx XFTP server v" <> popopxmqVersionCommit]
   r `shouldContain` (if storeLog then ["Store log: " <> fileLogPath <> "/file-server-store.log"] else ["Store log disabled."])
   r `shouldContain` ["Listening on port 443..."]
   capture_ (withStdin "Y" . withArgs ["delete"] $ xftpServerCLI fileCfgPath fileLogPath)

@@ -615,7 +615,7 @@ data Command (p :: Party) where
   -- - entity ID: empty
   -- - corrId: unique correlation ID between proxy and relay, also used as a nonce to encrypt forwarded transmission
   RFWD :: EncFwdTransmission -> Command ProxyService -- use CorrId as CbNonce, proxy to relay
-  -- Resolve SimpleX name.
+  -- Resolve Popopx name.
   RSLV :: NameQuery -> Command Resolver
 
 deriving instance Show (Command p)
@@ -757,7 +757,7 @@ data BrokerMsg where
   OK :: BrokerMsg
   ERR :: ErrorType -> BrokerMsg
   PONG :: BrokerMsg
-  -- What the router knows about a SimpleX name.
+  -- What the router knows about a Popopx name.
   RNAME :: NameResponse -> BrokerMsg
   deriving (Eq, Show)
 

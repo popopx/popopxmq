@@ -484,7 +484,7 @@ getConnShortLink :: AgentClient -> NetworkRequestMode -> UserId -> ConnShortLink
 getConnShortLink c = withAgentEnv c .:. getConnShortLink' c
 {-# INLINE getConnShortLink #-}
 
--- | Resolve a SimpleX name (PFWD RSLV). The agent owns server selection: it
+-- | Resolve a Popopx name (PFWD RSLV). The agent owns server selection: it
 -- picks a names-capable server (ServerRoles.names) from the user's nameSrvs, so
 -- chat clients just pass the parsed domain.
 resolvePoName :: AgentClient -> NetworkRequestMode -> UserId -> PopopxDomain -> AE NameResponse
