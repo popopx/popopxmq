@@ -490,7 +490,7 @@ class ReservedReasonTests(unittest.TestCase):
         snrc.eth_call = self._reserved_as(1)
         reg = snrc.name_status("acme.testing")
         self.assertEqual(reg["reasonCode"], "internal")
-        self.assertEqual(reg["reason"], "reserved for SimpleX")
+        self.assertEqual(reg["reason"], "reserved for Popopx")
 
     def test_an_enum_value_this_resolver_predates_is_not_dropped(self):
         """A new Reason still reserves the name, and says it is unknown rather
@@ -505,7 +505,7 @@ class ReservedReasonTests(unittest.TestCase):
         status, body = snrc.resolve("acme.testing")
         self.assertEqual(status, 404)
         self.assertEqual(body["status"], "unregistered")
-        self.assertEqual(body["reason"], "reserved for SimpleX")
+        self.assertEqual(body["reason"], "reserved for Popopx")
 
     def test_the_message_does_not_claim_a_trademark(self):
         snrc.eth_call = self._chain(0, True)
@@ -531,7 +531,7 @@ class ReservedReasonTests(unittest.TestCase):
         # keccak-256("acme")
         hashed = "[e29dae06ef4c3e336b7538b6d4f52ca1ecec009b1df6fb501320e11b223aeeaf]"
         _, body = snrc.resolve(hashed + ".testing")
-        self.assertEqual(body["reason"], "reserved for SimpleX")
+        self.assertEqual(body["reason"], "reserved for Popopx")
 
 
 class PricingTests(unittest.TestCase):

@@ -5,7 +5,7 @@
 #   "eth-hash[pycryptodome]>=0.7",
 # ]
 # ///
-"""SimpleX Namespace (SNRC) resolver — REST API.
+"""Popopx Namespace (SNRC) resolver — REST API.
 
 Resolves names like `alice.testing` / `bob.popopx` against the SNRC
 deployment on Ethereum mainnet (or any compatible ENS-shaped registry)
