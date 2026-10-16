@@ -50,13 +50,11 @@ import Data.Bits (xor)
 import Data.ByteArray (ScrubbedBytes)
 import qualified Data.ByteArray as BA
 import Data.ByteString (ByteString)
-import qualified Data.ByteString.Base64 as B64
 import Data.Functor (($>))
 import Data.IORef
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
-import Data.Word (Word8)
 import Database.SQLite.Simple (Query (..))
 import qualified Database.SQLite.Simple as SQL
 import Database.SQLite.Simple.QQ (sql)
@@ -118,10 +116,7 @@ connectDB path functions key track = do
   pure db
   where
     prepare db = do
-      let keyCmd = "PRAGMA key = " <> keyString key <> ";"
-      putStrLn $ "DEBUG keyString length: " <> show (T.length (keyString key))
-      putStrLn $ "DEBUG PRAGMA key command: " <> T.unpack keyCmd
-      unless (BA.null key) . SQLite3.exec db' $ keyCmd
+      unless (BA.null key) . SQLite3.exec db' $ "PRAGMA key = " <> keyString key <> ";"
       SQLite3.exec db' . fromQuery $
         [sql|
           PRAGMA busy_timeout = 100;
@@ -186,18 +181,7 @@ reopenDBStore st@DBStore {dbKey, dbClosed} =
         Nothing -> fail "reopenDBStore: no key"
 
 keyString :: ScrubbedBytes -> Text
-keyString key =
-  let bs = BA.convert key :: ByteString
-      rawBytes = case B64.decode bs of
-        Right decoded -> decoded
-        Left _ -> bs
-      hexChars = concatMap (\w -> let (h, l) = fromIntegral w `divMod` 16 in [toHexChar h, toHexChar l]) (BA.unpack rawBytes)
-   in "\"x'" <> T.pack hexChars <> "'\""
-  where
-    toHexChar :: Int -> Char
-    toHexChar n
-      | n < 10 = toEnum (n + 48)
-      | otherwise = toEnum (n + 87)
+keyString = sqlString . safeDecodeUtf8 . BA.convert
 
 sqlString :: Text -> Text
 sqlString s = quote <> T.replace quote "''" s <> quote
