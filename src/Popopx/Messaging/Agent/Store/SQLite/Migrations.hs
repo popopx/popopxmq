@@ -14,11 +14,12 @@ module Popopx.Messaging.Agent.Store.SQLite.Migrations
   )
 where
 
+import Control.Exception (try, SomeException)
 import Control.Monad (forM_, when)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.Map.Strict as M
 import Data.Maybe (fromMaybe)
-import Data.Text (Text)
+import Data.Text (Text, pack, take)
 import Data.Text.Encoding (decodeLatin1)
 import Data.Time.Clock (getCurrentTime)
 import Database.SQLite.Simple (Only (..), Query (..))
@@ -31,6 +32,7 @@ import Popopx.Messaging.Agent.Store.SQLite.Migrations.M20230110_users
 import Popopx.Messaging.Agent.Store.Shared
 import Popopx.Messaging.Encoding.String
 import Popopx.Messaging.Transport.Client (TransportHost)
+import System.IO (hPutStrLn, stderr)
 
 getCurrentMigrations :: Maybe Query -> DB.Connection -> IO [Migration]
 getCurrentMigrations migrationsTable DB.Connection {DB.conn} =
@@ -51,17 +53,27 @@ run st migrationsTable vacuum = \case
   where
     table = fromMaybe "migrations" migrationsTable
     runUp Migration {name, up, down} = withTransaction' st $ \db -> do
+      hPutStrLn stderr $ "[Migration] Running migration: " <> pack name
       when (name == "m20220811_onion_hosts") $ updateServers db
-      insert db >> execSQL db up'
+      insert db
+      hPutStrLn stderr $ "[Migration] Executing SQL for: " <> pack name <> " (length=" <> pack (show $ Prelude.length sql) <> ")"
+      hPutStrLn stderr $ "[Migration] SQL preview: " <> take 200 (pack sql)
+      result <- try $ execSQL db sql
+      case result of
+        Left (e :: SomeException) -> do
+          hPutStrLn stderr $ "[Migration] ERROR executing " <> pack name <> ": " <> pack (show e)
+          hPutStrLn stderr $ "[Migration] Full SQL: " <> pack sql
+          ioError e
+        Right () -> do
+          hPutStrLn stderr $ "[Migration] Migration completed: " <> pack name
       where
+        sql = if dbNew st && name == "m20230110_users" then fromQuery new_m20230110_users else up
         insert db = SQL.execute db ("INSERT INTO " <> table <> " (name, down, ts) VALUES (?,?,?)") . (name,down,) =<< getCurrentTime
-        up'
-          | dbNew st && name == "m20230110_users" = fromQuery new_m20230110_users
-          | otherwise = up
         updateServers db = forM_ (M.assocs extraSMPServerHosts) $ \(h, h') ->
           let hs = decodeLatin1 . strEncode $ ([h, h'] :: NonEmpty TransportHost)
            in SQL.execute db "UPDATE servers SET host = ? WHERE host = ?" (hs, decodeLatin1 $ strEncode h)
     runDown DownMigration {downName, downQuery} = withTransaction' st $ \db -> do
+      hPutStrLn stderr $ "[Migration] Running down migration: " <> pack downName
       execSQL db downQuery
       SQL.execute db ("DELETE FROM " <> table <> " WHERE name = ?") (Only downName)
     execSQL db = SQLite3.exec $ SQL.connectionHandle db
