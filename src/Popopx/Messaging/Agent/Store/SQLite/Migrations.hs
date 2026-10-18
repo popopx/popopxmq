@@ -19,7 +19,8 @@ import Control.Monad (forM_, when)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.Map.Strict as M
 import Data.Maybe (fromMaybe)
-import Data.Text (Text, pack, take)
+import Data.Text (Text, pack)
+import qualified Data.Text as T
 import Data.Text.Encoding (decodeLatin1)
 import Data.Time.Clock (getCurrentTime)
 import Database.SQLite.Simple (Only (..), Query (..))
@@ -57,7 +58,7 @@ run st migrationsTable vacuum = \case
       when (name == "m20220811_onion_hosts") $ updateServers db
       insert db
       hPutStrLn stderr $ "[Migration] Executing SQL for: " <> pack name <> " (length=" <> pack (show $ Prelude.length sql) <> ")"
-      hPutStrLn stderr $ "[Migration] SQL preview: " <> take 200 (pack sql)
+      hPutStrLn stderr $ "[Migration] SQL preview: " <> T.take 200 (pack sql)
       result <- try $ execSQL db sql
       case result of
         Left (e :: SomeException) -> do
