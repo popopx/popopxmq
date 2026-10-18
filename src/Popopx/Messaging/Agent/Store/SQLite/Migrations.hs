@@ -19,7 +19,7 @@ import Control.Monad (forM_, when)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.Map.Strict as M
 import Data.Maybe (fromMaybe)
-import Data.Text (Text, pack)
+import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Encoding (decodeLatin1)
 import Data.Time.Clock (getCurrentTime)
@@ -54,19 +54,19 @@ run st migrationsTable vacuum = \case
   where
     table = fromMaybe "migrations" migrationsTable
     runUp Migration {name, up, down} = withTransaction' st $ \db -> do
-      hPutStrLn stderr $ "[Migration] Running migration: " <> pack name
+      hPutStrLn stderr $ "[Migration] Running migration: " ++ name
       when (name == "m20220811_onion_hosts") $ updateServers db
       insert db
-      hPutStrLn stderr $ "[Migration] Executing SQL for: " <> pack name <> " (length=" <> pack (show $ Prelude.length sql) <> ")"
-      hPutStrLn stderr $ "[Migration] SQL preview: " <> T.take 200 (pack sql)
+      hPutStrLn stderr $ "[Migration] Executing SQL for: " ++ name ++ " (length=" ++ show (T.length sql) ++ ")"
+      hPutStrLn stderr $ "[Migration] SQL preview: " ++ T.unpack (T.take 200 sql)
       result <- try $ execSQL db sql
       case result of
         Left (e :: SomeException) -> do
-          hPutStrLn stderr $ "[Migration] ERROR executing " <> pack name <> ": " <> pack (show e)
-          hPutStrLn stderr $ "[Migration] Full SQL: " <> pack sql
+          hPutStrLn stderr $ "[Migration] ERROR executing " ++ name ++ ": " ++ show e
+          hPutStrLn stderr $ "[Migration] Full SQL: " ++ T.unpack sql
           ioError e
         Right () -> do
-          hPutStrLn stderr $ "[Migration] Migration completed: " <> pack name
+          hPutStrLn stderr $ "[Migration] Migration completed: " ++ name
       where
         sql = if dbNew st && name == "m20230110_users" then fromQuery new_m20230110_users else up
         insert db = SQL.execute db ("INSERT INTO " <> table <> " (name, down, ts) VALUES (?,?,?)") . (name,down,) =<< getCurrentTime
@@ -74,7 +74,7 @@ run st migrationsTable vacuum = \case
           let hs = decodeLatin1 . strEncode $ ([h, h'] :: NonEmpty TransportHost)
            in SQL.execute db "UPDATE servers SET host = ? WHERE host = ?" (hs, decodeLatin1 $ strEncode h)
     runDown DownMigration {downName, downQuery} = withTransaction' st $ \db -> do
-      hPutStrLn stderr $ "[Migration] Running down migration: " <> pack downName
+      hPutStrLn stderr $ "[Migration] Running down migration: " ++ downName
       execSQL db downQuery
       SQL.execute db ("DELETE FROM " <> table <> " WHERE name = ?") (Only downName)
     execSQL db = SQLite3.exec $ SQL.connectionHandle db
