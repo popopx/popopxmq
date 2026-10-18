@@ -14,7 +14,7 @@ module Popopx.Messaging.Agent.Store.SQLite.Migrations
   )
 where
 
-import Control.Exception (try, SomeException)
+import Control.Exception (try, SomeException, throwIO)
 import Control.Monad (forM_, when)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.Map.Strict as M
@@ -64,7 +64,7 @@ run st migrationsTable vacuum = \case
         Left (e :: SomeException) -> do
           hPutStrLn stderr $ "[Migration] ERROR executing " ++ name ++ ": " ++ show e
           hPutStrLn stderr $ "[Migration] Full SQL: " ++ T.unpack sql
-          ioError e
+          throwIO e
         Right () -> do
           hPutStrLn stderr $ "[Migration] Migration completed: " ++ name
       where
