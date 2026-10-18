@@ -3,6 +3,20 @@
 This is the POPOPX fork of simplexmq, focused on privacy-preserving messaging
 with custom branding and platform-specific enhancements.
 
+## v7.1.0.12 (2026-10-18)
+
+Synced with upstream simplexmq v7.1.0.12:
+- Fixed queue store map cleanup on delete (queues, senders, and links maps)
+- Simplified StoreLog withQueue using $>>= operator
+- Added testDeleteQueueMaps test coverage
+
+POPOPX-specific changes since v7.1.0.11:
+- Fixed SQLCipher key handling (reverted to upstream passphrase mode)
+- Added detailed SQLCipher logging to capture ErrorCorrupt details
+- Fixed ambiguous 'take' import in Migrations.hs
+- Fixed migration logging to use String concatenation for hPutStrLn
+- Fixed exception handling to use throwIO instead of ioError for SomeException
+
 ## v7.1.0.11 (2026-10-16)
 
 Synced with upstream simplexmq v7.1.0.11 (commit e91711c7):
