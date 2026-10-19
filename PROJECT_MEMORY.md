@@ -201,6 +201,124 @@ cabal build all
 
 ---
 
+## 发行版管理 / Release Management
+
+### 当前版本
+
+**v7.1.0.12** - 2026-10-19
+- Release 链接：https://github.com/popopx/popopxmq/releases/tag/v7.1.0.12
+- 包含 4 个可执行文件
+
+### 可执行文件清单
+
+| 可执行文件 | 大小 | 说明 | 编译标志 |
+|-----------|------|------|---------|
+| smp-server | 69MB | SMP 消息服务器 | 默认（SQLite） |
+| ntf-server | 76MB | 通知服务器 | `--flags=server_postgres` |
+| xftp | 54MB | XFTP 文件传输客户端 | 默认 |
+| xftp-server | 72MB | XFTP 文件传输服务器 | 默认 |
+
+### 编译命令
+
+```bash
+# 编译所有可执行文件（不包括 ntf-server）
+cabal build popopxmq:exe:smp-server popopxmq:exe:xftp popopxmq:exe:xftp-server
+
+# 编译 ntf-server（需要 PostgreSQL 支持）
+cabal build popopxmq:exe:ntf-server --flags=server_postgres
+```
+
+### 可执行文件位置
+
+```
+dist-newstyle/build/x86_64-linux/ghc-9.6.3/popopxmq-7.1.0.12/x/smp-server/build/smp-server/smp-server
+dist-newstyle/build/x86_64-linux/ghc-9.6.3/popopxmq-7.1.0.12/x/ntf-server/build/ntf-server/ntf-server
+dist-newstyle/build/x86_64-linux/ghc-9.6.3/popopxmq-7.1.0.12/x/xftp/build/xftp/xftp
+dist-newstyle/build/x86_64-linux/ghc-9.6.3/popopxmq-7.1.0.12/x/xftp-server/build/xftp-server/xftp-server
+```
+
+### 创建 Release 步骤
+
+1. **删除旧 releases**
+   ```bash
+   export GH_TOKEN=your_token
+   gh release delete <old-tag> --repo popopx/popopxmq --yes
+   ```
+
+2. **编译所有可执行文件**
+   ```bash
+   cabal clean
+   cabal build popopxmq:exe:smp-server popopxmq:exe:xftp popopxmq:exe:xftp-server
+   cabal build popopxmq:exe:ntf-server --flags=server_postgres
+   ```
+
+3. **创建新 release**
+   ```bash
+   gh release create <tag> \
+     --repo popopx/popopxmq \
+     --title "PopopxMQ <version>" \
+     --notes "Release notes..." \
+     <path-to-smp-server> \
+     <path-to-ntf-server> \
+     <path-to-xftp> \
+     <path-to-xftp-server>
+   ```
+
+4. **更新 release（如需要）**
+   ```bash
+   gh release edit <tag> --repo popopx/popopxmq --notes "Updated notes..."
+   gh release upload <tag> <file> --repo popopx/popopxmq --clobber
+   ```
+
+### ntf-server 特殊说明
+
+**编译要求**：
+- 必须使用 `--flags=server_postgres` 标志
+- 不支持 SQLite
+- 需要 PostgreSQL 数据库
+
+**cabal 配置**：
+```cabal
+executable ntf-server
+  if flag(client_library)
+      buildable: False
+  if flag(server_postgres)
+    cpp-options: -DdbServerPostgres
+  else
+    buildable: False
+```
+
+**原因**：ntf-server 设计为仅支持 PostgreSQL，不支持 SQLite。
+
+### GitHub Token 管理
+
+**认证方式**：
+```bash
+export GH_TOKEN=ghp_your_token_here
+gh auth status
+```
+
+**Token 要求**：
+- 需要 `repo` 权限
+- 需要 `write:packages` 权限（如果需要）
+- Classic token 或 Fine-grained token 均可
+
+### Release Notes 模板
+
+Release notes 应包含：
+- ✅ 版本号和日期
+- ✅ 主要变更摘要
+- ✅ 品牌重命名说明
+- ✅ 上游同步内容
+- ✅ 协议独立性说明
+- ✅ 所有可执行文件列表和说明
+- ✅ 编译标志要求
+- ✅ 与上游不兼容的警告
+- ✅ 安装和使用说明
+- ✅ 许可证信息
+
+---
+
 ## 关键文件路径 / Key File Paths
 
 ### 核心模块

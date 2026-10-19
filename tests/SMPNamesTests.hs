@@ -221,8 +221,8 @@ parseNameSpec = do
         domain d `shouldBe` "privacy"
       Left e -> expectationFailure ("expected Right, got Left " <> e)
 
-  it "normalises case across labels (Alice.SIMPLEX = alice.popopx)" $
-    parseN "alice.popopx" `shouldBe` parseN "Alice.SIMPLEX"
+  it "normalises case across labels (Alice.POPOPX = alice.popopx)" $
+    parseN "alice.popopx" `shouldBe` parseN "Alice.POPOPX"
 
   it "accepts a testing-TLD name" $
     case parseN "bob.testing" of

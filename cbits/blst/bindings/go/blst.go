@@ -1709,7 +1709,7 @@ func PairingMulNAggregatePkInG1(ctx Pairing, PK *P1Affine, pkValidate bool,
 		aug = optional[0]
 	}
 
-	if randBits > 256 {
+	if randBits < 0 || randBits > 256 {
 		panic("scalar length mismatch")
 	}
 
@@ -2124,7 +2124,7 @@ func P1AffinesMult(pointsIf interface{}, scalarsIf interface{}, nbits int) *P1 {
 	var scalars []*C.byte
 	switch val := scalarsIf.(type) {
 	case []byte:
-		if len(val) < npoints*nbytes {
+		if len(val)/nbytes < npoints {
 			return nil
 		}
 	case [][]byte:
@@ -2541,7 +2541,7 @@ func PairingMulNAggregatePkInG2(ctx Pairing, PK *P2Affine, pkValidate bool,
 		aug = optional[0]
 	}
 
-	if randBits > 256 {
+	if randBits < 0 || randBits > 256 {
 		panic("scalar length mismatch")
 	}
 
@@ -2956,7 +2956,7 @@ func P2AffinesMult(pointsIf interface{}, scalarsIf interface{}, nbits int) *P2 {
 	var scalars []*C.byte
 	switch val := scalarsIf.(type) {
 	case []byte:
-		if len(val) < npoints*nbytes {
+		if len(val)/nbytes < npoints {
 			return nil
 		}
 	case [][]byte:

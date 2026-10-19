@@ -357,7 +357,7 @@ shortSecretKey = B.replicate (c_SNTRUP761_SECRETKEY_SIZE - 1) 's'
 -- BBS+ tests
 
 bbsHeader :: BBSHeader
-bbsHeader = BBSHeader "SimpleX"
+bbsHeader = BBSHeader "Popopx"
 
 bbsMessages :: [B.ByteString]
 bbsMessages = ["secret_master_key", "2026-07-31", "supporter"]
