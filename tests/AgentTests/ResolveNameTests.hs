@@ -22,7 +22,7 @@ import qualified NamesResolverServer as NRS
 import SMPAgentClient
 import SMPClient
 import SMPNamesTests (availableBody, registeredBody, testNameRecord)
-import Popopx.Messaging.Agent (resolvePoName)
+import Popopx.Messaging.Agent (resolvePopopxName)
 import Popopx.Messaging.Agent.Client (AgentClient)
 import Popopx.Messaging.Agent.Env.SQLite (InitialAgentServers (..), ServerCfg, ServerRoles (..), presetServerCfg)
 import Popopx.Messaging.Agent.Protocol (AgentErrorType (..))
@@ -91,7 +91,7 @@ resolveNameTests = do
 testAvailSuccess :: (HasCallStack, HasTestEnv) => IO ()
 testAvailSuccess =
   withDirectResolver (status200, availableBody) $ \c -> do
-    r <- runExceptT $ resolvePoName c NRMInteractive 1 (PopopxDomain TLDPopopx "alice" [])
+    r <- runExceptT $ resolvePopopxName c NRMInteractive 1 (PopopxDomain TLDPopopx "alice" [])
     case r of
       Right SMP.NameResponse {registration = SMP.NRAvailable {}} -> pure ()
       _ -> expectationFailure $ "expected Right NRAvailable, got: " <> show r
@@ -101,7 +101,7 @@ testAvailSuccess =
 testDirectResolverErr :: (HasCallStack, HasTestEnv) => IO ()
 testDirectResolverErr =
   withDirectResolver (status404, "{}") $ \c -> do
-    r <- runExceptT $ resolvePoName c NRMInteractive 1 (PopopxDomain TLDPopopx "alice" [])
+    r <- runExceptT $ resolvePopopxName c NRMInteractive 1 (PopopxDomain TLDPopopx "alice" [])
     case r of
       Left (SMP _ (SMP.NAME (SMP.RESOLVER _))) -> pure ()
       _ -> expectationFailure $ "expected Left (SMP _ (NAME (RESOLVER _))), got: " <> show r
@@ -109,7 +109,7 @@ testDirectResolverErr =
 testProxyResolverErr :: (HasCallStack, HasTestEnv) => IO ()
 testProxyResolverErr =
   withProxyAndResolver (status404, "{}") $ \c -> do
-    r <- runExceptT $ resolvePoName c NRMInteractive 1 (PopopxDomain TLDPopopx "alice" [])
+    r <- runExceptT $ resolvePopopxName c NRMInteractive 1 (PopopxDomain TLDPopopx "alice" [])
     case r of
       Left (SMP host (SMP.NAME (SMP.RESOLVER _))) | testPort `isInfixOf` host -> pure ()
       _ -> expectationFailure $ "expected Left (SMP <proxyHost:" <> testPort <> "> (NAME (RESOLVER _))), got: " <> show r
@@ -117,7 +117,7 @@ testProxyResolverErr =
 testTestingTldResolverErr :: (HasCallStack, HasTestEnv) => IO ()
 testTestingTldResolverErr =
   withDirectResolver (status404, "{}") $ \c -> do
-    r <- runExceptT $ resolvePoName c NRMInteractive 1 (PopopxDomain TLDTesting "bob" [])
+    r <- runExceptT $ resolvePopopxName c NRMInteractive 1 (PopopxDomain TLDTesting "bob" [])
     case r of
       Left (SMP _ (SMP.NAME (SMP.RESOLVER _))) -> pure ()
       _ -> expectationFailure $ "expected Left (SMP _ (NAME (RESOLVER _))), got: " <> show r
@@ -125,7 +125,7 @@ testTestingTldResolverErr =
 testWebTldResolverErr :: (HasCallStack, HasTestEnv) => IO ()
 testWebTldResolverErr =
   withDirectResolver (status404, "{}") $ \c -> do
-    r <- runExceptT $ resolvePoName c NRMInteractive 1 (PopopxDomain TLDWeb "example.com" [])
+    r <- runExceptT $ resolvePopopxName c NRMInteractive 1 (PopopxDomain TLDWeb "example.com" [])
     case r of
       Left (SMP _ (SMP.NAME (SMP.RESOLVER _))) -> pure ()
       _ -> expectationFailure $ "expected Left (SMP _ (NAME (RESOLVER _))), got: " <> show r
@@ -133,7 +133,7 @@ testWebTldResolverErr =
 testNoResolver :: (HasCallStack, HasTestEnv) => IO ()
 testNoResolver =
   withNoResolver $ \c -> do
-    r <- runExceptT $ resolvePoName c NRMInteractive 1 (PopopxDomain TLDPopopx "alice" [])
+    r <- runExceptT $ resolvePopopxName c NRMInteractive 1 (PopopxDomain TLDPopopx "alice" [])
     case r of
       Left (SMP _ (SMP.NAME SMP.NO_RESOLVER)) -> pure ()
       _ -> expectationFailure $ "expected Left (SMP _ (NAME NO_RESOLVER)), got: " <> show r
@@ -141,7 +141,7 @@ testNoResolver =
 testNoNameServers :: (HasCallStack, HasTestEnv) => IO ()
 testNoNameServers =
   withNoNameServers $ \c -> do
-    r <- runExceptT $ resolvePoName c NRMInteractive 1 (PopopxDomain TLDPopopx "alice" [])
+    r <- runExceptT $ resolvePopopxName c NRMInteractive 1 (PopopxDomain TLDPopopx "alice" [])
     case r of
       Left NO_NAME_SERVERS -> pure ()
       _ -> expectationFailure $ "expected Left NO_NAME_SERVERS, got: " <> show r
@@ -149,7 +149,7 @@ testNoNameServers =
 testBackendError :: (HasCallStack, HasTestEnv) => IO ()
 testBackendError =
   withDirectResolver (status502, "{}") $ \c -> do
-    r <- runExceptT $ resolvePoName c NRMInteractive 1 (PopopxDomain TLDPopopx "alice" [])
+    r <- runExceptT $ resolvePopopxName c NRMInteractive 1 (PopopxDomain TLDPopopx "alice" [])
     case r of
       Left (SMP _ (SMP.NAME (SMP.RESOLVER _))) -> pure ()
       _ -> expectationFailure $ "expected Left (SMP _ (NAME (RESOLVER ..))), got: " <> show r
@@ -157,7 +157,7 @@ testBackendError =
 testDirectSuccess :: (HasCallStack, HasTestEnv) => IO ()
 testDirectSuccess =
   withDirectResolver (status200, registeredBody testNameRecord) $ \c -> do
-    r <- runExceptT $ resolvePoName c NRMInteractive 1 (PopopxDomain TLDPopopx "alice" [])
+    r <- runExceptT $ resolvePopopxName c NRMInteractive 1 (PopopxDomain TLDPopopx "alice" [])
     case r of
       Right SMP.NameResponse {registration = SMP.NRRegistered {nameRecord}} -> nameRecord `shouldBe` testNameRecord
       _ -> expectationFailure $ "expected Right NRRegistered, got: " <> show r

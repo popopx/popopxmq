@@ -204,7 +204,7 @@ informationIniContent InitOptions {sourceCode, serverInfo} =
   "[INFORMATION]\n\
   \# AGPLv3 license requires that you make any source code modifications\n\
   \# available to the end users of the server.\n\
-  \# LICENSE: https://github.com/popopx-chat/popopxmq/blob/stable/LICENSE\n\
+  \# LICENSE: https://github.com/popopx/popopxmq/blob/stable/LICENSE\n\
   \# Include correct source code URI in case the server source code is modified in any way.\n\
   \# If any other information fields are present, source code property also MUST be present.\n\n"
     <> (optDisabled sourceCode <> "source_code = " <> fromMaybe "URI" sourceCode)
@@ -213,7 +213,7 @@ informationIniContent InitOptions {sourceCode, serverInfo} =
        \\n\
        \# Server usage conditions and amendments.\n\
        \# It is recommended to use standard conditions with any amendments in a separate document.\n\
-       \# usage_conditions = https://github.com/popopx-chat/popopx-chat/blob/stable/PRIVACY.md\n\
+       \# usage_conditions = https://github.com/popopx/popopx-chat/blob/stable/PRIVACY.md\n\
        \# condition_amendments = link\n\
        \\n\
        \# Server location and operator.\n"

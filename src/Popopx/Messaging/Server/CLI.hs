@@ -55,7 +55,6 @@ module Popopx.Messaging.Server.CLI
 
 import Control.Logger.Simple (LogLevel (..))
 import Control.Monad
-import Control.Exception (SomeException, catch)
 import Data.ASN1.Types (asn1CharacterToString)
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as B
@@ -85,9 +84,8 @@ import System.Directory (doesDirectoryExist, listDirectory, removeDirectoryRecur
 import System.Environment (lookupEnv)
 import System.Exit (exitFailure)
 import System.FilePath (combine)
-import System.IO (IOMode (..), hFlush, hGetLine, hPutStrLn, stderr, stdout, withFile)
-import System.Exit (ExitCode (..))
-import System.Process (readCreateProcessWithExitCode, shell)
+import System.IO (IOMode (..), hFlush, hGetLine, stdout, withFile)
+import System.Process (readCreateProcess, shell)
 import Text.Read (readMaybe)
 
 exitError :: String -> IO a
@@ -165,13 +163,7 @@ createServerX509_ createCA cfgPath x509cfg = do
   run $ "openssl x509 -req -days 999999 -extfile " <> c opensslServerConfFile <> " -extensions v3 -in " <> c serverCsrFile <> " -CA " <> c caCrtFile <> " -CAkey " <> c caKeyFile <> " -CAcreateserial -out " <> c serverCrtFile
   saveFingerprint
   where
-    run cmd = do
-      (exitCode, _stdout, stderr_) <- readCreateProcessWithExitCode (shell cmd) ""
-      case exitCode of
-        ExitSuccess -> pure ()
-        ExitFailure code ->
-          error $ "Command failed (exit " <> show code <> "): " <> cmd
-            <> (if null stderr_ then "" else "\nstderr: " <> stderr_)
+    run cmd = void $ readCreateProcess (shell cmd) ""
     c = combine cfgPath . ($ x509cfg)
     createOpensslCaConf =
       writeFile
@@ -480,12 +472,7 @@ printServiceInfo serverVersion srv@(ProtoServerWithAuth ProtocolServer {keyHash}
   B.putStrLn $ "Server address: " <> strEncode srv
 
 clearDirIfExists :: FilePath -> IO ()
-clearDirIfExists path = whenM (doesDirectoryExist path) $ do
-  contents <- listDirectory path
-  forM_ contents $ \file -> do
-    let fullPath = combine path file
-    removePathForcibly fullPath `catch` \(e :: SomeException) ->
-      hPutStrLn stderr $ "Warning: failed to remove " ++ fullPath ++ ": " ++ show e
+clearDirIfExists path = whenM (doesDirectoryExist path) $ listDirectory path >>= mapM_ (removePathForcibly . combine path)
 
 getEnvPath :: String -> FilePath -> IO FilePath
 getEnvPath name def = maybe def (\case "" -> def; f -> f) <$> lookupEnv name

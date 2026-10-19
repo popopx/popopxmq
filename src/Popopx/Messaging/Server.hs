@@ -18,7 +18,7 @@
 
 -- |
 -- Module      : Popopx.Messaging.Server
--- Copyright   : (c) popopx.xyz
+-- Copyright   : (c) simplex.chat, popopx.xyz
 -- License     : AGPL-3
 --
 -- Maintainer  : chat@popopx.xyz
@@ -28,7 +28,7 @@
 -- This module defines SMP protocol server with in-memory persistence
 -- and optional append only log of SMP queue records.
 --
--- See https://github.com/popopx-chat/popopxmq/blob/master/protocol/popopx-messaging.md
+-- See https://github.com/popopx/popopxmq/blob/master/protocol/popopx-messaging.md
 module Popopx.Messaging.Server
   ( runSMPServer,
     runSMPServerBlocking,
@@ -147,7 +147,7 @@ import Popopx.Messaging.Server.MsgStore.Postgres (getDbMessageStats)
 
 -- | Runs an SMP server using passed configuration.
 --
--- See a full server here: https://github.com/popopx-chat/popopxmq/blob/master/apps/smp-server/Main.hs
+-- See a full server here: https://github.com/popopx/popopxmq/blob/master/apps/smp-server/Main.hs
 runSMPServer :: MsgStoreClass s => ServerConfig s -> Maybe AttachHTTP -> IO ()
 runSMPServer cfg attachHTTP_ = do
   started <- newEmptyTMVarIO

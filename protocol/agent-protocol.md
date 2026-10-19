@@ -43,7 +43,7 @@ It provides:
 - TCP/TLS transport handshake with SMP routers.
 - validation of message integrity.
 
-SMP agent API provides no security between the agent and the client - it is assumed that the agent is executed in the trusted and secure environment, via the agent library, when the agent logic is included directly into the client application - [SimpleX Chat for terminal](https://github.com/popopx-chat/popopx-chat) uses this approach.
+SMP agent API provides no security between the agent and the client - it is assumed that the agent is executed in the trusted and secure environment, via the agent library, when the agent logic is included directly into the client application - [SimpleX Chat for terminal](https://github.com/popopx/popopx-chat) uses this approach.
 
 This document describes SMP agent protocol version 7. The version history:
 

@@ -72,7 +72,7 @@ ntfServerCLI cfgPath logPath =
         True -> readIniFile iniFile >>= either exitError a
         _ -> exitError $ "Error: server is not initialized (" <> iniFile <> " does not exist).\nRun `" <> executableName <> " init`."
     iniFile = combine cfgPath "ntf-server.ini"
-    serverVersion = "POPOPX notifications server v" <> popopxmqVersionCommit
+    serverVersion = "SMP notifications server v" <> popopxmqVersionCommit
     defaultServerPort = "443"
     executableName = "ntf-server"
     storeLogFilePath = combine logPath "ntf-server-store.log"

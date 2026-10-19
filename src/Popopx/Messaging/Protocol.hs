@@ -31,16 +31,16 @@
 
 -- |
 -- Module      : Popopx.Messaging.ProtocolEncoding
--- Copyright   : (c) popopx.chat
+-- Copyright   : (c) simplex.chat, popopx.xyz
 -- License     : AGPL-3
 --
--- Maintainer  : chat@popopx.chat
+-- Maintainer  : chat@popopx.xyz
 -- Stability   : experimental
 -- Portability : non-portable
 --
 -- Types, parsers, serializers and functions to send and receive SMP protocol commands and responses.
 --
--- See https://github.com/popopx-chat/popopxmq/blob/master/protocol/popopx-messaging.md
+-- See https://github.com/popopx/popopxmq/blob/master/protocol/popopx-messaging.md
 module Popopx.Messaging.Protocol
   ( -- * SMP protocol parameters
     supportedSMPClientVRange,

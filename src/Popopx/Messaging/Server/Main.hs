@@ -672,7 +672,7 @@ getServerSourceCode =
     _ -> putStrLn "Invalid source code. URI should start from http:// or https://" >> getServerSourceCode
 
 popopxmqSource :: String
-popopxmqSource = "https://github.com/popopx-chat/popopxmq"
+popopxmqSource = "https://github.com/popopx/popopxmq"
 
 serverPublicInfo :: Ini -> Maybe ServerPublicInfo
 serverPublicInfo ini = serverInfo <$!> infoValue "source_code"

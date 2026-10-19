@@ -26,10 +26,10 @@
 
 -- |
 -- Module      : Popopx.Messaging.Crypto
--- Copyright   : (c) popopx.chat
+-- Copyright   : (c) simplex.chat, popopx.xyz
 -- License     : AGPL-3
 --
--- Maintainer  : chat@popopx.chat
+-- Maintainer  : chat@popopx.xyz
 -- Stability   : experimental
 -- Portability : non-portable
 --

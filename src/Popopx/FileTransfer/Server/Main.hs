@@ -421,10 +421,7 @@ cliCommandP cfgPath logPath iniFile =
               <> metavar "PATH"
           )
       fileSizeQuota <-
-        option
-          (eitherReader (\s -> case strDecode (B.pack s) of
-            Left e -> Left $ "Invalid file size: " <> e
-            Right v -> Right v))
+        strOption
           ( long "quota"
               <> short 'q'
               <> help "File storage quota (e.g. 100gb)"
