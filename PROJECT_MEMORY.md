@@ -6,7 +6,7 @@
 
 - 上游仓库：`/home/ubuntu/simplexmq`
 - 本地仓库：`/home/ubuntu/popopxmq`
-- 版本：v7.1.0.12
+- 版本：v7.1.0.14
 - 许可证：AGPL 3.0（保留原作者 simplex.chat，添加 fork 方 popopx.xyz）
 
 ---
@@ -56,7 +56,51 @@
 
 ## 已完成的同步工作 / Completed Sync Work
 
-### 2026-10-19 同步
+### 2026-10-19 v7.1.0.14 更新
+
+#### 版本升级
+- 版本号：7.1.0.12 → 7.1.0.14
+- 提交：`84a10d0` Fix submodule registration for cbits libraries
+- 提交：`3d8a8da` Update to v7.1.0.14 and sync with upstream
+
+#### cabal 文件一致性修复
+与上游 simplexmq.cabal 保持一致：
+1. ✅ `server_postgres` flag 默认值恢复为 `False`
+2. ✅ 恢复 ntf-server 的 `else buildable: False` 条件
+
+#### 默认签名算法变更
+- 文件：`src/Popopx/FileTransfer/Server/Main.hs`
+- 文件：`src/Popopx/Messaging/Notifications/Server/Main.hs`
+- 变更：ED25519 → ED448
+
+#### 测试文件品牌重命名
+- `tests/AgentTests/ServerChoice.hs`: `operatorSimpleX` → `operatorPopopxX`
+- `tests/CoreTests/CryptoTests.hs`: `BBSHeader "SimpleX"` → `BBSHeader "Popopx"`
+- `tests/CoreTests/EncodingTests.hs`: `smp.simplex.im` → `smp.popopx.im`
+- `tests/SMPNamesTests.hs`: `Alice.SIMPLEX` → `Alice.POPOPX`
+
+#### 子模块修复
+**问题**：cbits/blst 和 cbits/libbbs 被手动克隆为普通目录，未正确注册为 git submodule
+
+**修复**：
+```bash
+git rm -r --cached cbits/blst cbits/libbbs
+git submodule add https://github.com/supranational/blst.git cbits/blst
+git submodule add https://github.com/simplex-chat/libbbs.git cbits/libbbs
+```
+
+**结果**：
+- ✅ cbits/blst 正确注册（commit f7a8806）
+- ✅ cbits/libbbs 正确注册（commit 7fcc6cc）
+- ✅ 删除了 180,600 行重复的文件跟踪
+
+#### Release 管理
+- ✅ 删除旧 Release v7.1.0.12
+- ✅ 创建新 Release v7.1.0.14
+- ✅ 上传 smp-server (69MB) 和 xftp-server (72MB)
+- Release URL: https://github.com/popopx/popopxmq/releases/tag/v7.1.0.14
+
+### 2026-10-19 早期同步
 
 #### 上游同步
 
@@ -186,11 +230,11 @@ cabal build all
 ### 版本验证
 
 ```bash
-./dist-newstyle/build/x86_64-linux/ghc-9.6.3/popopxmq-7.1.0.12/x/smp-server/build/smp-server/smp-server --version
-# 输出：SMP server v7.1.0.12 / 929835d
+./dist-newstyle/build/x86_64-linux/ghc-9.6.3/popopxmq-7.1.0.14/x/smp-server/build/smp-server/smp-server --version
+# 输出：SMP server v7.1.0.14 / 9e6ba6b
 
-./dist-newstyle/build/x86_64-linux/ghc-9.6.3/popopxmq-7.1.0.12/x/xftp/build/xftp/xftp --version
-# 输出：Popopx XFTP client v1.0.1
+./dist-newstyle/build/x86_64-linux/ghc-9.6.3/popopxmq-7.1.0.14/x/xftp-server/build/xftp-server/xftp-server --version
+# 输出：Popopx XFTP server v7.1.0.14 / 9e6ba6b
 ```
 
 ### 编译状态
@@ -205,18 +249,21 @@ cabal build all
 
 ### 当前版本
 
-**v7.1.0.12** - 2026-10-19
-- Release 链接：https://github.com/popopx/popopxmq/releases/tag/v7.1.0.12
-- 包含 4 个可执行文件
+**v7.1.0.14** - 2026-10-19
+- Release 链接：https://github.com/popopx/popopxmq/releases/tag/v7.1.0.14
+- 包含 2 个可执行文件（smp-server, xftp-server）
+
+**历史版本：**
+- v7.1.0.12 - 2026-10-19（已删除）
 
 ### 可执行文件清单
 
 | 可执行文件 | 大小 | 说明 | 编译标志 |
 |-----------|------|------|---------|
 | smp-server | 69MB | SMP 消息服务器 | 默认（SQLite） |
-| ntf-server | 76MB | 通知服务器 | `--flags=server_postgres` |
-| xftp | 54MB | XFTP 文件传输客户端 | 默认 |
 | xftp-server | 72MB | XFTP 文件传输服务器 | 默认 |
+| ntf-server | - | 通知服务器 | `--flags=server_postgres`（当前未编译） |
+| xftp | - | XFTP 文件传输客户端 | 默认（当前未编译） |
 
 ### 编译命令
 
@@ -231,10 +278,8 @@ cabal build popopxmq:exe:ntf-server --flags=server_postgres
 ### 可执行文件位置
 
 ```
-dist-newstyle/build/x86_64-linux/ghc-9.6.3/popopxmq-7.1.0.12/x/smp-server/build/smp-server/smp-server
-dist-newstyle/build/x86_64-linux/ghc-9.6.3/popopxmq-7.1.0.12/x/ntf-server/build/ntf-server/ntf-server
-dist-newstyle/build/x86_64-linux/ghc-9.6.3/popopxmq-7.1.0.12/x/xftp/build/xftp/xftp
-dist-newstyle/build/x86_64-linux/ghc-9.6.3/popopxmq-7.1.0.12/x/xftp-server/build/xftp-server/xftp-server
+dist-newstyle/build/x86_64-linux/ghc-9.6.3/popopxmq-7.1.0.14/x/smp-server/build/smp-server/smp-server
+dist-newstyle/build/x86_64-linux/ghc-9.6.3/popopxmq-7.1.0.14/x/xftp-server/build/xftp-server/xftp-server
 ```
 
 ### 创建 Release 步骤
@@ -423,10 +468,10 @@ cabal clean && cabal build all
 
 ```bash
 # SMP 服务器
-./dist-newstyle/build/x86_64-linux/ghc-9.6.3/popopxmq-7.1.0.12/x/smp-server/build/smp-server/smp-server
+./dist-newstyle/build/x86_64-linux/ghc-9.6.3/popopxmq-7.1.0.14/x/smp-server/build/smp-server/smp-server
 
-# XFTP 客户端
-./dist-newstyle/build/x86_64-linux/ghc-9.6.3/popopxmq-7.1.0.12/x/xftp/build/xftp/xftp
+# XFTP 服务器
+./dist-newstyle/build/x86_64-linux/ghc-9.6.3/popopxmq-7.1.0.14/x/xftp-server/build/xftp-server/xftp-server
 ```
 
 ### 检查版本
@@ -457,5 +502,5 @@ xftp --version
 ---
 
 **最后更新**：2026-10-19
-**版本**：v7.1.0.12
-**状态**：✅ 编译成功，功能正常
+**版本**：v7.1.0.14
+**状态**：✅ 编译成功，功能正常，子模块已修复，Release 已发布
