@@ -133,6 +133,40 @@
 - ✅ 仓库名：`popopx-chat` 保持不变（如 `popopx/popopx-chat`）
 - ✅ 共修复 8 处 URL
 
+### 协议常量重命名决策 / Protocol Constants Renaming Decision
+
+**决策日期**：2026-10-19
+**决策**：将所有协议常量从 `SimpleX` 重命名为 `Popopx`
+
+**背景：**
+PopopxMQ 是从上游 simplexmq fork 出来的**独立应用**，不与上游保持协议兼容性。
+
+**修改内容：**
+
+| 文件 | 原常量 | 新常量 |
+|------|--------|--------|
+| `Crypto.hs` | `SimpleXSbChainInit` | `PopopxSbChainInit` |
+| `Crypto.hs` | `SimpleXSbChain` | `PopopxSbChain` |
+| `Crypto/Ratchet.hs` | `SimpleXX3DH` | `PopopxX3DH` |
+| `Crypto/Ratchet.hs` | `SimpleXVerifyCode` | `PopopxVerifyCode` |
+| `Crypto/Ratchet.hs` | `SimpleXRootRatchet` | `PopopxRootRatchet` |
+| `Crypto/Ratchet.hs` | `SimpleXChainRatchet` | `PopopxChainRatchet` |
+| `Crypto/ShortLink.hs` | `SimpleXContactLink` | `PopopxContactLink` |
+| `Crypto/ShortLink.hs` | `SimpleXInvLink` | `PopopxInvLink` |
+| `Crypto/Entitlement.hs` | `SimpleX badges v1` | `Popopx badges v1` |
+| `Agent.hs` | `SimpleXService` | `PopopxService` |
+
+**影响：**
+- ❌ 不与上游 SimpleX 协议兼容
+- ✅ 完全独立的品牌和协议标识
+- ✅ 密钥派生结果与上游不同
+- ✅ 需要重新生成所有密钥
+
+**后续策略：**
+- 继续与上游同步代码更新
+- 在同步时注意协议常量的合并冲突
+- 保持 Popopx 前缀的一致性
+
 ---
 
 ## 构建和测试 / Build & Test

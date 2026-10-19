@@ -505,8 +505,8 @@ pqX3dh (sk1, rk1) dh1 dh2 dh3 kemAccepted =
     dhs = dhBytes' dh1 <> dhBytes' dh2 <> dhBytes' dh3 <> pq
     pq = maybe "" (\RatchetKEMAccepted {rcPQRss = KEMSharedKey ss} -> BA.convert ss) kemAccepted
     salt = B.replicate 64 '\0'
-    (hk, nhk, sk) = hkdf3 salt dhs "SimpleXX3DH"
-    vcPQ = hkdf salt dhs "SimpleXVerifyCode" 32
+    (hk, nhk, sk) = hkdf3 salt dhs "PopopxX3DH"
+    vcPQ = hkdf salt dhs "PopopxVerifyCode" 32
 
 type RatchetX448 = Ratchet 'X448
 
@@ -1141,12 +1141,12 @@ rootKdf (RatchetKey rk) k pk kemSecret_ =
       ss = case kemSecret_ of
         Just (KEMSharedKey s) -> dhOut <> BA.convert s
         Nothing -> dhOut
-      (rk', ck, nhk) = hkdf3 rk ss "SimpleXRootRatchet"
+      (rk', ck, nhk) = hkdf3 rk ss "PopopxRootRatchet"
    in (RatchetKey rk', RatchetKey ck, Key nhk)
 
 chainKdf :: RatchetKey -> (RatchetKey, Key, IV, IV)
 chainKdf (RatchetKey ck) =
-  let (ck', mk, ivs) = hkdf3 "" ck "SimpleXChainRatchet"
+  let (ck', mk, ivs) = hkdf3 "" ck "PopopxChainRatchet"
       (iv1, iv2) = B.splitAt 16 ivs
    in (RatchetKey ck', Key mk, IV iv1, IV iv2)
 

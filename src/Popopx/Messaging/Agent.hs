@@ -1815,7 +1815,7 @@ prepareReply c userId Invitation {invitationId, connReq, serviceRequest, created
       pure (cData, sq)
 
 serviceReqBinding :: CR.Ratchet a -> ByteString
-serviceReqBinding CR.Ratchet {rcAD = Str ad} = C.sha3_256 $ "SimpleXService" <> ad
+serviceReqBinding CR.Ratchet {rcAD = Str ad} = C.sha3_256 $ "PopopxService" <> ad
 
 signServiceReq :: Maybe C.PrivateKeyEd25519 -> ByteString -> MsgBody -> Maybe RequestSignature
 signServiceReq signKey_ binding payload =

@@ -89,7 +89,7 @@ instance Encoding EntitlementProof where
     pure EntitlementProof {issuerKeyIdx, entProof, entitlement}
 
 entitlementBBSHeader :: BBSHeader
-entitlementBBSHeader = BBSHeader "SimpleX badges v1"
+entitlementBBSHeader = BBSHeader "Popopx badges v1"
 
 entitlementMessageCount :: Int
 entitlementMessageCount = 4

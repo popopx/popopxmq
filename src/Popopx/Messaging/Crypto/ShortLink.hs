@@ -47,11 +47,11 @@ userDataPaddedLength = 13784 -- 13824 - 24 - 16
 
 contactShortLinkKdf :: LinkKey -> (LinkId, C.SbKey)
 contactShortLinkKdf (LinkKey k) =
-  let (lnkId, sbKey) = B.splitAt 24 $ C.hkdf "" k "SimpleXContactLink" 56
+  let (lnkId, sbKey) = B.splitAt 24 $ C.hkdf "" k "PopopxContactLink" 56
    in (EntityId lnkId, C.unsafeSbKey sbKey)
 
 invShortLinkKdf :: LinkKey -> C.SbKey
-invShortLinkKdf (LinkKey k) = C.unsafeSbKey $ C.hkdf "" k "SimpleXInvLink" 32
+invShortLinkKdf (LinkKey k) = C.unsafeSbKey $ C.hkdf "" k "PopopxInvLink" 32
 
 encodeSignLinkData :: forall c. ConnectionModeI c => C.KeyPairEd25519 -> VersionRangeSMPA -> ConnectionRequestUri c -> Maybe ByteString -> UserConnLinkData c -> (LinkKey, (ByteString, ByteString))
 encodeSignLinkData keys@(_, pk) agentVRange connReq linkEntityId userData =
