@@ -198,7 +198,7 @@ It is worth noting that while DH agreements work as ping-pong, when the new rece
 
 ## Ratchet message wire format
 
-The pseudocode above describes the algorithm. This section specifies the actual binary encoding used in SimpleX implementation with Curve448 DH keys, sntrup761 KEM and AES-256-GCM AEAD.
+The pseudocode above describes the algorithm. This section specifies the actual binary encoding used in Popopx implementation with Curve448 DH keys, sntrup761 KEM and AES-256-GCM AEAD.
 
 The ratchet-encrypted message has three encoding layers, from outermost to innermost:
 
@@ -212,7 +212,7 @@ The outer envelope contains the encrypted header (used as associated data for bo
 
 The message body is encrypted with AES-256-GCM using the message key derived from the sending chain key (`KDF_CK`). The associated data for body encryption is the concatenation of the ratchet associated data and the encoded encrypted header.
 
-`KDF_CK(CK)` is HKDF-SHA512 with empty salt, `CK` as input key material and info `"SimpleXChainRatchet"`, producing 96 bytes split into the next chain key (32 bytes), the message key (32 bytes), the message body IV (16 bytes, not transmitted) and `headerIV` (16 bytes). Both IVs are used as 16-byte AES-256-GCM IVs, not the 12-byte IVs recommended by NIST SP 800-38D, so the initial counter block is J0 = GHASH(IV || 0^64 || [128]_64) as defined there for non-96-bit IVs. WebCrypto and other conforming implementations compute it when given the full 16-byte IV; truncating the IV to 12 bytes produces different ciphertext.
+`KDF_CK(CK)` is HKDF-SHA512 with empty salt, `CK` as input key material and info `"PopopxChainRatchet"`, producing 96 bytes split into the next chain key (32 bytes), the message key (32 bytes), the message body IV (16 bytes, not transmitted) and `headerIV` (16 bytes). Both IVs are used as 16-byte AES-256-GCM IVs, not the 12-byte IVs recommended by NIST SP 800-38D, so the initial counter block is J0 = GHASH(IV || 0^64 || [128]_64) as defined there for non-96-bit IVs. WebCrypto and other conforming implementations compute it when given the full 16-byte IV; truncating the IV to 12 bytes produces different ciphertext.
 
 ```abnf
 encRatchetMessage = versionedLength encMessageHeader msgAuthTag encMsgBody
@@ -272,9 +272,9 @@ PQ encryption can be enabled or disabled during a connection's lifetime. The KEM
 
 The transition from Proposed to Accepted happens when a party receives a message containing KEM parameters (either Proposed or Accepted) and responds with its own Accepted parameters. Once both parties are in Accepted state, the double PQ KEM augmentation described in the algorithm above operates in each DH ratchet step.
 
-## Implementation considerations for SimpleX Messaging Protocol
+## Implementation considerations for Popopx Messaging Protocol
 
-As SimpleX Messaging Protocol pads messages to a fixed size, using 16kb transport blocks, the size increase introduced by this scheme can be compensated for by using ZSTD encryption of JSON bodies and image previews encoded as base64. While there may be some rare cases of random texts that would fail to compress, in all real scenarios it would not cause the message size reduction.
+As Popopx Messaging Protocol pads messages to a fixed size, using 16kb transport blocks, the size increase introduced by this scheme can be compensated for by using ZSTD encryption of JSON bodies and image previews encoded as base64. While there may be some rare cases of random texts that would fail to compress, in all real scenarios it would not cause the message size reduction.
 
 Sharing the initial keys in case of SimpleX Chat it is equivalent to sharing the invitation link. As encapsulation key is large, it may be inconvenient to share it in the link in some contexts, e.g. when QR codes are used.
 

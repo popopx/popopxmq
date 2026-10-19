@@ -57,7 +57,7 @@ This document describes SMP agent protocol version 7. The version history:
 
 ## SMP agent
 
-SMP agents communicate with each other via SMP routers using [popopx messaging protocol (SMP)](./popopx-messaging.md) according to the API calls used by the client applications. This protocol is a middle layer in SimpleX protocols (above SMP protocol but below any application level protocol) - it is intended to be used by client-side applications that need secure asynchronous bi-directional communication channels ("connections").
+SMP agents communicate with each other via SMP routers using [popopx messaging protocol (SMP)](./popopx-messaging.md) according to the API calls used by the client applications. This protocol is a middle layer in Popopx protocols (above SMP protocol but below any application level protocol) - it is intended to be used by client-side applications that need secure asynchronous bi-directional communication channels ("connections").
 
 The agent must have a persistent storage to manage the states of known connections and of the client-side information of SMP queues that each connection consists of, and also the buffer of the most recent sent and received messages. The number of the messages that should be stored is implementation specific, depending on the error management approach that the agent implements; at the very least the agent must store the hashes and IDs of the last received and sent messages.
 
@@ -451,14 +451,14 @@ The fixed link data includes:
 For contact links, the link ID and encryption key are derived from the link key using HKDF:
 
 ```
-(linkId, encryptionKey) = HKDF(info="SimpleXContactLink", key=linkKey, outputLen=56)
+(linkId, encryptionKey) = HKDF(info="PopopxContactLink", key=linkKey, outputLen=56)
 ; linkId = first 24 bytes, encryptionKey = remaining 32 bytes
 ```
 
 For invitation links, the link ID is stored separately (usually included in the URI), and only the encryption key is derived:
 
 ```
-encryptionKey = HKDF(info="SimpleXInvLink", key=linkKey, outputLen=32)
+encryptionKey = HKDF(info="PopopxInvLink", key=linkKey, outputLen=32)
 ```
 
 ### Link data encryption
@@ -681,7 +681,7 @@ This list of events is not exhaustive and provided for information only. Please 
 
 ## Threat model
 
-This threat model complements SimpleX Messaging Protocol [threat model](./security.md#threat-model) with agent-level concerns: duplex connections, end-to-end encryption with [post-quantum double ratchet](./pqdr.md), message integrity, connection establishment and queue rotation. Only additional properties not covered in the SMP threat model are listed below.
+This threat model complements Popopx Messaging Protocol [threat model](./security.md#threat-model) with agent-level concerns: duplex connections, end-to-end encryption with [post-quantum double ratchet](./pqdr.md), message integrity, connection establishment and queue rotation. Only additional properties not covered in the SMP threat model are listed below.
 
 #### Additional global assumptions
 

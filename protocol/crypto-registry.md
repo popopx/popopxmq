@@ -1,6 +1,6 @@
 Revision 1, 2026-10-01
 
-# SimpleX Network: cryptographic primitive registry
+# Popopx Network: cryptographic primitive registry
 
 The cryptographic primitives, constructions and domain-separation strings used by this repository, and which of them new code may use. For the threat model see [Security](./security.md).
 
@@ -11,7 +11,7 @@ Module aliases follow the codebase: `C` = [Popopx.Messaging.Crypto](../src/Popop
 - [Policy](#policy)
 - [Defaults for new code](#defaults-for-new-code)
 - [Primitives](#primitives)
-- [SimpleX box constructions](#popopx-box-constructions)
+- [Popopx box constructions](#popopx-box-constructions)
 - [Domain separation and KDF inputs](#domain-separation-and-kdf-inputs)
 - [Nonces and IVs](#nonces-and-ivs)
 - [Implementation sources](#implementation-sources)
@@ -23,7 +23,7 @@ Module aliases follow the codebase: `C` = [Popopx.Messaging.Crypto](../src/Popop
 - New code uses the default primitive for its purpose from [Defaults for new code](#defaults-for-new-code).
 - Using any other primitive, or a primitive marked *restricted* outside its listed purpose, requires a written justification in the pull request and review by a maintainer responsible for cryptography.
 - *Legacy-only* primitives stay only for the existing wire formats and stored data listed below. Do not add call sites.
-- Every new HKDF info string or hash prefix must be unique, start with `SimpleX`, and be added to [Domain separation and KDF inputs](#domain-separation-and-kdf-inputs).
+- Every new HKDF info string or hash prefix must be unique, start with `Popopx`, and be added to [Domain separation and KDF inputs](#domain-separation-and-kdf-inputs).
 - Changing a primitive, key length, KDF input, info string or nonce construction changes the wire format. It requires a protocol version and an update of this registry and of the affected `protocol/` specification.
 
 Status values used below:
@@ -43,8 +43,8 @@ Status values used below:
 | Key agreement | X25519 | `C.generateKeyPair`, `C.dh'` |
 | Post-quantum KEM | sntrup761 | `KEM.sntrup761Keypair`, `sntrup761Enc`, `sntrup761Dec` |
 | Hybrid DH + KEM secret | HKDF-SHA512 over `dh \|\| kemSecret` with a new info string, as in `CR.rootKdf` | `C.hkdf` |
-| Authenticated encryption | XSalsa20-Poly1305 [SimpleX secretbox](#popopx-box-constructions) | `C.sbEncrypt`/`C.sbDecrypt`, `LC.sbEncryptTailTag` for streams |
-| Authenticated encryption with a DH secret | XSalsa20-Poly1305 [SimpleX crypto_box](#popopx-box-constructions) | `C.cbEncrypt`/`C.cbDecrypt` |
+| Authenticated encryption | XSalsa20-Poly1305 [Popopx secretbox](#popopx-box-constructions) | `C.sbEncrypt`/`C.sbDecrypt`, `LC.sbEncryptTailTag` for streams |
+| Authenticated encryption with a DH secret | XSalsa20-Poly1305 [Popopx crypto_box](#popopx-box-constructions) | `C.cbEncrypt`/`C.cbDecrypt` |
 | Forward-secret symmetric session | HKDF-SHA512 key chain | `C.sbcInit`, `C.sbcHkdf` |
 | KDF | HKDF-SHA512 | `C.hkdf` |
 | Hash commitment, derived identifier | SHA3-256 | `C.sha3_256` |
@@ -60,8 +60,8 @@ Status values used below:
 | X25519 | Default | Per-queue e2e and server-to-recipient `crypto_box` keys, SMP session DH, command authenticator (SMP v7+), proxy (PRXY/PFWD), notification tokens, XFTP chunk transport, XRCP hello and announcements | crypton `Crypto.PubKey.Curve25519` via `C.dh'` | pub 32, priv 32, secret 32; SPKI 44 |
 | X448 | Restricted | E2E double ratchet only: X3DH and DH ratchet (`CR.RatchetX448`, E2E v3) | crypton `Crypto.PubKey.Curve448` | pub 56, priv 56, secret 56 |
 | sntrup761 | Default | PQ KEM in double ratchet (E2E v3, agent v5+) and XRCP v1 hello | Vendored C [cbits/sntrup761.c](../cbits/sntrup761.c) via FFI; randomness from ChaChaDRG through `haskell_rng_func` ([Bindings/RNG.hs](../src/Popopx/Messaging/Crypto/SNTRUP761/Bindings/RNG.hs)) | pk 1158, sk 1763, ct 1039, shared 32 |
-| XSalsa20-Poly1305, SimpleX crypto_box | Default | SMP message bodies (server to recipient), per-queue e2e envelope, confirmations, proxy forwarding, notifications, XRCP hello, XFTP chunk transport | crypton `Crypto.Cipher.XSalsa`, `Crypto.MAC.Poly1305`; `C.cryptoBox`, `LC.cbInit` | key 32 (DH secret), nonce 24, tag 16 |
-| XSalsa20-Poly1305, SimpleX secretbox | Default | SMP transport block encryption (SMP v11+), short-link data (SMP v15+), XFTP file encryption, local file encryption ([Crypto/File.hs](../src/Popopx/Messaging/Crypto/File.hs)), XRCP session | same; `C.sbEncrypt`, `LC.sbEncryptTailTag`, `LC.sbInit` | key 32, nonce 24, tag 16 |
+| XSalsa20-Poly1305, Popopx crypto_box | Default | SMP message bodies (server to recipient), per-queue e2e envelope, confirmations, proxy forwarding, notifications, XRCP hello, XFTP chunk transport | crypton `Crypto.Cipher.XSalsa`, `Crypto.MAC.Poly1305`; `C.cryptoBox`, `LC.cbInit` | key 32 (DH secret), nonce 24, tag 16 |
+| XSalsa20-Poly1305, Popopx secretbox | Default | SMP transport block encryption (SMP v11+), short-link data (SMP v15+), XFTP file encryption, local file encryption ([Crypto/File.hs](../src/Popopx/Messaging/Crypto/File.hs)), XRCP session | same; `C.sbEncrypt`, `LC.sbEncryptTailTag`, `LC.sbInit` | key 32, nonce 24, tag 16 |
 | crypto_box authenticator | Approved | Deniable sender command authorization with X25519 queue keys (SMP v7+); agent currently creates Ed25519 keys | `C.cbAuthenticate`, `C.cbVerify`: `crypto_box(sha512(msg))` | 80 = 64 + 16 |
 | AES-256-GCM, 16-byte IV | Legacy-only | Double ratchet header and body (E2E v3, [pqdr.md](./pqdr.md)) | crypton `Crypto.Cipher.AES`, `Crypto.Cipher.Types`; `C.encryptAEAD`, `C.decryptAEAD`, `C.initAEAD`; J0 = GHASH(IV) as NIST SP 800-38D defines for non-96-bit IVs | key 32, IV 16, tag 16; padded header 88 (PQ off) or 2310 (PQ on), `CR.paddedHeaderLen` |
 | AES-256-GCM, 12-byte IV | Restricted | WebRTC frame encryption in popopx-chat (`Popopx.Chat.Mobile.WebRTC`), for WebCrypto interoperability | `C.encryptAESNoPad`, `C.decryptAESNoPad`, `C.initAEADGCM`, `C.GCMIV` | key 32, IV 12, tag 16 |
@@ -81,7 +81,7 @@ Status values used below:
 | X.509 | Restricted | Certificate chains, fingerprints, signed session keys (`C.signX509`, `C.verifyX509`) | `crypton-x509`, `crypton-x509-validation`, `cryptostore` | n/a |
 | SQLCipher | Restricted | Agent SQLite database at rest (`PRAGMA key`); cipher parameters are SQLCipher defaults, not set in this repository | `direct-sqlcipher` (git dependency, [cabal.project](../cabal.project)) | n/a |
 
-## SimpleX box constructions
+## Popopx box constructions
 
 `C.cryptoBox` and `LC.sbInit_` compute, for a 32-byte key `k` and 24-byte nonce `n`:
 
@@ -96,8 +96,8 @@ tag = Poly1305(polyKey, ct)
 
 | Construction | Key `k` | Equivalent libsodium call | Layout |
 |---|---|---|---|
-| SimpleX crypto_box (`C.cbEncrypt`, `LC.cbInit`) | X25519 shared secret | `crypto_box_easy` (`crypto_box_beforenm` is `HSalsa20(dh, 0^16)`) | strict: `tag \|\| ct`; lazy tail-tag: `ct \|\| tag` |
-| SimpleX secretbox (`C.sbEncrypt`, `LC.sbInit`, `KEM.kcb*`) | 32-byte symmetric key | `crypto_secretbox_easy` with key `crypto_core_hsalsa20(0^16, k)`, not with `k` | same |
+| Popopx crypto_box (`C.cbEncrypt`, `LC.cbInit`) | X25519 shared secret | `crypto_box_easy` (`crypto_box_beforenm` is `HSalsa20(dh, 0^16)`) | strict: `tag \|\| ct`; lazy tail-tag: `ct \|\| tag` |
+| Popopx secretbox (`C.sbEncrypt`, `LC.sbInit`, `KEM.kcb*`) | 32-byte symmetric key | `crypto_secretbox_easy` with key `crypto_core_hsalsa20(0^16, k)`, not with `k` | same |
 
 Padding before encryption: `C.pad` prefixes a 2-byte big-endian length and fills with `#` (message at most 65533 bytes); `LC.pad` prefixes an 8-byte length. `*NoPad` variants skip padding.
 
@@ -107,22 +107,22 @@ HKDF is `C.hkdf salt ikm info len` (HKDF-SHA512).
 
 | Info string | Salt | IKM | Output (split) | Function | Use |
 |---|---|---|---|---|---|
-| `"SimpleXX3DH"` | 64 zero bytes | `dh1 \|\| dh2 \|\| dh3 [\|\| kemShared]` | 96: `hk`, `nhk`, root key (32 each) | `CR.pqX3dh` | Ratchet initialization, added in E2E v2; KEM secret from E2E v3 (current minimum) |
-| `"SimpleXVerifyCode"` | 64 zero bytes | same as `SimpleXX3DH` | 32: `rcVCPQ` | `CR.pqX3dh` | Verification code covering all handshake keys, new ratchets |
-| `"SimpleXRootRatchet"` | root key | `dh [\|\| kemShared]` | 96: root key, chain key, next header key | `CR.rootKdf` | DH/PQ ratchet step |
-| `"SimpleXChainRatchet"` | empty | chain key | 96: chain key, message key (32 each), message IV (16), header IV (16) | `CR.chainKdf` | Per-message keys |
-| `"SimpleXSbChainInit"` | SMP session ID | X25519 session secret | 64: two 32-byte chain keys | `C.sbcInit` from `Transport.blockEncryption` | SMP transport block encryption, SMP v11+ |
-| `"SimpleXSbChainInit"` | empty | XRCP hybrid secret (below) | 64: two 32-byte chain keys | `C.sbcInit` in [RemoteControl/Client.hs](../src/Popopx/RemoteControl/Client.hs) | XRCP v1 session |
-| `"SimpleXSbChain"` | empty | chain key | 88: chain key (32), secretbox key (32), nonce (24) | `C.sbcHkdf` | Each SMP block and XRCP message |
-| `"SimpleXContactLink"` | empty | link key (32) | 56: link ID (24), secretbox key (32) | `SL.contactShortLinkKdf` | Contact short links, SMP v15+ |
-| `"SimpleXInvLink"` | empty | link key (32) | 32: secretbox key | `SL.invShortLinkKdf` | Invitation short links, SMP v15+ |
+| `"PopopxX3DH"` | 64 zero bytes | `dh1 \|\| dh2 \|\| dh3 [\|\| kemShared]` | 96: `hk`, `nhk`, root key (32 each) | `CR.pqX3dh` | Ratchet initialization, added in E2E v2; KEM secret from E2E v3 (current minimum) |
+| `"PopopxVerifyCode"` | 64 zero bytes | same as `PopopxX3DH` | 32: `rcVCPQ` | `CR.pqX3dh` | Verification code covering all handshake keys, new ratchets |
+| `"PopopxRootRatchet"` | root key | `dh [\|\| kemShared]` | 96: root key, chain key, next header key | `CR.rootKdf` | DH/PQ ratchet step |
+| `"PopopxChainRatchet"` | empty | chain key | 96: chain key, message key (32 each), message IV (16), header IV (16) | `CR.chainKdf` | Per-message keys |
+| `"PopopxSbChainInit"` | SMP session ID | X25519 session secret | 64: two 32-byte chain keys | `C.sbcInit` from `Transport.blockEncryption` | SMP transport block encryption, SMP v11+ |
+| `"PopopxSbChainInit"` | empty | XRCP hybrid secret (below) | 64: two 32-byte chain keys | `C.sbcInit` in [RemoteControl/Client.hs](../src/Popopx/RemoteControl/Client.hs) | XRCP v1 session |
+| `"PopopxSbChain"` | empty | chain key | 88: chain key (32), secretbox key (32), nonce (24) | `C.sbcHkdf` | Each SMP block and XRCP message |
+| `"PopopxContactLink"` | empty | link key (32) | 56: link ID (24), secretbox key (32) | `SL.contactShortLinkKdf` | Contact short links, SMP v15+ |
+| `"PopopxInvLink"` | empty | link key (32) | 32: secretbox key | `SL.invShortLinkKdf` | Invitation short links, SMP v15+ |
 
 Other derivations:
 
 | Value | Construction | Function | Use |
 |---|---|---|---|
-| Service request binding | `sha3_256("SimpleXService" \|\| rcAD)` | `serviceReqBinding` in [Agent.hs](../src/Popopx/Messaging/Agent.hs) | Agent RPC, agent v8 |
-| BBS header | `"SimpleX badges v1"` | `entitlementBBSHeader` | Badge credentials |
+| Service request binding | `sha3_256("PopopxService" \|\| rcAD)` | `serviceReqBinding` in [Agent.hs](../src/Popopx/Messaging/Agent.hs) | Agent RPC, agent v8 |
+| BBS header | `"Popopx badges v1"` | `entitlementBBSHeader` | Badge credentials |
 | XRCP hybrid secret | `sha3_256(x25519Dh \|\| kemShared)` | `KEM.kemHybridSecret` | XRCP v1 |
 | Short-link key | `sha3_256(smpEncode FixedLinkData)` | `SL.encodeSignFixedData`, checked in `SL.decryptLinkData` | SMP v15+ |
 | Sender ID | `take 24 (sha3_384 corrId)` | `prepareConnectionLink'`, `newRcvConnSrv` in Agent.hs; `createQueue` in [Server.hs](../src/Popopx/Messaging/Server.hs) | Client-supplied sender ID with link data, SMP v15+; the server rejects a mismatch to prevent an ID oracle |
@@ -132,7 +132,7 @@ Other derivations:
 | Command authenticator | `crypto_box(sha512(authorized))` | `C.cbAuthenticate` | SMP v7+ |
 | Queue IDs hash | `xor` of `md5(queueId)` | `Protocol.queueIdsHash` | Service subscriptions |
 
-`"SimpleXSbChainInit"` and `"SimpleXSbChain"` are shared by SMP block encryption and XRCP. Their outputs are separated only by the IKM (and the salt for `sbcInit`).
+`"PopopxSbChainInit"` and `"PopopxSbChain"` are shared by SMP block encryption and XRCP. Their outputs are separated only by the IKM (and the salt for `sbcInit`).
 
 ## Nonces and IVs
 
@@ -169,7 +169,7 @@ Other derivations:
 | Ed25519 sign, verify, keys | libsodium-wrappers-sumo (`crypto_sign_*`), [src/crypto/keys.ts](../xftp-web/src/crypto/keys.ts) | `C.sign'`, `C.verify'` |
 | Ed448 verify | `@noble/curves/ed448`, keys.ts `verifyEd448` | `C.verify'` |
 | X25519 | libsodium `crypto_scalarmult`, `crypto_box_keypair` | `C.dh'` |
-| SimpleX crypto_box, secretbox, tail-tag streaming | Salsa20 block function written in TypeScript, libsodium `crypto_core_hsalsa20` and `crypto_onetimeauth_*`, [src/crypto/secretbox.ts](../xftp-web/src/crypto/secretbox.ts) | `C.cryptoBox`, `LC.sbInit_` |
+| Popopx crypto_box, secretbox, tail-tag streaming | Salsa20 block function written in TypeScript, libsodium `crypto_core_hsalsa20` and `crypto_onetimeauth_*`, [src/crypto/secretbox.ts](../xftp-web/src/crypto/secretbox.ts) | `C.cryptoBox`, `LC.sbInit_` |
 | crypto_box authenticator | [src/protocol/client.ts](../xftp-web/src/protocol/client.ts) `cbAuthenticate`, `cbVerify` | `C.cbAuthenticate`, `C.cbVerify` |
 | SHA-256, SHA-512 | libsodium `crypto_hash_sha256`, `crypto_hash_sha512*`, [src/crypto/digest.ts](../xftp-web/src/crypto/digest.ts) | `C.sha256Hash`, `C.sha512Hash` |
 | Random | WebCrypto `crypto.getRandomValues`; libsodium for key generation | `C.randomBytes` |

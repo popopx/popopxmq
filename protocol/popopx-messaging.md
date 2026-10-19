@@ -1607,8 +1607,8 @@ could not date or resolve, and any status word it does not recognise.
 | `nickname` | string | ≤ 255 bytes UTF-8; senders MUST emit the empty string `""` when unset |
 | `website` | string | ≤ 255 bytes UTF-8; same empty-string-when-unset rule |
 | `location` | string | ≤ 255 bytes UTF-8; same empty-string-when-unset rule |
-| `popopxContact` | array of strings | each a SimpleX contact link (primary first); empty array `[]` when unset |
-| `popopxChannel` | array of strings | each a SimpleX channel link (primary first); empty array `[]` when unset |
+| `popopxContact` | array of strings | each a Popopx contact link (primary first); empty array `[]` when unset |
+| `popopxChannel` | array of strings | each a Popopx channel link (primary first); empty array `[]` when unset |
 | `eth` | string or null | ≤ 255 bytes UTF-8; senders MUST emit `null` when unset; receivers MUST also accept absent keys as unset |
 | `btc` | string or null | ≤ 255 bytes UTF-8; same null / absent rules |
 | `xmr` | string or null | ≤ 255 bytes UTF-8; same null / absent rules |

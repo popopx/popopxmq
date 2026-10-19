@@ -1,6 +1,6 @@
 Version 1, 2024-06-22
 
-# SimpleX Remote Control Protocol
+# Popopx Remote Control Protocol
 
 ## Table of contents
 
@@ -16,7 +16,7 @@ Version 1, 2024-06-22
 
 ## Abstract
 
-The SimpleX Remote Control Protocol is a client-server protocol designed to transform application UIs into thin clients, enabling remote control from another device. This approach allows users to remotely access and utilize chat profiles without the complexities of master-master replication for end-to-end encryption states.
+The Popopx Remote Control Protocol is a client-server protocol designed to transform application UIs into thin clients, enabling remote control from another device. This approach allows users to remotely access and utilize chat profiles without the complexities of master-master replication for end-to-end encryption states.
 
 Like SMP and XFTP, XRCP leverages out-of-band invitations to mitigate MITM attacks and employs multiple cryptographic layers to safeguard application data.
 
@@ -280,8 +280,8 @@ To decrypt a multicast announcement, the host should try to decrypt it using the
 Once sessionSecret is agreed for the session, it is used to derive two chain keys, to receive and to send messages:
 
 ```
-controller: sndKey, rcvKey = HKDF(sessionSecret, "SimpleXSbChainInit", 64)
-host: rcvKey, sndKey = HKDF(sessionSecret, "SimpleXSbChainInit", 64)
+controller: sndKey, rcvKey = HKDF(sessionSecret, "PopopxSbChainInit", 64)
+host: rcvKey, sndKey = HKDF(sessionSecret, "PopopxSbChainInit", 64)
 ```
 
 where HKDF is based on SHA512, with empty salt.
@@ -289,8 +289,8 @@ where HKDF is based on SHA512, with empty salt.
 Actual keys and nonces to encrypt and decrypt messages are derived from these chain keys:
 
 ```
-to send: (sndKey', sk, nonce) = HKDF(sndKey, "SimpleXSbChain", 88)
-to receive: (rcvKey', sk, nonce) = HKDF(rcvKey, "SimpleXSbChain", 88)
+to send: (sndKey', sk, nonce) = HKDF(sndKey, "PopopxSbChain", 88)
+to receive: (rcvKey', sk, nonce) = HKDF(rcvKey, "PopopxSbChain", 88)
 ```
 
 ## Threat model
