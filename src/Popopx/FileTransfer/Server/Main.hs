@@ -15,7 +15,6 @@ module Popopx.FileTransfer.Server.Main
   ) where
 
 import Control.Monad (forM_, unless, when)
-import qualified Data.ByteString.Char8 as B
 import Data.Either (fromRight)
 import Data.Functor (($>))
 import Data.Ini (Ini, lookupValue, readIniFile)
