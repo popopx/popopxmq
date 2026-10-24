@@ -116,15 +116,13 @@ connectDB path functions key track = do
   pure db
   where
     prepare db = do
-      unless (BA.null key) . SQLite3.exec db' $ "PRAGMA key = " <> keyString key <> ";"
-      SQLite3.exec db' . fromQuery $
-        [sql|
-          PRAGMA busy_timeout = 100;
-          PRAGMA foreign_keys = ON;
-          -- PRAGMA trusted_schema = OFF;
-          PRAGMA secure_delete = ON;
-          PRAGMA auto_vacuum = FULL;
-        |]
+      unless (BA.null key) $ SQL.execute_ (DB.conn db) . Query $ "PRAGMA key = " <> keyString key <> ";"
+      mapM_ (\pragma -> SQL.execute_ (DB.conn db) (Query pragma))
+        [ "PRAGMA busy_timeout = 100"
+        , "PRAGMA foreign_keys = ON"
+        , "PRAGMA secure_delete = ON"
+        , "PRAGMA auto_vacuum = FULL"
+        ]
       mapM_ addFunction functions'
       where
         db' = SQL.connectionHandle $ DB.conn db

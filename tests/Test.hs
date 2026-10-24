@@ -4,7 +4,7 @@
 import AgentTests (agentCoreTests, agentTests)
 import AgentTests.FunctionalAPITests (functionalAPITimingTests)
 import CLITests
-import Control.Exception (bracket_)
+import Control.Exception (bracket_, evaluate)
 import Control.Logger.Simple
 import CoreTests.BatchingTests
 import CoreTests.CryptoFileTests
@@ -63,12 +63,21 @@ import XFTPClient (testXFTPDBConnectInfo)
 import PostgresSchemaDump (postgresSchemaDumpTest)
 import SMPClient (postgressBracket)
 #endif
+import Web.Embedded (embeddedContent)
+import qualified Popopx.Messaging.Server.Web as Web
 
 logCfg :: LogConfig
 logCfg = LogConfig {lc_file = Nothing, lc_stderr = True}
 
 main :: IO ()
 main = do
+  -- Force evaluation of embedded content on main thread before any worker threads
+  -- are spawned to avoid segfault during GHC thread initialization (see #84383ad)
+  let ec = embeddedContent
+  _ <- evaluate (Web.indexHtml ec)
+  _ <- evaluate (Web.linkHtml ec)
+  _ <- evaluate (Web.mediaContent ec)
+  _ <- evaluate (Web.wellKnown ec)
   setLogLevel testLogLevel
   withGlobalLogging logCfg $ do
     setEnv "APNS_KEY_ID" "H82WD9K9AQ"
