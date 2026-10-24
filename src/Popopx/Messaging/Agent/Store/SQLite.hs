@@ -32,6 +32,7 @@ module Popopx.Messaging.Agent.Store.SQLite
     closeDBStore,
     reopenDBStore,
     execSQL,
+    splitStatements,
     -- used in Popopx.Chat.Archive
     sqlString,
     keyString,
