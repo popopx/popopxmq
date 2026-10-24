@@ -109,10 +109,10 @@ connectSQLiteStore DBOpts {dbFilePath, dbFunctions, dbKey = key, keepKey, track}
     -- SQLite database minimum size is one page (typically 4096 bytes with SQLCipher)
     -- Files smaller than this are definitely corrupt/incomplete
     when (fileSize == 0 || fileSize < 1024) $ do
-      TIO.hPutStrLn TIO.stderr $ "[Migration-Debug] connectSQLiteStore: removing zero/small file " <> T.pack dbFilePath <> " (size=" <> show fileSize <> ")"
+      TIO.hPutStrLn TIO.stderr ("[Migration-Debug] connectSQLiteStore: removing zero/small file " <> dbFilePath <> " (size=" <> show fileSize <> ")")
       removeFile dbFilePath
   dbNew <- not <$> doesFileExist dbFilePath
-  TIO.hPutStrLn TIO.stderr $ "[Migration-Debug] connectSQLiteStore: dbNew=" <> show dbNew <> ", path=" <> T.pack dbFilePath
+  TIO.hPutStrLn TIO.stderr ("[Migration-Debug] connectSQLiteStore: dbNew=" <> show dbNew <> ", path=" <> dbFilePath)
   dbConn <- dbBusyLoop $ connectDB dbFilePath dbFunctions key track
   dbConnection <- newMVar dbConn
   dbKey <- newTVarIO $! storeKey key keepKey
