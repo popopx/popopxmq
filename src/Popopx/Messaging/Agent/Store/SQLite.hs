@@ -32,8 +32,7 @@ module Popopx.Messaging.Agent.Store.SQLite
     closeDBStore,
     reopenDBStore,
     execSQL,
-    splitStatements,
-    -- used in Popopx.Chat.Archive
+    -- used in Simplex.Chat.Archive
     sqlString,
     keyString,
     storeKey,
@@ -54,7 +53,7 @@ import Data.ByteString (ByteString)
 import Data.Functor (($>))
 import Data.IORef
 import Data.Maybe (fromMaybe)
-import Data.Text (Text, unpack)
+import Data.Text (Text)
 import qualified Data.Text as T
 import Database.SQLite.Simple (Query (..))
 import qualified Database.SQLite.Simple as SQL
@@ -71,9 +70,8 @@ import Popopx.Messaging.Agent.Store.SQLite.Util
 import Popopx.Messaging.Agent.Store.Shared (Migration (..), MigrationConfig (..), MigrationError (..))
 import qualified Popopx.Messaging.Crypto as C
 import Popopx.Messaging.Util (ifM, packZipWith, safeDecodeUtf8)
-import System.Directory (copyFile, createDirectoryIfMissing, doesFileExist, getFileSize, removeFile)
+import System.Directory (copyFile, createDirectoryIfMissing, doesFileExist)
 import System.FilePath (takeDirectory, takeFileName, (</>))
-import qualified System.IO as TIO
 
 -- * SQLite Store implementation
 
@@ -102,17 +100,7 @@ migrateDBSchema st DBOpts {dbFilePath, vacuum} migrationsTable migrations Migrat
 
 connectSQLiteStore :: DBOpts -> IO DBStore
 connectSQLiteStore DBOpts {dbFilePath, dbFunctions, dbKey = key, keepKey, track} = do
-  -- Check if file exists and is potentially corrupt (zero-length or too small for SQLite header)
-  fileExists <- doesFileExist dbFilePath
-  when fileExists $ do
-    fileSize <- getFileSize dbFilePath
-    -- SQLite database minimum size is one page (typically 4096 bytes with SQLCipher)
-    -- Files smaller than this are definitely corrupt/incomplete
-    when (fileSize == 0 || fileSize < 1024) $ do
-      TIO.hPutStrLn TIO.stderr ("[Migration-Debug] connectSQLiteStore: removing zero/small file " <> dbFilePath <> " (size=" <> show fileSize <> ")")
-      removeFile dbFilePath
   dbNew <- not <$> doesFileExist dbFilePath
-  TIO.hPutStrLn TIO.stderr ("[Migration-Debug] connectSQLiteStore: dbNew=" <> show dbNew <> ", path=" <> dbFilePath)
   dbConn <- dbBusyLoop $ connectDB dbFilePath dbFunctions key track
   dbConnection <- newMVar dbConn
   dbKey <- newTVarIO $! storeKey key keepKey
@@ -128,20 +116,16 @@ connectDB path functions key track = do
   pure db
   where
     prepare db = do
-      TIO.hPutStrLn TIO.stderr "[Migration-Debug] connectDB.prepare: starting"
-      let keyCmd = "PRAGMA key = " <> keyString key <> ";"
-      TIO.hPutStrLn TIO.stderr "[Migration-Debug] connectDB.prepare: executing PRAGMA key via SQLite3.exec"
-      -- Use SQLite3.exec (sqlite3_exec) for ALL pragmas to avoid ErrorCorrupt on encrypted databases
-      -- The prepare/step API (SQL.execute_) may try to access database metadata before the key is active
-      SQLite3.exec (SQL.connectionHandle $ DB.conn db) keyCmd
-      TIO.hPutStrLn TIO.stderr "[Migration-Debug] connectDB.prepare: PRAGMA key completed"
-      -- Match upstream: use SQLite3.exec for all pragmas, not SQL.execute_
-      let pragmaSql = "PRAGMA busy_timeout = 100;\nPRAGMA foreign_keys = OFF;\n-- PRAGMA trusted_schema = OFF;\nPRAGMA secure_delete = ON;\n-- PRAGMA auto_vacuum = FULL;"
-      TIO.hPutStrLn TIO.stderr "[Migration-Debug] connectDB.prepare: executing remaining PRAGMAs via SQLite3.exec"
-      SQLite3.exec (SQL.connectionHandle $ DB.conn db) pragmaSql
-      TIO.hPutStrLn TIO.stderr "[Migration-Debug] connectDB.prepare: all PRAGMAs completed"
+      unless (BA.null key) . SQLite3.exec db' $ "PRAGMA key = " <> keyString key <> ";"
+      SQLite3.exec db' . fromQuery $
+        [sql|
+          PRAGMA busy_timeout = 100;
+          PRAGMA foreign_keys = ON;
+          -- PRAGMA trusted_schema = OFF;
+          PRAGMA secure_delete = ON;
+          PRAGMA auto_vacuum = FULL;
+        |]
       mapM_ addFunction functions'
-      TIO.hPutStrLn TIO.stderr "[Migration-Debug] connectDB.prepare: functions registered, prepare completed"
       where
         db' = SQL.connectionHandle $ DB.conn db
         functions' = SQLiteFuncDef "popopx_xor_md5_combine" 2 (SQLiteFuncPtr True sqliteXorMd5CombinePtr) : functions
@@ -221,33 +205,6 @@ execSQL db query = do
   rs <- newIORef []
   SQLite3.execWithCallback (SQL.connectionHandle $ DB.conn db) query (addSQLResultRow rs)
   reverse <$> readIORef rs
-
-splitStatements :: Text -> [Text]
-splitStatements sql = filter (not . T.null) . map T.strip $ go sql False False "" []
-  where
-    go :: Text -> Bool -> Bool -> Text -> [Text] -> [Text]
-    go input inString inLineComment acc result
-      | T.null input = reverse (if T.null acc then result else acc : result)
-      | otherwise =
-          let c = T.head input
-              rest = T.tail input
-           in case () of
-                _ | inLineComment ->
-                    if c == '\n'
-                      then go rest False False "" result
-                      else go rest True True acc result
-                  | inString ->
-                    if c == '\''
-                      then go rest False False (acc <> T.singleton c) result
-                      else go rest True False (acc <> T.singleton c) result
-                  | c == '\'' ->
-                    go rest True True (acc <> T.singleton c) result
-                  | c == '-' && T.isPrefixOf "--" input ->
-                    go (T.drop 2 input) False True acc result
-                  | c == ';' ->
-                    go rest False False "" (acc : result)
-                  | otherwise ->
-                    go rest False False (acc <> T.singleton c) result
 
 addSQLResultRow :: IORef [Text] -> SQLite3.ColumnIndex -> [Text] -> [Maybe Text] -> IO ()
 addSQLResultRow rs _count names values = modifyIORef' rs $ \case
