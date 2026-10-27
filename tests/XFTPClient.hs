@@ -24,10 +24,13 @@ import qualified Popopx.Messaging.Agent as A
 import Popopx.Messaging.Agent.Protocol (UserId)
 import Popopx.Messaging.Crypto.File (CryptoFile)
 import Popopx.Messaging.Protocol (XFTPServer)
-import Popopx.Messaging.Transport.HTTP2 (httpALPN)
+import Popopx.Messaging.Transport (defaultSupportedParams)
+import Popopx.Messaging.Transport.HTTP2 (defaultHTTP2BufferSize, httpALPN)
+import Popopx.Messaging.Transport.HTTP2.Server (runHTTP2Server)
 import Popopx.Messaging.Transport.Server
 import System.Directory (createDirectoryIfMissing)
 import Test.Hspec hiding (fit, it)
+import UnliftIO.STM (TMVar, atomically, newEmptyTMVarIO, putTMVar)
 import Util
 #if defined(dbServerPostgres)
 import Control.Monad (void)
@@ -131,6 +134,19 @@ withXFTPServerCfg cfg@XFTPServerConfig {filesPath} =
   serverBracket
     (\started -> createDirectoryIfMissing True filesPath >> runXFTPServerBlocking started cfg)
     (threadDelay 10000)
+
+withStallingXFTPServer :: (HasCallStack, HasTestEnv) => (TMVar () -> TMVar () -> IO a) -> IO a
+withStallingXFTPServer action = do
+  requested <- newEmptyTMVarIO
+  closed <- newEmptyTMVarIO
+  creds <- loadServerCredential xftpCredentials
+  let stall _ _ _ _ _ = atomically (putTMVar requested ()) >> threadDelay maxBound
+  serverBracket
+    (\started -> runHTTP2Server started xftpTestPort defaultHTTP2BufferSize defaultSupportedParams creds Nothing transportConfig Nothing (\_ -> atomically $ putTMVar closed ()) stall)
+    (pure ())
+    (const $ action requested closed)
+  where
+    XFTPServerConfig {xftpCredentials, transportConfig} = testXFTPServerConfig
 
 withXFTPServerThreadOn :: (HasCallStack, HasTestEnv) => (HasCallStack => ThreadId -> IO a) -> IO a
 withXFTPServerThreadOn = withXFTPServerCfg testXFTPServerConfig

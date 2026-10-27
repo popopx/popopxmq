@@ -4,7 +4,7 @@
 import AgentTests (agentCoreTests, agentTests)
 import AgentTests.FunctionalAPITests (functionalAPITimingTests)
 import CLITests
-import Control.Exception (bracket_, evaluate)
+import Control.Exception (bracket_)
 import Control.Logger.Simple
 import CoreTests.BatchingTests
 import CoreTests.CryptoFileTests
@@ -27,8 +27,9 @@ import Popopx.Messaging.Server.Env.STM (AStoreType (..))
 import Popopx.Messaging.Server.MsgStore.Types (SMSType (..), SQSType (..))
 import Popopx.Messaging.Transport (TLS, Transport (..))
 -- import Popopx.Messaging.Transport.WebSockets (WS)
-import System.Directory (createDirectory, removePathForcibly)
+import System.Directory (createDirectoryIfMissing, listDirectory, removePathForcibly)
 import System.Environment (getArgs, setEnv, withArgs)
+import System.FilePath ((</>))
 import Test.Hspec hiding (fit, it)
 import Test.Hspec.Core.Runner (defaultConfig, evalSpec, evaluateResult, readConfig, runSpecForest)
 import Util
@@ -45,8 +46,6 @@ import Fixtures
 import Popopx.Messaging.Agent.Store.Postgres.Migrations.App
 #else
 import AgentTests.SchemaDump (schemaDumpTest)
-import System.Directory (listDirectory)
-import System.FilePath ((</>))
 #endif
 
 #if defined(dbServerPostgres)
@@ -63,21 +62,12 @@ import XFTPClient (testXFTPDBConnectInfo)
 import PostgresSchemaDump (postgresSchemaDumpTest)
 import SMPClient (postgressBracket)
 #endif
-import Web.Embedded (embeddedContent)
-import qualified Popopx.Messaging.Server.Web as Web
 
 logCfg :: LogConfig
 logCfg = LogConfig {lc_file = Nothing, lc_stderr = True}
 
 main :: IO ()
 main = do
-  -- Force evaluation of embedded content on main thread before any worker threads
-  -- are spawned to avoid segfault during GHC thread initialization (see #84383ad)
-  let ec = embeddedContent
-  _ <- evaluate (Web.indexHtml ec)
-  _ <- evaluate (Web.linkHtml ec)
-  _ <- evaluate (Web.mediaContent ec)
-  _ <- evaluate (Web.wellKnown ec)
   setLogLevel testLogLevel
   withGlobalLogging logCfg $ do
     setEnv "APNS_KEY_ID" "H82WD9K9AQ"
@@ -213,4 +203,6 @@ hspecInTmpDir spec = do
   withTmpDir (withArgs [] $ runSpecForest forest config') >>= evaluateResult
 
 withTmpDir :: IO a -> IO a
-withTmpDir = bracket_ (removePathForcibly tmpDir >> createDirectory tmpDir) (eventuallyRemove tmpDir 3)
+withTmpDir = bracket_ (createDirectoryIfMissing False tmpDir >> clearTmpDir) clearTmpDir
+  where
+    clearTmpDir = listDirectory tmpDir >>= mapM_ (removePathForcibly . (tmpDir </>))

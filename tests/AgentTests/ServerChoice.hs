@@ -25,17 +25,17 @@ serverChoiceTests = do
   describe "Server operators" $ do
     it "should choose server of different operator" $ ioProperty $ testChooseDifferentOperator
 
-operatorPopopxX :: Maybe OperatorId
-operatorPopopxX = Just 1
+operatorPopopx :: Maybe OperatorId
+operatorPopopx = Just 1
 
 operator2 :: Maybe OperatorId
 operator2 = Just 2
 
 testOp1Srv1 :: ProtoServerWithAuth 'PSMP
-testOp1Srv1 = "smp://LcJU@test1.popopx.im"
+testOp1Srv1 = "smp://LcJU@test1.simplex.im"
 
 testOp1Srv2 :: ProtoServerWithAuth 'PSMP
-testOp1Srv2 = "smp://LcJU@test2.popopx.im"
+testOp1Srv2 = "smp://LcJU@test2.simplex.im"
 
 testOp2Srv1 :: ProtoServerWithAuth 'PSMP
 testOp2Srv1 = "smp://LcJU@srv1.example.com"
@@ -45,8 +45,8 @@ testOp2Srv2 = "smp://LcJU@srv2.example.com"
 
 testSMPServers :: NonEmpty (ServerCfg 'PSMP)
 testSMPServers =
-  [ presetServerCfg True allRoles operatorPopopxX testOp1Srv1,
-    presetServerCfg True allRoles operatorPopopxX testOp1Srv2,
+  [ presetServerCfg True allRoles operatorPopopx testOp1Srv1,
+    presetServerCfg True allRoles operatorPopopx testOp1Srv2,
     presetServerCfg True proxyOnly operator2 testOp2Srv1,
     presetServerCfg True proxyOnly operator2 testOp2Srv2
   ]

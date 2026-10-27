@@ -94,22 +94,22 @@ attachStaticFiles path action = do
       -- Initialize internal per-connection resources.
       addr <- getPeerName socket
       withConnection addr cxt $ \(conn, transport) ->
-        withTimeout ii conn $ \th ->
+        withTimeout ii $ \th ->
           -- Run Warp connection handler to process HTTP requests for static files.
           WI.serveConnection conn ii th addr transport warpSettings app
   where
     -- from warp-tls
     withConnection socket cxt = bracket (WT.attachConn socket cxt) (terminate . fst)
     -- from warp
-    withTimeout ii conn =
+    withTimeout ii =
       bracket
-        (WI.registerKillThread (WI.timeoutManager ii) (WI.connClose conn))
+        (WI.registerKillThread (WI.timeoutManager ii) (pure ()))
         WI.cancel
     -- shared clean up
     terminate conn = WI.connClose conn `finally` (readIORef (WI.connWriteBuffer conn) >>= WI.bufFree)
 
 warpSettings :: W.Settings
-warpSettings = W.setGracefulShutdownTimeout (Just 1) W.defaultSettings
+warpSettings = W.setFdCacheDuration 30 $ W.setGracefulShutdownTimeout (Just 1) W.defaultSettings
 
 staticFiles :: FilePath -> IO Application
 staticFiles root = do
@@ -292,7 +292,7 @@ serverInfoSubsts popopxmqSource information =
         ("hostingType", (\s -> maybe s (\(c, rest) -> toUpper c `B.cons` rest) $ B.uncons s) . strEncode <$> hostingType spi)
       ]
 
--- Copy-pasted from popopx-chat Popopx.Chat.Types.Preferences
+-- Copy-pasted from simplex-chat Simplex.Chat.Types.Preferences
 {-# INLINE timedTTLText #-}
 timedTTLText :: (Integral i, Show i) => i -> String
 timedTTLText 0 = "0 sec"

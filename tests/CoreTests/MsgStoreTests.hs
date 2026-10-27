@@ -24,24 +24,25 @@ import Crypto.Random (ChaChaDRG)
 import Data.ByteString.Char8 (ByteString)
 import Data.Int (Int64)
 import qualified Data.Map.Strict as M
-import Data.Time.Clock.System (getSystemTime)
+import Data.Time.Clock.System (SystemTime (..), getSystemTime)
 import Popopx.Messaging.Crypto (pattern MaxLenBS)
 import qualified Popopx.Messaging.Crypto as C
-import Popopx.Messaging.Protocol (EncDataBytes (..), EntityId (..), ErrorType (..), LinkId, Message (..), QueueLinkData, RecipientId, SParty (..), noMsgFlags, randomMsgId)
+import Popopx.Messaging.Protocol (EncDataBytes (..), EntityId (..), ErrorType (..), LinkId, Message (..), NotifierId, QueueLinkData, RecipientId, SParty (..), noMsgFlags, randomMsgId)
 import Popopx.Messaging.Server.MsgStore.STM
 import Popopx.Messaging.Server.MsgStore.Types
+import Popopx.Messaging.Server.NtfStore
 import Popopx.Messaging.Server.QueueStore
 import Popopx.Messaging.Server.QueueStore.QueueInfo
 import Popopx.Messaging.Server.QueueStore.STM (STMQueueStore (..))
 import Popopx.Messaging.Server.QueueStore.Types
 import Popopx.Messaging.TMap (TMap)
+import qualified Popopx.Messaging.TMap as TM
 import Test.Hspec hiding (fit, it)
 import Util
 
 #if defined(dbServerPostgres)
 import AgentTests.FunctionalAPITests (runRight)
 import Control.Concurrent (threadDelay)
-import Data.Time.Clock.System (SystemTime (..))
 import Database.PostgreSQL.Simple (Only (..))
 import qualified Database.PostgreSQL.Simple as DB
 import Popopx.Messaging.Agent.Store.Postgres.Common
@@ -63,6 +64,9 @@ msgStoreTests = do
     it "tryDelPeekMsg (ACK not from NSE) should reset message counts when queue is empty" $ withMsgStore testPostgresStoreConfig testResetMessageCounts
     it "should expire messages across commit batches" $ withMsgStore testPostgresStoreConfig testExpireMessagesInBatches
 #endif
+  describe "Notification store" $ do
+    it "should remove keys of expired notifications" testExpireNtfs
+    it "should remove keys of delivered notifications" testDeleteEmptyNtfs
   where
     someMsgStoreTests :: MsgStoreClass s => (HasTestEnv => MsgStoreConfig s) -> Spec
     someMsgStoreTests cfg = do
@@ -130,6 +134,18 @@ testNewQueueRecData g qm queueData = do
   pure (rId, qr)
   where
     rndId = atomically $ EntityId <$> C.randomBytes 24 g
+
+testNtfCreds :: TVar ChaChaDRG -> IO NtfCreds
+testNtfCreds g = do
+  (notifierKey, _) <- atomically $ C.generateAuthKeyPair C.SX25519 g
+  (k, pk) <- atomically $ C.generateKeyPair @'C.X25519 g
+  pure
+    NtfCreds
+      { notifierId = EntityId "ijkl",
+        notifierKey,
+        rcvNtfDhSecret = C.dh' k pk,
+        ntfServiceId = Nothing
+      }
 
 testGetQueue :: MsgStoreClass s => s -> IO ()
 testGetQueue ms = do
@@ -222,18 +238,6 @@ testLinkDataSecuredQueue ms = do
     void $ ExceptT $ deleteQueue ms q
     void $ ExceptT $ deleteQueue ms cq
 
-testNtfCreds :: TVar ChaChaDRG -> IO NtfCreds
-testNtfCreds g = do
-  (notifierKey, _) <- atomically $ C.generateAuthKeyPair C.SX25519 g
-  (k, pk) <- atomically $ C.generateKeyPair @'C.X25519 g
-  pure
-    NtfCreds
-      { notifierId = EntityId "ijkl",
-        notifierKey,
-        rcvNtfDhSecret = C.dh' k pk,
-        ntfServiceId = Nothing
-      }
-
 -- sizes of queues, senders, links and notifiers maps
 type QueueMapSizes = (Int, Int, Int, Int)
 
@@ -280,6 +284,54 @@ testDeleteQueueMaps ms = do
   queueMapSizes ms `shouldReturn` (0, 0, 0, 0)
   where
     expectAuth = either (`shouldBe` AUTH) (\_ -> expectationFailure "deleted queue is still found")
+
+mkMsgNtf :: TVar ChaChaDRG -> Int64 -> IO MsgNtf
+mkMsgNtf g ts = do
+  ntfMsgId <- atomically $ randomMsgId 24 g
+  ntfNonce <- atomically $ C.randomCbNonce g
+  pure MsgNtf {ntfMsgId, ntfTs = MkSystemTime ts 0, ntfNonce, ntfEncMeta = "meta"}
+
+ntfCounts :: NtfStore -> IO [(NotifierId, Int)]
+ntfCounts (NtfStore ns) = M.assocs <$> (mapM (fmap length . readTVarIO) =<< readTVarIO ns)
+
+testExpireNtfs :: IO ()
+testExpireNtfs = do
+  g <- C.newRandom
+  st@(NtfStore ns) <- NtfStore <$> TM.emptyIO
+  now <- systemSeconds <$> getSystemTime
+  let old = now - 100
+      nId1 = EntityId "notifier 1"
+      nId2 = EntityId "notifier 2"
+      nId3 = EntityId "notifier 3"
+  storeNtf st nId1 =<< mkMsgNtf g old
+  storeNtf st nId2 =<< mkMsgNtf g old
+  storeNtf st nId2 =<< mkMsgNtf g now
+  atomically $ TM.insertM nId3 (newTVar []) ns
+  ntfCounts st `shouldReturn` [(nId1, 1), (nId2, 2), (nId3, 0)]
+  deleteExpiredNtfs st (now - 50) `shouldReturn` 2
+  ntfCounts st `shouldReturn` [(nId2, 1)]
+  storeNtf st nId1 =<< mkMsgNtf g now
+  deleteExpiredNtfs st (now - 50) `shouldReturn` 0
+  ntfCounts st `shouldReturn` [(nId1, 1), (nId2, 1)]
+
+testDeleteEmptyNtfs :: IO ()
+testDeleteEmptyNtfs = do
+  g <- C.newRandom
+  st@(NtfStore ns) <- NtfStore <$> TM.emptyIO
+  now <- systemSeconds <$> getSystemTime
+  let nId1 = EntityId "notifier 1"
+      nId2 = EntityId "notifier 2"
+      nId3 = EntityId "notifier 3"
+      nId4 = EntityId "notifier 4"
+  forM_ ([nId1, nId2, nId3, nId4] :: [NotifierId]) $ \nId -> storeNtf st nId =<< mkMsgNtf g now
+  ntfs <- M.assocs <$> readTVarIO ns
+  let flush nId = forM_ (lookup nId ntfs) $ \v -> atomically $ writeTVar v []
+  mapM_ flush ([nId1, nId2, nId4] :: [NotifierId])
+  storeNtf st nId2 =<< mkMsgNtf g now
+  deleteNtfs st nId4 `shouldReturn` 0
+  storeNtf st nId4 =<< mkMsgNtf g now
+  deleteEmptyNtfs st ntfs
+  ntfCounts st `shouldReturn` [(nId2, 1), (nId3, 1), (nId4, 1)]
 
 testLinkData :: QueueLinkData
 testLinkData = (EncDataBytes "fixed data", EncDataBytes "user data")

@@ -32,7 +32,7 @@ module Popopx.Messaging.Agent.Store.SQLite
     closeDBStore,
     reopenDBStore,
     execSQL,
-    -- used in Simplex.Chat.Archive
+    -- used in Popopx.Chat.Archive
     sqlString,
     keyString,
     storeKey,
