@@ -64,19 +64,7 @@ run st migrationsTable vacuum = \case
     runDown DownMigration {downName, downQuery} = withTransaction' st $ \db -> do
       execSQL db downQuery
       SQL.execute db ("DELETE FROM " <> table <> " WHERE name = ?") (Only downName)
-    execSQL db sql = do
-      let statements = splitStatements sql
-      T.putStrLn $ "[Migration-Debug] execSQL: split into " <> (pack (show $ length statements)) <> " statements"
-      T.putStrLn "[Migration-Debug] execSQL: using SQL.execute_ for each statement (transaction-safe)"
-      mapM_ (\stmt -> do
-        let preview = T.take 80 stmt
-        T.putStrLn $ "[Migration-Debug] execSQL: executing via SQL.execute_: " <> preview <> "..."
-        SQL.execute_ db (Query stmt)
-        T.putStrLn "[Migration-Debug] execSQL: statement completed successfully"
-        ) statements
-      T.putStrLn "[Migration-Debug] execSQL: all statements completed"
-      where
-        splitStatements s = filter (not . T.null) $ map T.strip $ T.splitOn ";" s
+    execSQL db = SQLite3.exec $ SQL.connectionHandle db
 
 initialize :: DBStore -> Maybe Query -> IO ()
 initialize st migrationsTable = withTransaction' st $ \db -> do
