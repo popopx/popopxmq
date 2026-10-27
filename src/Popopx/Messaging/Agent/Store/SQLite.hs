@@ -124,8 +124,6 @@ connectDB path functions key track = do
           -- PRAGMA trusted_schema = OFF;
           PRAGMA secure_delete = ON;
           PRAGMA auto_vacuum = FULL;
-          PRAGMA cipher_page_size = 4096;
-          PRAGMA cipher_compatibility = 4;
         |]
       mapM_ addFunction functions'
       where
