@@ -44,7 +44,7 @@ where
 
 import Control.Concurrent.MVar
 import Control.Concurrent.STM
-import Control.Exception (bracketOnError, onException, throwIO)
+import Control.Exception (bracketOnError, onException, throwIO, catch, IOException)
 import Control.Monad
 import Data.Bits (xor)
 import Data.ByteArray (ScrubbedBytes)
@@ -55,6 +55,7 @@ import Data.IORef
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 import Database.SQLite.Simple (Query (..))
 import qualified Database.SQLite.Simple as SQL
 import Database.SQLite.Simple.QQ (sql)
@@ -72,15 +73,24 @@ import qualified Popopx.Messaging.Crypto as C
 import Popopx.Messaging.Util (ifM, packZipWith, safeDecodeUtf8)
 import System.Directory (copyFile, createDirectoryIfMissing, doesFileExist)
 import System.FilePath (takeDirectory, takeFileName, (</>))
+import System.IO (stderr, openFile, hFileSize, hClose, IOMode(..))
+import Data.Time.Clock (getCurrentTime)
 
 -- * SQLite Store implementation
 
 createDBStore :: DBOpts -> [Migration] -> MigrationConfig -> IO (Either MigrationError DBStore)
 createDBStore opts@DBOpts {dbFilePath} migrations migrationConfig = do
+  let logFile = "/tmp/popopx_debug.log"
+  timestamp <- T.pack . show <$> getCurrentTime
+  appendFile logFile (T.unpack timestamp ++ " [createDBStore] Starting\n")
   let dbDir = takeDirectory dbFilePath
   createDirectoryIfMissing True dbDir
   st <- connectSQLiteStore opts
+  timestamp2 <- T.pack . show <$> getCurrentTime
+  appendFile logFile (T.unpack timestamp2 ++ " [createDBStore] connectSQLiteStore completed\n")
   r <- migrateDBSchema st opts Nothing migrations migrationConfig `onException` closeDBStore st
+  timestamp3 <- T.pack . show <$> getCurrentTime
+  appendFile logFile (T.unpack timestamp3 ++ " [createDBStore] migrateDBSchema completed\n")
   case r of
     Right () -> pure $ Right st
     Left e -> closeDBStore st $> Left e
@@ -110,13 +120,24 @@ connectSQLiteStore DBOpts {dbFilePath, dbFunctions, dbKey = key, keepKey, track}
 
 connectDB :: FilePath -> [SQLiteFuncDef] -> ScrubbedBytes -> DB.TrackQueries -> IO DB.Connection
 connectDB path functions key track = do
+  let logFile = takeDirectory path ++ "/popopx_init.log"
+  let logMsg msg = do
+        timestamp <- T.pack . show <$> getCurrentTime
+        catch (appendFile logFile (T.unpack timestamp ++ " " ++ msg ++ "\n")) (\(_ :: IOException) -> pure ())
+  logMsg $ "[DBInit] Opening database at: " ++ path
+  fileExistsBefore <- doesFileExist path
+  logMsg $ "[DBInit] File exists before open: " ++ show fileExistsBefore
   db <- DB.open path track
+  fileExistsAfter <- doesFileExist path
+  fileSize <- if fileExistsAfter then getFileSize path else pure 0
+  logMsg $ "[DBInit] File exists after open: " ++ show fileExistsAfter ++ ", size: " ++ show fileSize
   prepare db `onException` DB.close db
+  logMsg "[DBInit] Database prepared successfully"
   -- _printPragmas db path
   pure db
   where
     prepare db = do
-      unless (BA.null key) . SQLite3.exec db' $ "PRAGMA key = " <> keyString key <> ";"
+      logMsg "[DBInit] Setting cipher PRAGMAs before key (for new DB)"
       SQLite3.exec db' . fromQuery $
         [sql|
           PRAGMA busy_timeout = 100;
@@ -124,8 +145,14 @@ connectDB path functions key track = do
           -- PRAGMA trusted_schema = OFF;
           PRAGMA secure_delete = ON;
           PRAGMA auto_vacuum = FULL;
+          PRAGMA cipher_page_size = 4096;
+          PRAGMA cipher_compatibility = 4;
         |]
+      logMsg $ "[DBInit] Setting PRAGMA key (key length: " ++ show (BA.length key) ++ ")"
+      unless (BA.null key) . SQLite3.exec db' $ "PRAGMA key = " <> keyString key <> ";"
+      logMsg "[DBInit] All PRAGMAs executed, adding functions"
       mapM_ addFunction functions'
+      logMsg "[DBInit] Functions added successfully"
       where
         db' = SQL.connectionHandle $ DB.conn db
         functions' = SQLiteFuncDef "popopx_xor_md5_combine" 2 (SQLiteFuncPtr True sqliteXorMd5CombinePtr) : functions
@@ -133,6 +160,21 @@ connectDB path functions key track = do
           either (throwIO . userError . show) pure =<< case funcPtrs of
             SQLiteFuncPtr isDet funcPtr -> createStaticFunction db' funcName argCount isDet funcPtr
             SQLiteAggrPtrs stepPtr finalPtr -> createStaticAggregate db' funcName argCount stepPtr finalPtr
+    logMsg msg = do
+      timestamp <- T.pack . show <$> getCurrentTime
+      let logFile = takeDirectory path ++ "/popopx_init.log"
+      catch (appendFile logFile (T.unpack timestamp ++ " " ++ msg ++ "\n")) (\(_ :: IOException) -> pure ())
+    getFileSize fp = do
+      exists <- doesFileExist fp
+      if exists then do
+        size <- getFileSize' fp
+        pure size
+      else pure 0
+    getFileSize' fp = do
+      handle <- openFile fp ReadMode
+      size <- hFileSize handle
+      hClose handle
+      pure size
 
 foreign export ccall "popopx_xor_md5_combine" sqliteXorMd5Combine :: SQLiteFunc
 
@@ -181,7 +223,11 @@ reopenDBStore st@DBStore {dbKey, dbClosed} =
         Nothing -> fail "reopenDBStore: no key"
 
 keyString :: ScrubbedBytes -> Text
-keyString = sqlString . safeDecodeUtf8 . BA.convert
+keyString keyBytes =
+  let keyStr = safeDecodeUtf8 (BA.convert keyBytes)
+   in if "x'" `T.isPrefixOf` keyStr && "'" `T.isSuffixOf` keyStr
+        then keyStr  -- Already in SQLCipher hex format, use as-is
+        else sqlString keyStr
 
 sqlString :: Text -> Text
 sqlString s = quote <> T.replace quote "''" s <> quote
