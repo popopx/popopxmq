@@ -19,6 +19,7 @@ import Data.List.NonEmpty (NonEmpty)
 import qualified Data.Map.Strict as M
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Text.Encoding (decodeLatin1)
 import Data.Time.Clock (getCurrentTime)
 import Database.SQLite.Simple (Only (..), Query (..))
@@ -52,18 +53,22 @@ run st migrationsTable vacuum = \case
     table = fromMaybe "migrations" migrationsTable
     runUp Migration {name, up, down} = withTransaction' st $ \db -> do
       when (name == "m20220811_onion_hosts") $ updateServers db
-      insert db >> execSQL db up'
+      insert db >> execSQLSplit db up'
       where
         insert db = SQL.execute db ("INSERT INTO " <> table <> " (name, down, ts) VALUES (?,?,?)") . (name,down,) =<< getCurrentTime
         up'
           | dbNew st && name == "m20230110_users" = fromQuery new_m20230110_users
           | otherwise = up
+        -- Split SQL by semicolons and execute each statement individually to avoid transaction issues
+        execSQLSplit conn sql = mapM_ (SQLite3.exec (SQL.connectionHandle conn)) $ filter (not . T.null) $ T.splitOn ";" sql
         updateServers db = forM_ (M.assocs extraSMPServerHosts) $ \(h, h') ->
           let hs = decodeLatin1 . strEncode $ ([h, h'] :: NonEmpty TransportHost)
            in SQL.execute db "UPDATE servers SET host = ? WHERE host = ?" (hs, decodeLatin1 $ strEncode h)
     runDown DownMigration {downName, downQuery} = withTransaction' st $ \db -> do
-      execSQL db downQuery
+      execSQLSplit db downQuery
       SQL.execute db ("DELETE FROM " <> table <> " WHERE name = ?") (Only downName)
+      where
+        execSQLSplit conn sql = mapM_ (SQLite3.exec (SQL.connectionHandle conn)) $ filter (not . T.null) $ T.splitOn ";" sql
     execSQL db = SQLite3.exec $ SQL.connectionHandle db
 
 initialize :: DBStore -> Maybe Query -> IO ()
