@@ -137,7 +137,9 @@ connectDB path functions key track = do
   pure db
   where
     prepare db = do
-      logMsg "[DBInit] Setting cipher PRAGMAs before key (for new DB)"
+      logMsg $ "[DBInit] Setting PRAGMA key first (key length: " ++ show (BA.length key) ++ ")"
+      unless (BA.null key) . SQLite3.exec db' $ "PRAGMA key = " <> keyString key <> ";"
+      logMsg "[DBInit] Setting standard PRAGMAs after key"
       SQLite3.exec db' . fromQuery $
         [sql|
           PRAGMA busy_timeout = 100;
@@ -145,11 +147,7 @@ connectDB path functions key track = do
           -- PRAGMA trusted_schema = OFF;
           PRAGMA secure_delete = ON;
           PRAGMA auto_vacuum = FULL;
-          PRAGMA cipher_page_size = 4096;
-          PRAGMA cipher_compatibility = 4;
         |]
-      logMsg $ "[DBInit] Setting PRAGMA key (key length: " ++ show (BA.length key) ++ ")"
-      unless (BA.null key) . SQLite3.exec db' $ "PRAGMA key = " <> keyString key <> ";"
       logMsg "[DBInit] All PRAGMAs executed, adding functions"
       mapM_ addFunction functions'
       logMsg "[DBInit] Functions added successfully"
