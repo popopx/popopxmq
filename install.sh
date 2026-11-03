@@ -5,6 +5,7 @@ set -eu
 scripts="https://raw.githubusercontent.com/popopx/popopxmq/stable/scripts/main"
 scripts_systemd_smp="$scripts/smp-server.service"
 scripts_systemd_xftp="$scripts/xftp-server.service"
+scripts_systemd_ntf="$scripts/ntf-server.service"
 scripts_update="$scripts/popopx-servers-update"
 scripts_uninstall="$scripts/popopx-servers-uninstall"
 scripts_stopscript="$scripts/popopx-servers-stopscript"
@@ -13,6 +14,7 @@ scripts_stopscript="$scripts/popopx-servers-stopscript"
 path_bin="/usr/local/bin"
 path_bin_smp="$path_bin/smp-server"
 path_bin_xftp="$path_bin/xftp-server"
+path_bin_ntf="$path_bin/ntf-server"
 path_bin_update="$path_bin/popopx-servers-update"
 path_bin_uninstall="$path_bin/popopx-servers-uninstall"
 path_bin_stopscript="$path_bin/popopx-servers-stopscript"
@@ -21,16 +23,19 @@ path_conf_etc="/etc/opt"
 path_conf_var="/var/opt"
 path_conf_smp="$path_conf_etc/popopx $path_conf_var/popopx"
 path_conf_xftp="$path_conf_etc/popopx-xftp $path_conf_var/popopx-xftp /srv/xftp"
+path_conf_ntf="$path_conf_etc/popopx-ntf $path_conf_var/popopx-ntf"
 
 path_conf_info="$path_conf_etc/popopx-info"
 
 path_systemd="/etc/systemd/system"
 path_systemd_smp="$path_systemd/smp-server.service"
 path_systemd_xftp="$path_systemd/xftp-server.service"
+path_systemd_ntf="$path_systemd/ntf-server.service"
 
 # Defaut users
 user_smp="smp"
 user_xftp="xftp"
+user_ntf="ntf"
 
 GRN='\033[0;32m'
 BLU='\033[1;34m'
@@ -47,25 +52,30 @@ ______   ___   _ _____
 \_|    \_| |_/|_|\___/
 '
 
-welcome="Welcome to SMP/XFTP installation script! Here's what we're going to do:
+welcome="Welcome to SMP/XFTP/NTF installation script! Here's what we're going to do:
 ${GRN}1.${NC} Install latest binaries from GitHub releases:
     - smp: ${YLW}${path_bin_smp}${NC}
     - xftp: ${YLW}${path_bin_xftp}${NC}
+    - ntf: ${YLW}${path_bin_ntf}${NC}
 ${GRN}2.${NC} Create server directories:
     - smp: ${YLW}${path_conf_smp}${NC}
     - xftp: ${YLW}${path_conf_xftp}${NC}
+    - ntf: ${YLW}${path_conf_ntf}${NC}
 ${GRN}3.${NC} Setup user for server:
-    - xmp: ${YLW}${user_smp}${NC}
+    - smp: ${YLW}${user_smp}${NC}
     - xftp: ${YLW}${user_xftp}${NC}
+    - ntf: ${YLW}${user_ntf}${NC}
 ${GRN}4.${NC} Create systemd services:
     - smp: ${YLW}${path_systemd_smp}${NC}
     - xftp: ${YLW}${path_systemd_xftp}${NC}
+    - ntf: ${YLW}${path_systemd_ntf}${NC}
 ${GRN}5.${NC} Install stopscript (systemd), update and uninstallation script:
     - all: ${YLW}${path_bin_update}${NC}, ${YLW}${path_bin_uninstall}${NC}, ${YLW}${path_bin_stopscript}${NC}
 
 Press:
   - ${GRN}1${NC} to install smp server
   - ${GRN}2${NC} to install xftp server
+  - ${GRN}3${NC} to install ntf server
   - ${RED}Ctrl+C${NC} to cancel installation
   
 Selection: "
@@ -181,6 +191,7 @@ main() {
  case "$ans" in
   1) setup='smp' ;;
   2) setup='xftp' ;;
+  3) setup='ntf' ;;
   *) printf 'Installation aborted.\n' && exit 0 ;;
  esac
 
