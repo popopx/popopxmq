@@ -121,8 +121,9 @@ os_test() {
   *)  printf "${RED}Unsupported architecture!${NC}\nPlease file Github issue with request to support %s architecture: https://github.com/popopx/popopxmq/issues/new" "$arch" && exit 1 ;;
  esac
 
- bin_smp="$bin/smp-server-ubuntu-${version}-${arch}"
- bin_xftp="$bin/xftp-server-ubuntu-${version}-${arch}"
+ bin_smp="$bin/smp-server"
+ bin_xftp="$bin/xftp-server"
+ bin_ntf="$bin/ntf-server"
 }
 
 setup_bins() {
